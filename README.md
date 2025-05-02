@@ -103,37 +103,3 @@ python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q
 python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign F --upscale 2 --s_cfg 4.0 --linear_CFG
 ```
 
-
-
-
-
-
-
----
-
-## BibTeX
-    @misc{yu2024scaling,
-      title={Scaling Up to Excellence: Practicing Model Scaling for Photo-Realistic Image Restoration In the Wild}, 
-      author={Fanghua Yu and Jinjin Gu and Zheyuan Li and Jinfan Hu and Xiangtao Kong and Xintao Wang and Jingwen He and Yu Qiao and Chao Dong},
-      year={2024},
-      eprint={2401.13627},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
-    }
-
----
-
-## 📧 Contact
-If you have any question, please email `fanghuayu96@gmail.com` or `jinjin.gu@suppixel.ai`.
-
----
-## Non-Commercial Use Only Declaration
-The SUPIR ("Software") is made available for use, reproduction, and distribution strictly for non-commercial purposes. For the purposes of this declaration, "non-commercial" is defined as not primarily intended for or directed towards commercial advantage or monetary compensation.
-
-By using, reproducing, or distributing the Software, you agree to abide by this restriction and not to use the Software for any commercial purposes without obtaining prior written permission from Dr. Jinjin Gu.
-
-This declaration does not in any way limit the rights under any open source license that may apply to the Software; it solely adds a condition that the Software shall not be used for commercial purposes.
-
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-For inquiries or to obtain permission for commercial use, please contact Dr. Jinjin Gu (jinjin.gu@suppixel.ai).
