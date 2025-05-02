@@ -2,7 +2,7 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 
 - Removed the LLaVA implementation. 
 - Added safetensors support. 
-- Supports more up-to-date dependencies. 
+- Updated dependencies. 
 
 
 
@@ -13,16 +13,16 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 
 1. Clone repo
     ```bash
-    git clone https://github.com/Fanghua-Yu/SUPIR.git
+    git clone https://github.com/yushan777/SUPIR.git
     cd SUPIR
     ```
 
 2. Install dependent packages
     ```bash
-    conda create -n SUPIR python=3.8 -y
-    conda activate SUPIR
-    pip install --upgrade pip
-    pip install -r requirements.txt
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install torch==2.7.0+cu126 torchvision==0.22.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126
+        pip install -r requirements.txt
     ```
 
 3. Download Checkpoints
