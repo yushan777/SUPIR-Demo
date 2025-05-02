@@ -1,0 +1,11 @@
+You're on the right track, but let's refine that slightly based on the README's description:
+
+Q (Quality/General): Think of this as the robust, general-purpose model. It aims for high quality across a wide range of inputs. It's likely the best choice for most situations, whether the input is heavily degraded, lightly degraded, or even if you're trying to enhance an already decent photo. It's the default for a reason.
+
+F (Fidelity/Light Degradation): This one is more specialized. It's specifically trained to do a better job with images that have light degradation. In those specific cases, it might preserve details better than Q. It's focused on fidelity when the starting point isn't too bad. It might not be the best choice for heavily degraded images.
+
+So, it's less about "good vs bad" photos and more about:
+
+Q: The best all-around choice for general high quality.
+F: A specialized option potentially better only when dealing with light degradation and wanting maximum detail preservation from that specific input.
+For general use, starting with Q is recommended. You'd only switch to F if you specifically notice that Q isn't handling lightly degraded images quite as well as you'd like in terms of detail retention.

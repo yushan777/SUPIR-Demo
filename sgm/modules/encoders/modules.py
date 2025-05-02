@@ -464,11 +464,11 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             
             # Load configuration from local file
             from transformers import CLIPConfig
-            config = CLIPConfig.from_json_file("configs/clip_vit_config.json")
+            config = CLIPConfig.from_json_file("configs/clip1/clip_vit_config.json")
             
             # Load tokenizer from local directory
             from transformers import CLIPTokenizer
-            self.tokenizer = CLIPTokenizer.from_pretrained("configs/tokenizer/")
+            self.tokenizer = CLIPTokenizer.from_pretrained("configs/clip1/tokenizer/")
             
             # Create model with config
             from transformers import CLIPTextModel
