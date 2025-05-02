@@ -66,7 +66,7 @@ Usage:
 --SUPIR_sign             Model selection. Default: 'Q'; Options: ['F', 'Q']
 --seed                   Random seed. Default: 1234
 --min_size               Minimum resolution of output images. Default: 1024
---edm_steps              Numb of steps for EDM Sampling Scheduler. Default: 50
+--edm_steps              Number of steps for EDM Sampling Scheduler. Default: 50
 --s_stage1               Control Strength of Stage1. Default: -1 (negative means invalid)
 --s_churn                Original hy-param of EDM. Default: 5
 --s_noise                Original hy-param of EDM. Default: 1.003
