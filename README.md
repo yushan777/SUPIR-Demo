@@ -27,6 +27,15 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 
 3. Download Checkpoints
 
+SUPIR Models:  
+(FP16)
+* `SUPIR-v0Q`: [FP16](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
+* `SUPIR-v0F`: [FP16](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)
+
+(FP32)
+* `SUPIR-v0Q`: [FP32](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
+* `SUPIR-v0F`: [FP32](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)
+
 
 #### Dependent Models
 * [CLIP Encoder-1](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors)
@@ -34,12 +43,6 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 * [Juggernaut-XL_v9_RunDiffusionPhoto_v2](https://huggingface.co/yushan777/SUPIR/resolve/main/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors)
 
 
-#### Models we provided:
-* `SUPIR-v0Q`: [FP16](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
-* `SUPIR-v0F`: [FP16](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)
-
-* `SUPIR-v0Q`: [FP32](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
-* `SUPIR-v0F`: [FP32](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)
 
 SUPIR-v0Q : Default training settings with paper. High generalization and high image quality in most cases.
 SUPIR-v0F : Training with light degradation settings. Stage1 encoder of `SUPIR-v0F` remains more details when facing light degradations.
