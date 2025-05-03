@@ -27,16 +27,32 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 
 3. Download Models
 
-SUPIR Models: 
+Here's a cleaned-up and clearer version of your SUPIR model documentation:
 
-(FP16)
-* `SUPIR-v0Q`: [FP16](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
-* `SUPIR-v0F`: [FP16](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)  
-Place in `models/SUPIR/`
-(FP32)
-* `SUPIR-v0Q`: [FP32](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
-* `SUPIR-v0F`: [FP32](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)  
-Place in `models/SUPIR/`
+---
+
+#### SUPIR Models
+
+Download and place the model files in the `models/SUPIR/` directory.
+
+**FP16 Versions**
+
+* [`SUPIR-v0Q (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
+* [`SUPIR-v0F (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)
+
+**FP32 Versions**
+
+* [`SUPIR-v0Q (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
+* [`SUPIR-v0F (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)
+
+**Model Descriptions**
+
+* **SUPIR-v0Q**
+  Trained with the original settings from the paper. Offers high image quality and strong generalization across various conditions. *(Recommended default)*
+
+* **SUPIR-v0F**
+  Trained under light degradation settings. Its Stage 1 encoder preserves more details in slightly degraded inputs. Suitable when input quality is only mildly affected.
+
 
 #### Dependent Models
 * [CLIP Encoder-1](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors)  
@@ -48,8 +64,7 @@ Place in `models/SUPIR/`
 
 
 
-SUPIR-v0Q : Default training settings with paper. High generalization and high image quality in most cases.
-SUPIR-v0F : Training with light degradation settings. Stage1 encoder of `SUPIR-v0F` remains more details when facing light degradations.
+
 
 4. Edit Custom Path for Checkpoints
     ```
