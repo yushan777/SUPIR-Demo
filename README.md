@@ -81,6 +81,25 @@ RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd
 ```bash
 python3 test.py [options]
 python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
+
+python3 test.py \
+--img_path 'input/woman-low-res.jpg' \
+--save_dir ./output \
+--SUPIR_sign Q \
+--upscale 2 \
+--seed 1234567891 \
+--img_caption 'A woman has dark brown eyes, dark curly hair wearing a dark scarf on her head. She is wearing a black shirt on with a pattern on it. The wall behind her is brown and green.' \
+--edm_steps=50 \
+--s_churn=5 \
+--s_cfg=7 \
+--linear_CFG \
+--spt_linear_CFG=4.0 \
+--s_stage2=1.0 \
+--linear_s_stage2 \
+--spt_linear_s_stage2=0.9 \
+--loading_half_params \
+--use_tile_vae
+
 ```
 
 ### Required Arguments
@@ -109,6 +128,11 @@ python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q
   Number of images to generate per input. Default: `1`
 
 ### Prompt Guidance
+
+* `--img_caption`
+  Specific caption for the input image.
+  Default: `''` 
+  This caption is combined with `--a_prompt`.
 
 * `--a_prompt`
   Additional positive prompt (appended to input caption).
@@ -175,7 +199,7 @@ python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q
   Color adjustment method. Default: `'Wavelet'`
   Options: `['None', 'AdaIn', 'Wavelet']`
 
-### Precision Settings
+### Precision/Performance Settings
 
 * `--ae_dtype`
   Autoencoder precision. Default: `'bf16'`
@@ -184,6 +208,20 @@ python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q
 * `--diff_dtype`
   Diffusion model precision. Default: `'fp16'`
   Options: `['fp32', 'fp16', 'bf16']`
+
+* `--loading_half_params`
+  loads the SUPIR model weights in half precision. 
+  Default: `False`
+  Reduces VRAM usage and increases speed at the cost of slight precision loss.
+
+* `--use_tile_vae`
+  Enables tile-based encoding/decoding for memory efficiency with large images
+  Default: `False`
+
+* `--encoder_tile_size` / `--decoder_tile_size`  
+  Tile sizes (in pixels) used when use_tile_vae is enabled.
+  Encoder defaults to 512, decoder to 64.
+
 
 ---
 
@@ -232,6 +270,8 @@ See below for mappings to Kijai's SUPIR custom nodes
   No early structural bias, gradually increasing structure influence.
 
 ---
+
+
 
 ### Python Script
 
