@@ -61,49 +61,163 @@ SUPIR-v0F : Training with light degradation settings. Stage1 encoder of `SUPIR-v
 ### Val Dataset
 RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd=aocg), [Google Drive](https://drive.google.com/drive/folders/1yELzm5SvAi9e7kPcO_jPp2XkTs4vK6aR?usp=sharing)
 
-### Usage of SUPIR
-```Shell
-Usage: 
--- python test.py [options] 
--- python gradio_demo.py [interactive options]
+### Usage
 
---img_dir                Input folder.
---save_dir               Output folder.
---upscale                Upsampling ratio of given inputs. Default: 1
---SUPIR_sign             Model selection. Default: 'Q'; Options: ['F', 'Q']
---seed                   Random seed. Default: 1234
---min_size               Minimum resolution of output images. Default: 1024
---edm_steps              Number of steps for EDM Sampling Scheduler. Default: 50
---s_stage1               Control Strength of Stage1. Default: -1 (negative means invalid)
---s_churn                Original hy-param of EDM. Default: 5
---s_noise                Original hy-param of EDM. Default: 1.003
---s_cfg                  Classifier-free guidance scale for prompts. Default: 7.5
---s_stage2               Control Strength of Stage2. Default: 1.0
---num_samples            Number of samples for each input. Default: 1
---a_prompt               Additive positive prompt for all inputs. 
-    Default: 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, 
-    hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme
-     meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
---n_prompt               Fixed negative prompt for all inputs. 
-    Default: 'painting, oil painting, illustration, drawing, art, sketch, oil painting, 
-    cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, 
-    low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth'
---color_fix_type         Color Fixing Type. Default: 'Wavelet'; Options: ['None', 'AdaIn', 'Wavelet']
---linear_CFG             Linearly (with sigma) increase CFG from 'spt_linear_CFG' to s_cfg. Default: False
---linear_s_stage2        Linearly (with sigma) increase s_stage2 from 'spt_linear_s_stage2' to s_stage2. Default: False
---spt_linear_CFG         Start point of linearly increasing CFG. Default: 1.0
---spt_linear_s_stage2    Start point of linearly increasing s_stage2. Default: 0.0
---ae_dtype               Inference data type of AutoEncoder. Default: 'bf16'; Options: ['fp32', 'bf16']
---diff_dtype             Inference data type of Diffusion. Default: 'fp16'; Options: ['fp32', 'fp16', 'bf16']
+```bash
+python3 test.py [options]
+python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
 ```
+
+### Required Arguments
+
+* `--img_path`
+  Path to the input image.
+
+* `--save_dir`
+  Directory to save the output.
+
+### Optional Options
+
+* `--upscale`
+  Upsampling ratio for the input. Default: `1`
+
+* `--SUPIR_sign`
+  Model type. Options: `['F', 'Q']`. Default: `'Q'`
+
+* `--seed`
+  Random seed for reproducibility. Default: `1234`
+
+* `--min_size`
+  Minimum output resolution. Default: `1024`
+
+* `--num_samples`
+  Number of images to generate per input. Default: `1`
+
+### Prompt Guidance
+
+* `--a_prompt`
+  Additional positive prompt (appended to input caption).
+  Default:
+
+  ```
+  Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, 
+  hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, 
+  extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.
+  ```
+
+* `--n_prompt`
+  Fixed negative prompt.
+  Default:
+
+  ```
+  painting, oil painting, illustration, drawing, art, sketch, cartoon, CG Style, 
+  3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, 
+  frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth
+  ```
+
+### Diffusion Sampling Parameters
+
+* `--edm_steps`
+  Number of diffusion steps. Default: `50`
+
+* `--s_churn`
+  Adds random noise to encourage variation.
+  Default: `5`
+
+  * `0`: No noise (deterministic)
+  * `1–5`: Mild/moderate (typical use)
+  * `6–10+`: Strong (rare)
+
+* `--s_noise`
+  Scales churn noise strength. Default: `1.003`
+
+  * Slightly < 1: More stable
+  * Slightly > 1: More variation
+
+* `--s_cfg`
+  Prompt guidance strength. Default: `7.5`
+
+  * `1.0`: Weak (ignores prompt)
+  * `7.5`: Strong (follows prompt closely)
+
+### Image Structure Guidance
+
+* `--s_stage1`
+  Early-stage restoration strength.
+  Default: `-1` (disabled). Typical values: `1–6`
+
+* `--s_stage2`
+  Structural guidance from input image. Default: `1.0`
+
+  * `0.0`: Disabled
+  * `0.1–0.5`: Light
+  * `0.6–1.0`: Balanced (default)
+  * `1.1–1.5+`: Very strong
+
+### Color Correction
+
+* `--color_fix_type`
+  Color adjustment method. Default: `'Wavelet'`
+  Options: `['None', 'AdaIn', 'Wavelet']`
+
+### Precision Settings
+
+* `--ae_dtype`
+  Autoencoder precision. Default: `'bf16'`
+  Options: `['fp32', 'bf16']`
+
+* `--diff_dtype`
+  Diffusion model precision. Default: `'fp16'`
+  Options: `['fp32', 'fp16', 'bf16']`
+
+---
+
+### Linear Scheduling (for dynamic scaling during sampling)
+
+* `--linear_CFG`
+  Enable linear scheduling for prompt guidance (`--s_cfg`). Default: `True`
+
+* `--spt_linear_CFG`
+  Start value of `--s_cfg` when linear scheduling is enabled. Default: `4.0`
+
+* `--linear_s_stage2`
+  Enable linear scheduling for structure guidance (`--s_stage2`). Default: `False`
+
+* `--spt_linear_s_stage2`
+  Start value of `--s_stage2` if `--linear_s_stage2` is enabled. Default: `0.0`
+
+**Purpose:**
+Linear scheduling gradually adjusts values during sampling based on noise level (`sigma`).
+
+* Prompt guidance (`CFG`) moves from `--spt_linear_CFG` (start value) → `--s_cfg` (end value)
+* Structure guidance (`Control scale`) moves from `--spt_linear_s_stage2` (start value) → `--s_stage2` (end value)
+
+See below for mappings to Kijai's SUPIR custom nodes
+---
+
+### ComfyUI Mapping (Kijai's Node)
+
+| ComfyUI Parameter     | Equivalent CLI Option   |
+| --------------------- | ----------------------- |
+| `cfg_scale_start`     | `--spt_linear_CFG`      |
+| `cfg_scale_end`       | `--s_cfg`               |
+| `control_scale_start` | `--spt_linear_s_stage2` |
+| `control_scale_end`   | `--s_stage2`            |
+| `restore_cfg`         | `--s_stage1`            |                       
+
+* Setting both start and end to the same value disables linear scheduling.
+* Setting different values enables dynamic scheduling.
+
+#### Example Behaviors:
+
+* `control_scale_start=1.0`, `control_scale_end=0.0`:
+  Strong guidance early, fading out for prompt-driven details later.
+
+* `control_scale_start=0.0`, `control_scale_end=1.0`:
+  No early structural bias, gradually increasing structure influence.
+
+---
 
 ### Python Script
-```Shell
-python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
 
-# Seek for best quality for most cases
-python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2
-# for light degradation and high fidelity
-python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign F --upscale 2 --s_cfg 4.0 --linear_CFG
-```
 
