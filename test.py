@@ -158,22 +158,20 @@ Usage:
     cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, 
     low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth'
 --color_fix_type         Color Fixing Type. Default: 'Wavelet'; Options: ['None', 'AdaIn', 'Wavelet']
---linear_CFG             Linearly (with sigma) increase CFG from 'spt_linear_CFG' to s_cfg. Default: False
+--linear_CFG             Linearly (with sigma) increase CFG from 'spt_linear_CFG' to s_cfg. Default: True
 --linear_s_stage2        Linearly (with sigma) increase s_stage2 from 'spt_linear_s_stage2' to s_stage2. Default: False
---spt_linear_CFG         Start point of linearly increasing CFG. Default: 1.0
+--spt_linear_CFG         Start point of linearly increasing CFG. Default: 4.0
 --spt_linear_s_stage2    Start point of linearly increasing s_stage2. Default: 0.0
 --ae_dtype               Inference data type of AutoEncoder. Default: 'bf16'; Options: ['fp32', 'bf16']
 --diff_dtype             Inference data type of Diffusion. Default: 'fp16'; Options: ['fp32', 'fp16', 'bf16']
 
 
 --s_stage1:
-Controls restore_cfg parameter, a restoration guidance feature in the diffusion process. It’s used only in the early steps when 
-the image is still very noisy. If enabled (with a positive number), it pulls the generated image closer to the structure of the 
-original low-quality input. The higher the value, the stronger the pull towards the input image's structure.
-By default (--s_stage1 -1), this feature is turned off.
-It helps preserve the shape or layout of the input image during generation.
+Controls restore_cfg (also called this in kijai's node) parameter, a restoration guidance feature in the diffusion process. 
+It’s used only in the early steps when the image is still very noisy. If enabled (with a positive number), it pulls the 
+generated image closer to the structure of the original low-quality input. The higher the value, the stronger the pull 
+towards the input image's structure. By default (--s_stage1 = -1), and is turned off.
 Typical values: 1-6
-
 
 --s_churn:
 Adds extra noise ("churn") during diffusion steps to boost image diversity and prevent the model from getting stuck.
@@ -232,4 +230,85 @@ AdaIn	Uses Adaptive Instance Normalization to transfer color stats (mean/var)
 Wavelet	(Default) Uses a wavelet-based method to better preserve color fidelity
 
 
+--linear_CFG
+--linear_s_stage2
+--spt_linear_CFG
+--spt_linear_s_stage2
+
+These four arguments control optional linear scheduling for the prompt guidance (CFG) and the input image guidance (Control scale) during the sampling process.
+
+--linear_CFG (Default: True)
+Function: This flag enables linear scheduling for the CFG scale (prompt guidance strength) by default.
+Behavior: When enabled, the CFG scale changes linearly throughout the sampling steps, depending on the noise level (sigma). It starts at the value set by --spt_linear_CFG and moves towards the final value set by --s_cfg.
+Default Effect: With defaults (--spt_linear_CFG 4.0 and --s_cfg 7.5), the prompt guidance starts weaker (4.0) when noise is high (early steps) and increases linearly to the final strength (7.5) as noise decreases (later steps).
+Purpose: This strategy applies weaker prompt guidance initially, allowing for more exploration, and strengthens it towards the end to refine the image according to the prompt.
+
+--spt_linear_CFG (Default: 4.0)
+Function: Sets the starting point value for the CFG scale when --linear_CFG is enabled.
+Usage: This is the CFG value used at the beginning of the sampling process (highest noise). With the default settings, it's 4.0.
+
+--linear_s_stage2 (Default: False)
+Function: This flag disables linear scheduling for the Control scale (input image guidance strength, --s_stage2) by default.
+Behavior: If enabled (by adding --linear_s_stage2 to the command), the Control scale would change linearly during sampling, starting from the value set by --spt_linear_s_stage2 and moving towards the final value set by --s_stage2.
+Purpose: Allows for dynamic adjustment of the input image's structural influence during generation.
+
+--spt_linear_s_stage2 (Default: 0.0)
+Function: Sets the starting point value for the Control scale only if --linear_s_stage2 is enabled.
+Usage: If you enable linear scheduling for the Control scale, you would set this value. For example, to decrease control strength from 1.2 to 1.0, you'd use --linear_s_stage2 --spt_linear_s_stage2 1.2 --s_stage2 1.0. To increase it from 0.8 to 1.0, you'd use --linear_s_stage2 --spt_linear_s_stage2 0.8 --s_stage2 1.0. The default 0.0 is only relevant if --linear_s_stage2 is active.
+
+In summary (based on defaults): By default, only the CFG scale uses linear scheduling (--linear_CFG True). 
+It starts at 4.0 (--spt_linear_CFG) and increases to 7.5 (--s_cfg) during sampling. 
+The Control scale remains constant at 1.0 (--s_stage2) because --linear_s_stage2 is False.
+
+In Kijai's ComfyUI custom nodes for SUPIR, this is how they map:
+
+* `cfg_scale_start` (ComfyUI) corresponds to `--spt_linear_CFG` (test.py)
+  This sets the initial value for the CFG scale (prompt guidance) at the beginning of sampling (high noise).
+
+* `cfg_scale_end` (ComfyUI) corresponds to `--s_cfg` (test.py)
+  This sets the final value for the CFG scale at the end of sampling (low noise).
+
+* `control_scale_start` (ComfyUI) corresponds to `--spt_linear_s_stage2` (test.py)
+  This sets the initial value for the Control scale (input image guidance) at the beginning of sampling.
+
+* `control_scale_end` (ComfyUI) corresponds to `--s_stage2` (test.py)
+  This sets the final value for the Control scale at the end of sampling.
+
+  ==================================
+The ComfyUI node version of SUPIR simplifies the interface. Instead of separate flags (`--linear_CFG`, `--linear_s_stage2`) 
+to enable or disable linear scheduling and separate arguments for start and end points, it directly asks 
+for the `start` and `end` values for both scales.
+
+If you set `cfg_scale_start` equal to `cfg_scale_end` in ComfyUI, it's equivalent to using a constant CFG scale in the script 
+(`--linear_CFG False` or just setting `--s_cfg`).
+
+If you set `cfg_scale_start` different from `cfg_scale_end`, it's equivalent to enabling linear CFG scheduling in the script 
+(`--linear_CFG True`) and using `--spt_linear_CFG` for the start and `--s_cfg` for the end.
+
+The same logic applies to `control_scale_start` and `control_scale_end`, 
+which correspond to `--linear_s_stage2`, `--spt_linear_s_stage2`, and `--s_stage2`.
+
+so if control_scale_start and control_scale_end are 0, then it is effectively off.
+
+If either value is greater than zero then it is on. 
+
+==================================
+If you set `control_scale_start = 1.0` and `control_scale_end = 0.0` in the ComfyUI node:
+
+The Control scale (input image guidance strength) will start at 1.0 at the beginning of the sampling process (when noise is high).
+
+Then, as the sampling progresses and the noise level decreases, the Control scale will linearly decrease step-by-step.
+
+By the end of the sampling process (when noise is lowest), the Control scale will have reached 0.0.
+
+Effect:This means the structural guidance from the input image is strongest at the beginning, helping to lock in the overall composition, and then its influence gradually fades out, potentially allowing the text prompt (CFG guidance) or the base model's tendencies more freedom to influence the finer details and textures in the later stages of generation.
+
+==================================
+If you set control_scale_start = 0.0 and control_scale_end = 1.0 in the ComfyUI node:
+
+The Control scale (input image guidance strength) will start at 0.0 at the beginning of the sampling process (when noise is high).
+As sampling progresses and the noise decreases, the Control scale will increase linearly step-by-step.
+By the end of the sampling process (when noise is lowest), the Control scale will reach 1.0.
+
+Effect: This means the input image has no structural influence at the start, allowing the prompt (or base model) more freedom to define the overall composition and style. As the sampling continues, the structure from the input image gradually becomes more influential, helping refine and align the final output with the source image in the later stages.
 """
