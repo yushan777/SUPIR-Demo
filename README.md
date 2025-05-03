@@ -45,13 +45,13 @@ Download and place the model files in the `models/SUPIR/` directory.
 * [`SUPIR-v0Q (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
 * [`SUPIR-v0F (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)
 
-**Model Descriptions**
+There are two SUPIR model variants: v0Q and v0F. 
 
 * **SUPIR-v0Q**
-  Trained with the original settings from the paper. Offers high image quality and strong generalization across various conditions. *(Recommended default)*
+The v0Q model (Quality) is trained on a wide range of degradations, making it robust and effective across varied real-world scenarios. However, this broad generalization comes at a cost—when applied to images with only mild degradation, v0Q might overcompensate, hallucinate or alter details that are already mostly intact. This behavior stems from its training bias toward assuming significant visual damage. 
 
 * **SUPIR-v0F**
-  Trained under light degradation settings. Its Stage 1 encoder preserves more details in slightly degraded inputs. Suitable when input quality is only mildly affected.
+In contrast, the v0F model (Fidelity) is specifically trained on lighter degradation patterns. Its Stage1 encoder is tuned to better preserve fine details and structure, resulting in restorations that are more faithful to the input when the degradation is minimal. As a result, v0F is the preferred choice for high-fidelity restoration where subtle preservation is more critical than aggressive enhancement.
 
 
 #### Dependent Models

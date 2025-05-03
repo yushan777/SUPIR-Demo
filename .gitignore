@@ -166,3 +166,4 @@ cython_debug/
 /output
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
+*.
