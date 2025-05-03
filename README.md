@@ -91,10 +91,10 @@ python3 test.py \
 --img_caption 'A woman has dark brown eyes, dark curly hair wearing a dark scarf on her head. She is wearing a black shirt on with a pattern on it. The wall behind her is brown and green.' \
 --edm_steps=50 \
 --s_churn=5 \
---s_cfg=7 \
+--s_cfg=4.0 \
 --linear_CFG \
---spt_linear_CFG=4.0 \
---s_stage2=1.0 \
+--spt_linear_CFG=2.0 \
+--s_stage2=0.9 \
 --linear_s_stage2 \
 --spt_linear_s_stage2=0.9 \
 --loading_half_params \
