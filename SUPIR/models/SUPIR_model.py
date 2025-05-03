@@ -80,7 +80,7 @@ class SUPIRModel(DiffusionEngine):
         # import os
         
         # # Use the specified output directory
-        # output_dir = "/home/johnl/ai/SUPIR/output"
+        # output_dir = "/home/xxxx/ai/SUPIR/output"
         
         # # Create directory if it doesn't exist
         # if not os.path.exists(output_dir):
