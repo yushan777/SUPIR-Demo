@@ -40,6 +40,8 @@ class SUPIRModel(DiffusionEngine):
 
     @torch.no_grad()
     def encode_first_stage(self, x):
+        print("encode_first_stage")
+
         with torch.autocast("cuda", dtype=self.ae_dtype):
             z = self.first_stage_model.encode(x)
         z = self.scale_factor * z
@@ -47,6 +49,7 @@ class SUPIRModel(DiffusionEngine):
 
     @torch.no_grad()
     def encode_first_stage_with_denoise(self, x, use_sample=True, is_stage1=False):
+        print("encode_first_stage_with_denoise")
         with torch.autocast("cuda", dtype=self.ae_dtype):
             if is_stage1:
                 h = self.first_stage_model.denoise_encoder_s1(x)
@@ -63,9 +66,37 @@ class SUPIRModel(DiffusionEngine):
 
     @torch.no_grad()
     def decode_first_stage(self, z):
+        print("decode_first_stage")
+
         z = 1.0 / self.scale_factor * z
         with torch.autocast("cuda", dtype=self.ae_dtype):
             out = self.first_stage_model.decode(z)
+
+        # >>
+        # Save decoded image
+
+        # import numpy as np
+        # from PIL import Image
+        # import os
+        
+        # # Use the specified output directory
+        # output_dir = "/home/johnl/ai/SUPIR/output"
+        
+        # # Create directory if it doesn't exist
+        # if not os.path.exists(output_dir):
+        #     os.makedirs(output_dir)
+        
+        # # Create the full path
+        # full_path = os.path.join(output_dir, "denoised.jpg")
+        
+        # # Convert to numpy and save
+        # out_float = out.float()  # Ensure we're working with float32
+        # image_np = ((out_float[0].cpu().numpy().transpose(1, 2, 0) + 1) / 2)
+        # image_np = np.clip(image_np, 0, 1)
+        # image_pil = Image.fromarray((image_np * 255).astype(np.uint8))
+        # image_pil.save(full_path)
+        # print(f"Decoded image saved to {full_path}")     
+
         return out.float()
 
     @torch.no_grad()
@@ -135,7 +166,7 @@ class SUPIRModel(DiffusionEngine):
             samples = adaptive_instance_normalization(samples, x_stage1)
         return samples
 
-    def init_tile_vae(self, encoder_tile_size=512, decoder_tile_size=64):
+    def init_tile_vae(self, encoder_tile_size=512, decoder_tile_size=256):
         self.first_stage_model.denoise_encoder.original_forward = self.first_stage_model.denoise_encoder.forward
         self.first_stage_model.encoder.original_forward = self.first_stage_model.encoder.forward
         self.first_stage_model.decoder.original_forward = self.first_stage_model.decoder.forward
