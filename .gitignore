@@ -167,3 +167,4 @@ cython_debug/
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
 *.
+._test_gradio.py
