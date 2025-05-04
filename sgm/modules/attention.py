@@ -292,7 +292,7 @@ class MemoryEfficientCrossAttention(nn.Module):
     ):
         super().__init__()
         print(
-            f"Setting up {self.__class__.__name__}. Query dim is {query_dim}, context_dim is {context_dim} and using "
+            f">> Setting up {self.__class__.__name__}. Query dim is {query_dim}, context_dim is {context_dim} and using "
             f"{heads} heads with a dimension of {dim_head}."
         )
         inner_dim = dim_head * heads

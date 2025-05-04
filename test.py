@@ -128,8 +128,19 @@ samples = model.batchify_sample(LQ_img, captions,
 # save
 output_base_name = f"{img_name}_SUPIR" # Construct a base name for output
 for _i, sample in enumerate(samples):
-    output_filename = f'{output_base_name}_{_i}.png' if args.num_samples > 1 else f'{output_base_name}.png'
+    # Determine initial filename
+    base_filename = f'{output_base_name}_{_i}' if args.num_samples > 1 else output_base_name
+    extension = '.png'
+    output_filename = f'{base_filename}{extension}'
     save_path = os.path.join(args.save_dir, output_filename)
+
+    # Check if file exists and append index if necessary
+    counter = 1
+    while os.path.exists(save_path):
+        output_filename = f'{base_filename}_{counter}{extension}'
+        save_path = os.path.join(args.save_dir, output_filename)
+        counter += 1
+
+    # Save the image
     Tensor2PIL(sample, h0, w0).save(save_path)
     print(f"Saved output image to: {save_path}")
-

@@ -4,6 +4,7 @@ import argparse
 import os
 import random
 import tempfile
+import glob  # Added import
 from PIL import Image
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 
@@ -104,6 +105,36 @@ def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps,
     
     # Convert result to PIL image
     result_img = Tensor2PIL(samples[0], h0, w0)
+
+    # --- Save the image before returning ---
+    try:
+        # Ensure the output directory exists
+        output_dir = "output"
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Find existing gradio files in the output directory to determine the next index
+        existing_files = glob.glob(os.path.join(output_dir, "gradio_*.png"))
+        max_index = -1
+        for f in existing_files:
+            try:
+                # Extract index from filename like "gradio_123.png"
+                index_str = f.replace("gradio_", "").replace(".png", "")
+                index = int(index_str)
+                if index > max_index:
+                    max_index = index
+            except ValueError:
+                # Ignore files that don't match the pattern
+                pass
+
+        next_index = max_index + 1
+        # Construct the full save path within the output directory
+        save_path = os.path.join(output_dir, f"gradio_{next_index}.png")
+        result_img.save(save_path)
+        print(f"Saved generated image to: {save_path}")
+    except Exception as e:
+        print(f"Error saving image: {e}")
+    # --- End saving logic ---
+
     return result_img
 
 # Function to update tile VAE visibility
