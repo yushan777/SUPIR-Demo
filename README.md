@@ -87,6 +87,10 @@ RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd
 ### Usage
 
 ```bash
+# for gradio
+python3 gradio_test.py --listen
+
+
 python3 test.py [options]
 python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
 

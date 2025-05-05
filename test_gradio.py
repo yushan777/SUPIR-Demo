@@ -270,6 +270,7 @@ if __name__ == "__main__":
     # Create and launch the interface
     demo = create_ui()
     demo.launch(
+        # if --listen arg is passed then bind to 0.0.0.0, otherwise default to localhost (127.0.0.1) only
         server_name=args.server_name if args.listen else None,
         server_port=args.server_port,
         share=args.share
