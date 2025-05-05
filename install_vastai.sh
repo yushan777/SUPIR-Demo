@@ -29,8 +29,8 @@ huggingface-cli download $REPO_NAME CLIP1/clip-vit-large-patch14/safetensors/cli
 huggingface-cli download $REPO_NAME CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors --local-dir downloads
 
 # move the models
-mv downloads/SUPIR/SUPIR-v0Q_fp32.safetensors models/SUPIR/
-mv downloads/SUPIR/SUPIR-v0F_fp32.safetensors models/SUPIR/
+mv downloads/SUPIR/SUPIR-v0Q_fp16.safetensors models/SUPIR/
+mv downloads/SUPIR/SUPIR-v0F_fp16.safetensors models/SUPIR/
 mv downloads/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors models/SDXL
 mv downloads/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors models/CLIP1
 mv downloads/CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors models/CLIP2
