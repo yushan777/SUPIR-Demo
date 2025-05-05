@@ -34,9 +34,9 @@ def generate_random_seed():
     return random.randint(1, 2147483647)
 
 # Process the image with SUPIR
-def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps, 
+def process_image(input_image, upscale, supir_sign, seed,  edm_steps, 
                  s_stage1, s_churn, s_noise, s_cfg, s_stage2,
-                 img_caption, a_prompt, n_prompt, color_fix_type,
+                 img_caption, a_prompt, n_prompt,
                  linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2,
                  config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                  ae_dtype, diff_dtype):
@@ -151,19 +151,43 @@ default_negative_prompt = 'painting, oil painting, illustration, drawing, art, s
 
 # Create the Gradio UI
 def create_ui():
-    with gr.Blocks(title="SUPIR Image Restoration") as demo:
+
+
+    with gr.Blocks(title="SUPIR Image Restoration", css=".container { max-width: 600px; margin: auto; }") as demo:
+    # with gr.Blocks(title="SUPIR Image Restoration") as demo:
         gr.Markdown("# SUPIR Image Restoration Shit")
         gr.Markdown("Upload an image to enhance/detail/restore it using the SUPIR model")
         
         # =========================================================================
         with gr.Row():
             with gr.Column():
-                input_image = gr.Image(label="Input Image", type="pil", height=800)
+                input_image = gr.Image(label="Input Image", type="pil", height=512)
                 run_button = gr.Button("Enhance Image")
             
             with gr.Column():
-                output_image = gr.Image(label="Enhanced Image", height=800)
+                output_image = gr.Image(label="Enhanced Image", height=512)
         
+        # =========================================================================
+        with gr.Row():
+            img_caption = gr.Textbox(
+                    label="Image Caption (Leave empty for no caption)", 
+                    lines=3,
+                    placeholder="Describe the image to be enhanced. This will usually help improve results."
+                )
+
+        with gr.Row():
+            upscale = gr.Slider(minimum=1, maximum=4, value=2, step=1, label="Upscale Factor")
+            supir_sign = gr.Radio(
+                    choices=["Q", "F"], 
+                    value="Q", 
+                    label="SUPIR Model :",
+                    info="v0Q is trained for wide range of image degradation, so it may overcorrect or hallucinate details on lightly degraded images due to its bias toward heavy damage. v0F targets light degradation, preserving fine details and structure for high-fidelity restoration with minimal alteration."
+            )
+
+        with gr.Column():
+            seed = gr.Number(value=1234567891, precision=0, label="Seed")
+            random_seed_button = gr.Button("🎲 Random", size="sm")     
+
         # =========================================================================
         with gr.Accordion("Precision & Performance Settings", open=True):
             config_path = gr.Radio(
@@ -183,9 +207,10 @@ def create_ui():
                 use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE (use if <=24GB VRAM)")
 
             # Create a visible container for tile VAE settings
-            with gr.Column(visible=False) as tile_vae_settings:
-                encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
-                decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
+            with gr.Column(visible=True) as tile_vae_settings:  # Set to True since use_tile_vae is True by default
+                with gr.Row():  # Add this Row to arrange sliders horizontally
+                    encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
+                    decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
             
             # Connect the checkbox to update visibility
             use_tile_vae.change(
@@ -195,20 +220,12 @@ def create_ui():
             )
         
         # =========================================================================
-        with gr.Accordion("Basic Settings", open=True):
-            upscale = gr.Slider(minimum=1, maximum=4, value=2, step=1, label="Upscale Factor")
-            supir_sign = gr.Radio(choices=["F", "Q"], value="Q", label="SUPIR Model : SUPIR-v0Q is robust to heavy degradations but may overcorrect clean images, while SUPIR-v0F is tuned for lighter degradations, making it better suited for high-fidelity restoration of already high-quality inputs.")
-            
-            # Replace seed slider with text input and add random button
-            with gr.Row():
-                seed = gr.Number(value=1234567891, precision=0, label="Seed")
-                random_seed_button = gr.Button("🎲 Random", size="sm")
-            
-            min_size = gr.Slider(minimum=1024, maximum=2048, value=1024, step=64, label="Minimum Size (`min_size` ensures that the image being processed has a minimum width or height)")
-            img_caption = gr.Textbox(label="Image Caption (optional)", placeholder="Leave empty for no caption")
-            color_fix_type = gr.Radio(choices=["None", "AdaIn", "Wavelet"], value="Wavelet", label="Color Fix Type")
+        # with gr.Accordion("Basic Settings", open=True):
+                        
+        #     min_size = gr.Slider(minimum=1024, maximum=2048, value=1024, step=64, label="Minimum Size (`min_size` ensures that the image being processed has a minimum width or height)")
+        #     color_fix_type = gr.Radio(choices=["None", "AdaIn", "Wavelet"], value="Wavelet", label="Color Fix Type")
         
-        with gr.Accordion("Advanced Settings", open=False):
+        with gr.Accordion("Advanced Settings", open=True):
             edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="EDM Steps")
             s_stage1 = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Stage 1 Scale (kijai restore_cfg)")
             s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="Churn")
@@ -221,13 +238,13 @@ def create_ui():
                 spt_linear_CFG = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="Start Linear CFG (kijai cfg_scale_start)")
             
             with gr.Row():
-                linear_s_stage2 = gr.Checkbox(value=False, label="Linear Stage 2")
+                linear_s_stage2 = gr.Checkbox(value=True, label="Linear Stage 2")
                 spt_linear_s_stage2 = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Start Linear Stage 2 (kijai control_scale_start)")
 
         # =========================================================================
-        with gr.Accordion("(Additional) Prompt Settings - these are appended to the main caption", open=False):
-            a_prompt = gr.Textbox(value=default_positive_prompt, label="Positive Prompt")
-            n_prompt = gr.Textbox(value=default_negative_prompt, label="Negative Prompt")
+        with gr.Accordion("(Additional) Prompt Settings - these are appended to the main caption.", open=False):
+            a_prompt = gr.Textbox(value=default_positive_prompt, lines=3, label="Positive Prompt")
+            n_prompt = gr.Textbox(value=default_negative_prompt, lines=3, label="Negative Prompt")
         
         # Random seed button functionality
         random_seed_button.click(
@@ -235,14 +252,15 @@ def create_ui():
             inputs=[],
             outputs=[seed]
         )
-        
+
         # Connect the run button to the process_image function
+        # note: min_size and color_fix_type are hardcoded
         run_button.click(
             fn=process_image,
             inputs=[
-                input_image, upscale, supir_sign, seed, min_size, edm_steps,
+                input_image, upscale, supir_sign, seed,  edm_steps,
                 s_stage1, s_churn, s_noise, s_cfg, s_stage2,
-                img_caption, a_prompt, n_prompt, color_fix_type,
+                img_caption, a_prompt, n_prompt, 
                 linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2,
                 config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                 ae_dtype, diff_dtype
