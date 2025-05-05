@@ -128,7 +128,7 @@ def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps,
 
         next_index = max_index + 1
         # Construct the full save path within the output directory
-        save_path = os.path.join(output_dir, f"gradio_{next_index}.png")
+        save_path = os.path.join(output_dir, f"gradio_{supir_sign}_{next_index}.png")
         result_img.save(save_path)
         print(f"Saved generated image to: {save_path}")
     except Exception as e:
