@@ -14,11 +14,12 @@ if torch.cuda.device_count() >= 1:
 else:
     raise ValueError('Currently support CUDA only.')
 
-# Create SUPIR model with default settings
-def load_model(supir_sign='Q', loading_half_params=False, use_tile_vae=False, 
-               encoder_tile_size=512, decoder_tile_size=64, 
+# Create SUPIR model with specified settings
+def load_model(config_path, supir_sign='Q', loading_half_params=False, use_tile_vae=False,
+               encoder_tile_size=512, decoder_tile_size=64,
                ae_dtype="bf16", diff_dtype="fp16"):
-    model = create_SUPIR_model('options/SUPIR_v0.yaml', SUPIR_sign=supir_sign)
+    print(f"Loading SUPIR model from config: {config_path}")
+    model = create_SUPIR_model(config_path, SUPIR_sign=supir_sign)
     if loading_half_params:
         model = model.half()
     if use_tile_vae:
@@ -34,17 +35,18 @@ def generate_random_seed():
 
 # Process the image with SUPIR
 def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps, 
-                 s_stage1, s_churn, s_noise, s_cfg, s_stage2, 
-                 img_caption, a_prompt, n_prompt, color_fix_type, 
+                 s_stage1, s_churn, s_noise, s_cfg, s_stage2,
+                 img_caption, a_prompt, n_prompt, color_fix_type,
                  linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2,
-                 loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
+                 config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                  ae_dtype, diff_dtype):
-    
+
     # Load model with specified precision and performance settings
     global model
     # Reload model if precision settings changed or not loaded yet
     if ('model' not in globals() or
         'current_settings' not in globals() or
+        current_settings['config_path'] != config_path or
         current_settings['supir_sign'] != supir_sign or
         current_settings['loading_half_params'] != loading_half_params or
         current_settings['use_tile_vae'] != use_tile_vae or
@@ -52,9 +54,10 @@ def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps,
         current_settings['decoder_tile_size'] != decoder_tile_size or
         current_settings['ae_dtype'] != ae_dtype or
         current_settings['diff_dtype'] != diff_dtype):
-        
+
         model = load_model(
-            supir_sign=supir_sign, 
+            config_path=config_path,
+            supir_sign=supir_sign,
             loading_half_params=loading_half_params,
             use_tile_vae=use_tile_vae,
             encoder_tile_size=encoder_tile_size,
@@ -62,9 +65,10 @@ def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps,
             ae_dtype=ae_dtype,
             diff_dtype=diff_dtype
         )
-        
+
         # Store current settings for future comparison
         globals()['current_settings'] = {
+            'config_path': config_path,
             'supir_sign': supir_sign,
             'loading_half_params': loading_half_params,
             'use_tile_vae': use_tile_vae,
@@ -73,7 +77,7 @@ def process_image(input_image, upscale, supir_sign, seed, min_size, edm_steps,
             'ae_dtype': ae_dtype,
             'diff_dtype': diff_dtype
         }
-    
+
     # Convert to PIL if needed
     if not isinstance(input_image, Image.Image):
         input_image = Image.fromarray(input_image)
@@ -160,9 +164,15 @@ def create_ui():
                 output_image = gr.Image(label="Enhanced Image", height=800)
         
         with gr.Accordion("Precision & Performance Settings", open=True):
+            config_path = gr.Radio(
+                choices=[("Standard Sampler (More VRAM)", 'options/SUPIR_v0.yaml'), 
+                         ("Tiled Sampler (Less VRAM)", 'options/SUPIR_v0_tiled.yaml')],
+                value='options/SUPIR_v0_tiled.yaml',
+                label="Processing Mode"
+            )
             with gr.Row():
-                loading_half_params = gr.Checkbox(value=True, label="Load Half Precision Parameters (use if <=24GB VRAM)")                
-            
+                loading_half_params = gr.Checkbox(value=True, label="Load Half Precision Parameters (use if <=24GB VRAM)")
+
             with gr.Row():
                 ae_dtype = gr.Radio(choices=["fp32", "bf16"], value="bf16", label="Autoencoder Data Type")
                 diff_dtype = gr.Radio(choices=["fp32", "fp16", "bf16"], value="fp16", label="Diffusion Model Data Type")
@@ -191,7 +201,7 @@ def create_ui():
                 seed = gr.Number(value=1234567891, precision=0, label="Seed")
                 random_seed_button = gr.Button("🎲 Random", size="sm")
             
-            min_size = gr.Slider(minimum=512, maximum=2048, value=1024, step=64, label="Minimum Size")
+            min_size = gr.Slider(minimum=1024, maximum=2048, value=1024, step=64, label="Minimum Size (`min_size` ensures that the image being processed has a minimum width or height)")
             img_caption = gr.Textbox(label="Image Caption (optional)", placeholder="Leave empty for no caption")
             color_fix_type = gr.Radio(choices=["None", "AdaIn", "Wavelet"], value="Wavelet", label="Color Fix Type")
         
@@ -230,7 +240,7 @@ def create_ui():
                 s_stage1, s_churn, s_noise, s_cfg, s_stage2,
                 img_caption, a_prompt, n_prompt, color_fix_type,
                 linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2,
-                loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
+                config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                 ae_dtype, diff_dtype
             ],
             outputs=output_image
