@@ -4,7 +4,6 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 - Added safetensors support. 
 - Updated dependencies. 
 
-
 ---
 ## 🔧 Dependencies and Installation
 

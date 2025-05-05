@@ -184,6 +184,12 @@ def Tensor2Numpy(x, h0=None, w0=None):
     '''
     Tensor[C, H, W], RGB, [-1, 1] -> PIL.Image
     '''
+    # Check for invalid values
+    if torch.isnan(x).any() or torch.isinf(x).any():
+        print(f">>>>> WARNING: Tensor contains NaN or Inf values. Min: {x.min().item()}, Max: {x.max().item()}")
+        # Replace NaN/Inf with valid values (0 in this case)
+        x = torch.nan_to_num(x, nan=0.0, posinf=1.0, neginf=-1.0)
+
     if h0 is not None and w0 is not None:
         x = x.unsqueeze(0)
         x = interpolate(x, size=(h0, w0), mode='bicubic')
