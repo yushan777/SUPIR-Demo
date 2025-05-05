@@ -83,7 +83,7 @@ def process_image(input_image, upscale, supir_sign, seed,  edm_steps,
         input_image = Image.fromarray(input_image)
     
     # Process image
-    LQ_img, h0, w0 = PIL2Tensor(input_image, upsacle=upscale, min_size=min_size)
+    LQ_img, h0, w0 = PIL2Tensor(input_image, upsacle=upscale, min_size=1024)
     LQ_img = LQ_img.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
     
     # Use the provided caption
@@ -101,7 +101,7 @@ def process_image(input_image, upscale, supir_sign, seed,  edm_steps,
                                     num_samples=1,  # Always 1 for UI 
                                     p_p=a_prompt, 
                                     n_p=n_prompt, 
-                                    color_fix_type=color_fix_type,
+                                    color_fix_type="Wavelet",
                                     use_linear_CFG=linear_CFG, 
                                     use_linear_control_scale=linear_s_stage2,
                                     cfg_scale_start=spt_linear_CFG, 
@@ -153,8 +153,8 @@ default_negative_prompt = 'painting, oil painting, illustration, drawing, art, s
 def create_ui():
 
 
-    with gr.Blocks(title="SUPIR Image Restoration", css=".container { max-width: 600px; margin: auto; }") as demo:
-    # with gr.Blocks(title="SUPIR Image Restoration") as demo:
+    # with gr.Blocks(title="SUPIR Image Restoration", css=".container { max-width: 600px; margin: auto; }") as demo:
+    with gr.Blocks(title="SUPIR Image Restoration") as demo:
         gr.Markdown("# SUPIR Image Restoration Shit")
         gr.Markdown("Upload an image to enhance/detail/restore it using the SUPIR model")
         

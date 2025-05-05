@@ -132,8 +132,8 @@ model:
         restore_cfg: 4.0
         s_churn: 0
         s_noise: 1.003
-        tile_size: 512
-        tile_stride: 256
+        tile_size: 128
+        tile_stride: 64
         discretization_config:
           target: sgm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization
         guider_config:
