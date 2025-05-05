@@ -84,7 +84,7 @@ RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd
 
 ```bash
 # for gradio test
-python3 gradio_test.py --listen
+python3 test_gradio.py --listen
 
 # for cli test
 python3 test.py [options]
