@@ -8,6 +8,7 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 
 
 
+
 ---
 ## 🔧 Dependencies and Installation
 
@@ -16,8 +17,15 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
     git clone https://github.com/yushan777/SUPIR.git
     cd SUPIR
     ```
+## Vast.ai Install
+    ```bash
+    chmod +x install_vastai.sh
+    ./install_vastai.sh
+    ```
 
-2. Install dependent packages
+
+## Manual Local Install
+1. Install dependent packages
     ```bash
         python3 -m venv venv
         source venv/bin/activate
@@ -25,7 +33,7 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
         pip install -r requirements.txt
     ```
 
-3. Download Models
+2. Download Models
 
 Here's a cleaned-up and clearer version of your SUPIR model documentation:
 

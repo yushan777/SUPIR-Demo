@@ -4,10 +4,6 @@
 read -sp "Enter your Hugging Face access token: " HF_TOKEN
 echo
 
-# clone repo
-git clone https://github.com/yushan777/SUPIR.git
-# cd 
-
 # install deps
 pip install torch==2.7.0+cu126 torchvision==0.22.0+cu126 torchaudio==2.7.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
@@ -30,9 +26,9 @@ huggingface-cli download $REPO_NAME CLIP1/clip-vit-large-patch14/safetensors/cli
 huggingface-cli download $REPO_NAME CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors --local-dir downloads
 
 # move the models
-mv downloads/SUPIR/SUPIR-v0Q_fp32.safetensors SUPIR/models/SUPIR/
-mv downloads/SUPIR/SUPIR-v0F_fp32.safetensors SUPIR/models/SUPIR/
-mv downloads/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors SUPIR/models/SDXL
-mv downloads/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors SUPIR/models/CLIP1
-mv downloads/CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors SUPIR/models/CLIP2
+mv downloads/SUPIR/SUPIR-v0Q_fp32.safetensors models/SUPIR/
+mv downloads/SUPIR/SUPIR-v0F_fp32.safetensors models/SUPIR/
+mv downloads/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors models/SDXL
+mv downloads/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors models/CLIP1
+mv downloads/CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors models/CLIP2
 
