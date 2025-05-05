@@ -264,7 +264,7 @@ if __name__ == "__main__":
     parser.add_argument("--listen", action="store_true", help="Make the interface accessible on the network")
     parser.add_argument("--share", action="store_true", help="Create a shareable link")
     parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Server name/IP to bind to")
-    parser.add_argument("--server-port", type=int, default=9696, help="Port to use")
+    parser.add_argument("--server-port", type=int, default=3000, help="Port to use")
     args = parser.parse_args()
     
     # Create and launch the interface
