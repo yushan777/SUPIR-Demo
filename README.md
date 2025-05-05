@@ -5,10 +5,6 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 - Updated dependencies. 
 
 
-
-
-
-
 ---
 ## 🔧 Dependencies and Installation
 
@@ -87,10 +83,10 @@ RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd
 ### Usage
 
 ```bash
-# for gradio
+# for gradio test
 python3 gradio_test.py --listen
 
-
+# for cli test
 python3 test.py [options]
 python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
 
