@@ -155,6 +155,7 @@ def create_ui():
         gr.Markdown("# SUPIR Image Restoration Shit")
         gr.Markdown("Upload an image to enhance/detail/restore it using the SUPIR model")
         
+        # =========================================================================
         with gr.Row():
             with gr.Column():
                 input_image = gr.Image(label="Input Image", type="pil", height=800)
@@ -163,6 +164,7 @@ def create_ui():
             with gr.Column():
                 output_image = gr.Image(label="Enhanced Image", height=800)
         
+        # =========================================================================
         with gr.Accordion("Precision & Performance Settings", open=True):
             config_path = gr.Radio(
                 choices=[("Standard Sampler (More VRAM)", 'options/SUPIR_v0.yaml'), 
@@ -192,6 +194,7 @@ def create_ui():
                 outputs=[tile_vae_settings]
             )
         
+        # =========================================================================
         with gr.Accordion("Basic Settings", open=True):
             upscale = gr.Slider(minimum=1, maximum=4, value=2, step=1, label="Upscale Factor")
             supir_sign = gr.Radio(choices=["F", "Q"], value="Q", label="SUPIR Model : SUPIR-v0Q is robust to heavy degradations but may overcorrect clean images, while SUPIR-v0F is tuned for lighter degradations, making it better suited for high-fidelity restoration of already high-quality inputs.")
@@ -221,6 +224,7 @@ def create_ui():
                 linear_s_stage2 = gr.Checkbox(value=False, label="Linear Stage 2")
                 spt_linear_s_stage2 = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Start Linear Stage 2 (kijai control_scale_start)")
 
+        # =========================================================================
         with gr.Accordion("(Additional) Prompt Settings - these are appended to the main caption", open=False):
             a_prompt = gr.Textbox(value=default_positive_prompt, label="Positive Prompt")
             n_prompt = gr.Textbox(value=default_negative_prompt, label="Negative Prompt")
