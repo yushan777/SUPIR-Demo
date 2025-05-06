@@ -3,6 +3,7 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 - Removed the LLaVA implementation. 
 - Added safetensors support. 
 - Updated dependencies. 
+- Replace Xformers with SDPA as default attention
 
 ---
 ## 🔧 Dependencies and Installation

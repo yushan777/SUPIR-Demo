@@ -12,19 +12,19 @@ from SUPIR.utils.colored_print import color, style
 
 
 if version.parse(torch.__version__) >= version.parse("2.0.0"):
-    SDP_IS_AVAILABLE = True
+    SDPA_IS_AVAILABLE = True
     # ! >>>>>> Changed import to use the new sdpa_kernel instead of sdp_kernel
     from torch.backends.cuda import SDPBackend
     from torch.nn.attention import sdpa_kernel
+    print("'SDPA available...'", color.ORANGE)
 
 else:
     from contextlib import nullcontext
 
-    SDP_IS_AVAILABLE = False
-    sdp_kernel = nullcontext # keep for backward compatibility
-    # ! >>>>>> Added sdpa_kernel 
+    SDPA_IS_AVAILABLE = False
+    # sdp_kernel = nullcontext # keep for backward compatibility
+    # BACKEND_MAP = {}
     sdpa_kernel = nullcontext    
-    BACKEND_MAP = {}
     print(
         f"No SDPA backend available, likely because you are running in pytorch versions < 2.0. In fact, "
         f"you are using PyTorch {torch.__version__}. You might want to consider upgrading.", color.BRIGHT_RED
@@ -33,8 +33,8 @@ else:
 try:
     import xformers
     import xformers.ops
-
     XFORMERS_IS_AVAILABLE = True
+    print("'xformers available...'", color.ORANGE)
 except:
     XFORMERS_IS_AVAILABLE = False
     print("no module 'xformers'. Processing without...", color.ORANGE)
@@ -370,7 +370,7 @@ class BasicTransformerBlock(nn.Module):
         checkpoint=True,
         disable_self_attn=False,
         attn_mode="softmax",
-        sdp_backend=None,
+        sdpa_backend=None,
     ):
         super().__init__()
         assert attn_mode in self.ATTENTION_MODES
@@ -380,7 +380,7 @@ class BasicTransformerBlock(nn.Module):
                 f"This is not a problem in Pytorch >= 2.0. FYI, you are running with PyTorch version {torch.__version__}", color.ORANGE
             )
             attn_mode = "softmax"
-        elif attn_mode == "softmax" and not SDP_IS_AVAILABLE:
+        elif attn_mode == "softmax" and not SDPA_IS_AVAILABLE:
             print(
                 "We do not support softmax vanilla attention anymore, as it is too expensive. Sorry.", color.ORANGE
             )
@@ -393,9 +393,9 @@ class BasicTransformerBlock(nn.Module):
                 attn_mode = "softmax-xformers"
         attn_cls = self.ATTENTION_MODES[attn_mode]
         if version.parse(torch.__version__) >= version.parse("2.0.0"):
-            assert sdp_backend is None or isinstance(sdp_backend, SDPBackend)
+            assert sdpa_backend is None or isinstance(sdpa_backend, SDPBackend)
         else:
-            assert sdp_backend is None
+            assert sdpa_backend is None
         self.disable_self_attn = disable_self_attn
         self.attn1 = attn_cls(
             query_dim=dim,
@@ -403,7 +403,7 @@ class BasicTransformerBlock(nn.Module):
             dim_head=d_head,
             dropout=dropout,
             context_dim=context_dim if self.disable_self_attn else None,
-            backend=sdp_backend,
+            backend=sdpa_backend,
         )  # is a self-attention if not self.disable_self_attn
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff)
         self.attn2 = attn_cls(
@@ -412,7 +412,7 @@ class BasicTransformerBlock(nn.Module):
             heads=n_heads,
             dim_head=d_head,
             dropout=dropout,
-            backend=sdp_backend,
+            backend=sdpa_backend,
         )  # is self-attn if context is none
         self.norm1 = nn.LayerNorm(dim)
         self.norm2 = nn.LayerNorm(dim)
@@ -605,7 +605,7 @@ class SpatialTransformer(nn.Module):
                     disable_self_attn=disable_self_attn,
                     attn_mode=attn_type,
                     checkpoint=use_checkpoint,
-                    sdp_backend=sdp_backend,
+                    sdpa_backend=sdp_backend,
                 )
                 for d in range(depth)
             ]
