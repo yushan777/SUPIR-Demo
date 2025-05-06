@@ -1,10 +1,7 @@
 """
     Partially ported from https://github.com/crowsonkb/k-diffusion/blob/master/k_diffusion/sampling.py
 """
-
-
 from typing import Dict, Union
-
 import torch
 from omegaconf import ListConfig, OmegaConf
 from tqdm import tqdm
@@ -16,8 +13,14 @@ from ...modules.diffusionmodules.sampling_utils import (
     to_neg_log_sigma,
     to_sigma,
 )
+
 from ...util import append_dims, default, instantiate_from_config
 from k_diffusion.sampling import get_sigmas_karras, BrownianTreeNoiseSampler
+
+#  =================================================================
+
+#  =================================================================
+
 
 DEFAULT_GUIDER = {"target": "sgm.modules.diffusionmodules.guiders.IdentityGuider"}
 
@@ -28,7 +31,7 @@ class BaseDiffusionSampler:
         discretization_config: Union[Dict, ListConfig, OmegaConf],
         num_steps: Union[int, None] = None,
         guider_config: Union[Dict, ListConfig, OmegaConf, None] = None,
-        verbose: bool = False,
+        verbose: bool = True,
         device: str = "cuda",
     ):
         self.num_steps = num_steps
@@ -575,6 +578,7 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
             x, cond, uc, num_steps
         )
 
+
         for _idx, i in enumerate(self.get_sigma_gen(num_sigmas)):
             gamma = (
                 min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1)
@@ -594,6 +598,8 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
                 use_linear_control_scale=use_linear_control_scale,
                 control_scale_start=control_scale_start,
             )
+
+                 
         return x
 
 
@@ -606,6 +612,7 @@ class TiledRestoreEDMSampler(RestoreEDMSampler):
 
     def __call__(self, denoiser, x, cond, uc=None, num_steps=None, x_center=None, control_scale=1.0,
                  use_linear_control_scale=False, control_scale_start=0.0):
+        
         use_local_prompt = isinstance(cond, list)
         b, _, h, w = x.shape
         latent_tiles_iterator = _sliding_windows(h, w, self.tile_size, self.tile_stride)
@@ -619,6 +626,8 @@ class TiledRestoreEDMSampler(RestoreEDMSampler):
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(
             x, cond, uc, num_steps
         )
+
+     
 
         for _idx, i in enumerate(self.get_sigma_gen(num_sigmas)):
             gamma = (
@@ -657,6 +666,7 @@ class TiledRestoreEDMSampler(RestoreEDMSampler):
                 count[:, :, hi:hi_end, wi:wi_end] += tile_weights
             x_next /= count
             x = x_next
+
         return x
 
 

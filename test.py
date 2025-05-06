@@ -65,12 +65,8 @@ if args.use_tile_vae:
 model.ae_dtype = convert_dtype(args.ae_dtype)
 model.model.dtype = convert_dtype(args.diff_dtype)
 model = model.to(SUPIR_device)
-# load LLaVA # Removed LLaVA
-# if use_llava:
-#     llava_agent = LLavaAgent(LLAVA_MODEL_PATH, device=LLaVA_device, load_8bit=args.load_8bit_llava, load_4bit=False)
-# else:
-#     llava_agent = None
-llava_agent = None # Ensure llava_agent is defined as None
+
+# llava_agent = None # Ensure llava_agent is defined as None
 
 os.makedirs(args.save_dir, exist_ok=True)
 
@@ -91,20 +87,7 @@ except Exception as e:
 LQ_img, h0, w0 = PIL2Tensor(LQ_ips, upsacle=args.upscale, min_size=args.min_size)
 LQ_img = LQ_img.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
 
-# Removed LLaVA pre-denoise step
-# step 1: Pre-denoise for LLaVA, resize to 512 
-# LQ_img_512, h1, w1 = PIL2Tensor(LQ_ips, upsacle=args.upscale, min_size=args.min_size, fix_resize=512)
-# LQ_img_512 = LQ_img_512.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
-# clean_imgs = model.batchify_denoise(LQ_img_512)
-# clean_PIL_img = Tensor2PIL(clean_imgs[0], h1, w1)
-
- # Removed LLaVA caption generation
-# step 2: LLaVA
-# if use_llava:
-#     captions = llava_agent.gen_image_caption([clean_PIL_img])
-# else:
-#     captions = ['']
-# captions = [''] # Use empty caption as LLaVA is removed
+# image caption(s)
 captions = [args.img_caption]
 
 # step 3: Diffusion Process
@@ -125,7 +108,8 @@ samples = model.batchify_sample(LQ_img, captions,
                                 cfg_scale_start=args.spt_linear_CFG, 
                                 control_scale_start=args.spt_linear_s_stage2)
 
-# save
+
+# save image
 output_base_name = f"{img_name}_SUPIR" # Construct a base name for output
 for _i, sample in enumerate(samples):
     # Determine initial filename
