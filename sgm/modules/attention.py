@@ -9,24 +9,11 @@ from torch import nn
 from SUPIR.utils.colored_print import color, style
 
 
-if version.parse(torch.__version__) >= version.parse("2.0.0"):
-    SDPA_IS_AVAILABLE = True
-    # ! >>>>>> Changed import to use the new sdpa_kernel instead of sdp_kernel
-    from torch.backends.cuda import SDPBackend
-    from torch.nn.attention import sdpa_kernel
-    print("'SDPA available...'", color.ORANGE)
-
-else:
-    from contextlib import nullcontext
-
-    SDPA_IS_AVAILABLE = False
-    # sdp_kernel = nullcontext # keep for backward compatibility
-    # BACKEND_MAP = {}
-    sdpa_kernel = nullcontext    
-    print(
-        f"No SDPA backend available, likely because you are running in pytorch versions < 2.0. In fact, "
-        f"you are using PyTorch {torch.__version__}. You might want to consider upgrading.", color.BRIGHT_RED
-    )
+#  PyTorch versions - assume version >= 2.0.0
+SDPA_IS_AVAILABLE = True
+from torch.backends.cuda import SDPBackend
+from torch.nn.attention import sdpa_kernel
+print("'SDPA available...'", color.ORANGE)
 
 try:
     import xformers
@@ -238,8 +225,6 @@ class CrossAttention(nn.Module):
 
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=h), (q, k, v))
 
-        # ! >>>>>> Updated to use sdpa_kernel instead of sdp_kernel
-        # ! >>>>>> Removed the BACKEND_MAP lookup and implemented backend selection logic
         backends_to_try = []
         if self.backend is None:
             # If no specific backend is requested, try Flash Attention, then Memory Efficient, then Math kernel
