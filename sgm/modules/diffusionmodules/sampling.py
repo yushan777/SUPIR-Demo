@@ -72,8 +72,11 @@ class BaseDiffusionSampler:
             print(f"Guider: {self.guider.__class__.__name__}")
             sigma_generator = tqdm(
                 sigma_generator,
-                total=num_sigmas,
-                desc=f"Sampling with {self.__class__.__name__} for {num_sigmas} steps",
+                total=num_sigmas-1,  # Changed from num_sigmas so progress shows same total as --edm_steps
+                desc=f"Sampling with {self.__class__.__name__}: ",
+                bar_format='{desc}: |{bar}| {percentage:3.0f}% • Step {n_fmt}/{total_fmt} • {elapsed}<{remaining}',
+                colour='green',
+                smoothing=1.0,                
             )
         return sigma_generator
 

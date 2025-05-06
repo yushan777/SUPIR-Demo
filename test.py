@@ -6,6 +6,7 @@ from PIL import Image
 # from CKPT_PTH import LLAVA_MODEL_PATH # Removed LLaVA
 import os
 from torch.nn.functional import interpolate
+import time 
 
 if torch.cuda.device_count() >= 1: # Adjusted device logic
     SUPIR_device = 'cuda:0'
@@ -54,6 +55,7 @@ parser.add_argument("--decoder_tile_size", type=int, default=64)
 args = parser.parse_args()
 print(args)
 
+start_time = time.time()
 
 # load SUPIR
 model = create_SUPIR_model('options/SUPIR_v0_tiled.yaml', SUPIR_sign=args.SUPIR_sign)
@@ -128,3 +130,18 @@ for _i, sample in enumerate(samples):
     # Save the image
     Tensor2PIL(sample, h0, w0).save(save_path)
     print(f"Saved output image to: {save_path}")
+
+end_time = time.time()
+elapsed_seconds = end_time - start_time
+# Basic format with 4 decimal places
+formatted_time = f"Process time: {elapsed_seconds:.4f} seconds"
+
+# If over 60 seconds, add hours:minutes:seconds format in parentheses
+if elapsed_seconds >= 60:
+    hours, remainder = divmod(int(elapsed_seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    formatted_time += f" ({time_str})"
+    
+print(f"Process time: {formatted_time}.")
+
