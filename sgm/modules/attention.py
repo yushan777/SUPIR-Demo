@@ -1,7 +1,6 @@
 import math
 from inspect import isfunction
 from typing import Any, Optional
-
 import torch
 import torch.nn.functional as F
 # from einops._torch_specific import allow_ops_in_compiled_graph
@@ -9,6 +8,8 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 from packaging import version
 from torch import nn
+from SUPIR.utils.colored_print import color, style
+
 
 if version.parse(torch.__version__) >= version.parse("2.0.0"):
     SDP_IS_AVAILABLE = True
@@ -16,25 +17,6 @@ if version.parse(torch.__version__) >= version.parse("2.0.0"):
     from torch.backends.cuda import SDPBackend
     from torch.nn.attention import sdpa_kernel
 
-    # ! >>>>>> Removed BACKEND_MAP as it's no longer needed with the new API
-    # BACKEND_MAP = {
-    #     SDPBackend.MATH: {
-    #         "enable_math": True,
-    #         "enable_flash": False,
-    #         "enable_mem_efficient": False,
-    #     },
-    #     SDPBackend.FLASH_ATTENTION: {
-    #         "enable_math": False,
-    #         "enable_flash": True,
-    #         "enable_mem_efficient": False,
-    #     },
-    #     SDPBackend.EFFICIENT_ATTENTION: {
-    #         "enable_math": False,
-    #         "enable_flash": False,
-    #         "enable_mem_efficient": True,
-    #     },
-    #     None: {"enable_math": True, "enable_flash": True, "enable_mem_efficient": True},
-    # }
 else:
     from contextlib import nullcontext
 
@@ -45,7 +27,7 @@ else:
     BACKEND_MAP = {}
     print(
         f"No SDPA backend available, likely because you are running in pytorch versions < 2.0. In fact, "
-        f"you are using PyTorch {torch.__version__}. You might want to consider upgrading."
+        f"you are using PyTorch {torch.__version__}. You might want to consider upgrading.", color.BRIGHT_RED
     )
 
 try:
@@ -55,7 +37,7 @@ try:
     XFORMERS_IS_AVAILABLE = True
 except:
     XFORMERS_IS_AVAILABLE = False
-    print("no module 'xformers'. Processing without...")
+    print("no module 'xformers'. Processing without...", color.ORANGE)
 
 from .diffusionmodules.util import checkpoint
 
@@ -258,30 +240,6 @@ class CrossAttention(nn.Module):
 
         q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=h), (q, k, v))
 
-        ## old
-        """
-        sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
-        del q, k
-
-        if exists(mask):
-            mask = rearrange(mask, 'b ... -> b (...)')
-            max_neg_value = -torch.finfo(sim.dtype).max
-            mask = repeat(mask, 'b j -> (b h) () j', h=h)
-            sim.masked_fill_(~mask, max_neg_value)
-
-        # attention, what we cannot get enough of
-        sim = sim.softmax(dim=-1)
-
-        out = einsum('b i j, b j d -> b i d', sim, v)
-        """
-        ## new
-        # with sdp_kernel(**BACKEND_MAP[self.backend]):
-        #     # print("dispatching into backend", self.backend, "q/k/v shape: ", q.shape, k.shape, v.shape)
-        #     out = F.scaled_dot_product_attention(
-        #         q, k, v, attn_mask=mask
-        #     )  # scale is dim_head ** -0.5 per default
-
-        ## new
         # ! >>>>>> Updated to use sdpa_kernel instead of sdp_kernel
         # ! >>>>>> Removed the BACKEND_MAP lookup and implemented backend selection logic
         backends_to_try = []
@@ -315,7 +273,7 @@ class MemoryEfficientCrossAttention(nn.Module):
         super().__init__()
         print(
             f">> Setting up {self.__class__.__name__}. Query dim is {query_dim}, context_dim is {context_dim} and using "
-            f"{heads} heads with a dimension of {dim_head}."
+            f"{heads} heads with a dimension of {dim_head}.", color.GREEN
         )
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
