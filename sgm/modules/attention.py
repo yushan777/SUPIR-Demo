@@ -12,34 +12,39 @@ from torch import nn
 
 if version.parse(torch.__version__) >= version.parse("2.0.0"):
     SDP_IS_AVAILABLE = True
-    from torch.backends.cuda import SDPBackend, sdp_kernel
+    # ! >>>>>> Changed import to use the new sdpa_kernel instead of sdp_kernel
+    from torch.backends.cuda import SDPBackend
+    from torch.nn.attention import sdpa_kernel
 
-    BACKEND_MAP = {
-        SDPBackend.MATH: {
-            "enable_math": True,
-            "enable_flash": False,
-            "enable_mem_efficient": False,
-        },
-        SDPBackend.FLASH_ATTENTION: {
-            "enable_math": False,
-            "enable_flash": True,
-            "enable_mem_efficient": False,
-        },
-        SDPBackend.EFFICIENT_ATTENTION: {
-            "enable_math": False,
-            "enable_flash": False,
-            "enable_mem_efficient": True,
-        },
-        None: {"enable_math": True, "enable_flash": True, "enable_mem_efficient": True},
-    }
+    # ! >>>>>> Removed BACKEND_MAP as it's no longer needed with the new API
+    # BACKEND_MAP = {
+    #     SDPBackend.MATH: {
+    #         "enable_math": True,
+    #         "enable_flash": False,
+    #         "enable_mem_efficient": False,
+    #     },
+    #     SDPBackend.FLASH_ATTENTION: {
+    #         "enable_math": False,
+    #         "enable_flash": True,
+    #         "enable_mem_efficient": False,
+    #     },
+    #     SDPBackend.EFFICIENT_ATTENTION: {
+    #         "enable_math": False,
+    #         "enable_flash": False,
+    #         "enable_mem_efficient": True,
+    #     },
+    #     None: {"enable_math": True, "enable_flash": True, "enable_mem_efficient": True},
+    # }
 else:
     from contextlib import nullcontext
 
     SDP_IS_AVAILABLE = False
-    sdp_kernel = nullcontext
+    sdp_kernel = nullcontext # keep for backward compatibility
+    # ! >>>>>> Added sdpa_kernel 
+    sdpa_kernel = nullcontext    
     BACKEND_MAP = {}
     print(
-        f"No SDP backend available, likely because you are running in pytorch versions < 2.0. In fact, "
+        f"No SDPA backend available, likely because you are running in pytorch versions < 2.0. In fact, "
         f"you are using PyTorch {torch.__version__}. You might want to consider upgrading."
     )
 
@@ -270,7 +275,24 @@ class CrossAttention(nn.Module):
         out = einsum('b i j, b j d -> b i d', sim, v)
         """
         ## new
-        with sdp_kernel(**BACKEND_MAP[self.backend]):
+        # with sdp_kernel(**BACKEND_MAP[self.backend]):
+        #     # print("dispatching into backend", self.backend, "q/k/v shape: ", q.shape, k.shape, v.shape)
+        #     out = F.scaled_dot_product_attention(
+        #         q, k, v, attn_mask=mask
+        #     )  # scale is dim_head ** -0.5 per default
+
+        ## new
+        # ! >>>>>> Updated to use sdpa_kernel instead of sdp_kernel
+        # ! >>>>>> Removed the BACKEND_MAP lookup and implemented backend selection logic
+        backends_to_try = []
+        if self.backend is None:
+            # If no specific backend is requested, try Flash Attention, then Memory Efficient, then Math kernel
+            backends_to_try = [SDPBackend.FLASH_ATTENTION, SDPBackend.EFFICIENT_ATTENTION, SDPBackend.MATH]
+        else:
+            # If a specific backend is requested, use only that one
+            backends_to_try = [self.backend]
+
+        with sdpa_kernel(backends=backends_to_try):
             # print("dispatching into backend", self.backend, "q/k/v shape: ", q.shape, k.shape, v.shape)
             out = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=mask

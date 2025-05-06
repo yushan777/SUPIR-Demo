@@ -46,18 +46,18 @@ parser.add_argument("--spt_linear_CFG", type=float, default=2.0)
 parser.add_argument("--spt_linear_s_stage2", type=float, default=0.9)
 parser.add_argument("--ae_dtype", type=str, default="bf16", choices=['fp32', 'bf16'])
 parser.add_argument("--diff_dtype", type=str, default="fp16", choices=['fp32', 'fp16', 'bf16'])
-# parser.add_argument("--no_llava", action='store_true', default=False) # Removed LLaVA
 parser.add_argument("--loading_half_params", action='store_true', default=False)
 parser.add_argument("--use_tile_vae", action='store_true', default=False)
 parser.add_argument("--encoder_tile_size", type=int, default=512)
 parser.add_argument("--decoder_tile_size", type=int, default=64)
-# parser.add_argument("--load_8bit_llava", action='store_true', default=False) # Removed LLaVA
+
 args = parser.parse_args()
 print(args)
-# use_llava = not args.no_llava # Removed LLaVA
+
 
 # load SUPIR
-model = create_SUPIR_model('options/SUPIR_v0.yaml', SUPIR_sign=args.SUPIR_sign)
+model = create_SUPIR_model('options/SUPIR_v0_tiled.yaml', SUPIR_sign=args.SUPIR_sign)
+
 if args.loading_half_params:
     model = model.half()
 if args.use_tile_vae:
