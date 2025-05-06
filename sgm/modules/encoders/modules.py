@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
+from SUPIR.utils.colored_print import color, style
 
 import kornia
 import numpy as np
@@ -460,7 +461,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         
         # Load from local files if clip1_path is a safetensors file
         if clip1_path and clip1_path.endswith(('.safetensors', '.pt', '.bin')):
-            print(f"Loading CLIP text model from file: {clip1_path}")
+            print(f"Loading CLIP text model from file: {clip1_path}", color.BRIGHT_BLUE)
             
             # Load configuration from local file
             from transformers import CLIPConfig
@@ -484,9 +485,10 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             # Load weights with relaxed strict checking
             missing, unexpected = self.transformer.load_state_dict(state_dict, strict=False)
             if missing:
-                print(f"Missing keys when loading CLIP: {len(missing)} keys")
+                print(f"Missing keys when loading CLIP: {len(missing)} keys", color.RED)
             if unexpected:
-                print(f"Unexpected keys when loading CLIP: {len(unexpected)} keys")
+                print(f"Unexpected keys when loading CLIP: {len(unexpected)} keys.", color.BRIGHT_ORANGE)
+                print(f" - This is because file contains params for both the text & vision parts of CLIP, but only the text model component is being initialized.", color.BRIGHT_ORANGE)
         else:
             # Original HF loading method
             model_path = clip1_path if clip1_path is not None else version

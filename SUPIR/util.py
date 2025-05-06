@@ -6,7 +6,7 @@ from PIL import Image
 from torch.nn.functional import interpolate
 from omegaconf import OmegaConf
 from sgm.util import instantiate_from_config
-
+from SUPIR.utils.colored_print import color, style
 
 def get_state_dict(d):
     return d.get('state_dict', d)
@@ -20,14 +20,14 @@ def load_state_dict(ckpt_path, location='cpu'):
     else:
         state_dict = get_state_dict(torch.load(ckpt_path, map_location=torch.device(location)))
     state_dict = get_state_dict(state_dict)
-    print(f'Loaded state_dict from [{ckpt_path}]')
+    print(f'Loaded state_dict from {ckpt_path}', color.BRIGHT_BLUE)
     return state_dict
 
 
 def create_model(config_path):
     config = OmegaConf.load(config_path)
     model = instantiate_from_config(config.model).cpu()
-    print(f'Loaded model config from [{config_path}]')
+    print(f'Loaded model config from {config_path}', color.BRIGHT_BLUE)
     return model
 
 
@@ -36,7 +36,6 @@ def create_SUPIR_model(config_path, SUPIR_sign=None):
 
     # --- Inject CLIP paths from root config into embedder params ---
     if hasattr(config, "CLIP1_PATH") or hasattr(config, "CLIP2_PATH"):
-        print("Injecting CLIP paths into conditioner config...")
         conditioner_params = config.model.params.conditioner_config.params
         for embedder_config in conditioner_params.get("emb_models", []):
             # Ensure params exists as a mutable OmegaConf object if not present
@@ -45,21 +44,20 @@ def create_SUPIR_model(config_path, SUPIR_sign=None):
             # Inject paths
             if embedder_config.target.endswith("FrozenCLIPEmbedder") and hasattr(config, "CLIP1_PATH"):
                 embedder_config.params.clip1_path = config.CLIP1_PATH
-                print(f"  Injected CLIP1_PATH into {embedder_config.target}")
+                # print(f"  Injected CLIP1_PATH into {embedder_config.target}")
             elif embedder_config.target.endswith("FrozenOpenCLIPEmbedder2") and hasattr(config, "CLIP2_PATH"):
                 embedder_config.params.clip2_path = config.CLIP2_PATH
-                print(f"  Injected CLIP2_PATH into {embedder_config.target}")
-    # --- End path injection ---
+                # print(f"  Injected CLIP2_PATH into {embedder_config.target}")
 
     model = instantiate_from_config(config.model).cpu()
-    print(f'Loaded model config from [{config_path}]')
+    print(f'Loaded model config from {config_path}', color.BRIGHT_BLUE)
 
     # --- Load checkpoints using paths from config, checking existence ---
     if hasattr(config, "SDXL_CKPT") and config.SDXL_CKPT is not None:
-        print(f"Loading SDXL checkpoint: {config.SDXL_CKPT}")
+        print(f"Loading SDXL checkpoint: {config.SDXL_CKPT}", color.BRIGHT_BLUE)
         model.load_state_dict(load_state_dict(config.SDXL_CKPT), strict=False)
     if hasattr(config, "SUPIR_CKPT") and config.SUPIR_CKPT is not None:
-        print(f"Loading SUPIR base checkpoint: {config.SUPIR_CKPT}")
+        print(f"Loading SUPIR base checkpoint: {config.SUPIR_CKPT}", color.BRIGHT_BLUE)
         model.load_state_dict(load_state_dict(config.SUPIR_CKPT), strict=False)
 
     if SUPIR_sign is not None:
@@ -67,10 +65,10 @@ def create_SUPIR_model(config_path, SUPIR_sign=None):
         ckpt_key = f"SUPIR_CKPT_{SUPIR_sign}"
         if hasattr(config, ckpt_key) and getattr(config, ckpt_key) is not None:
             ckpt_path = getattr(config, ckpt_key)
-            print(f"Loading SUPIR {SUPIR_sign} checkpoint: {ckpt_path}")
+            print(f"Loading SUPIR {SUPIR_sign} checkpoint: {ckpt_path}", color.BRIGHT_BLUE)
             model.load_state_dict(load_state_dict(ckpt_path), strict=False)
         else:
-            print(f"Warning: SUPIR sign '{SUPIR_sign}' provided, but checkpoint path '{ckpt_key}' not found or is None in config.")
+            print(f"Warning: SUPIR sign '{SUPIR_sign}' provided, but checkpoint path '{ckpt_key}' not found or is None in config.", color.RED)
 
     return model
 

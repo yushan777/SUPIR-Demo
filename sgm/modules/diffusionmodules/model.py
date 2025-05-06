@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from packaging import version
+from SUPIR.utils.colored_print import color, style
 
 try:
     import xformers
@@ -288,12 +289,12 @@ def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
             f"as it is too expensive. Please install xformers via e.g. 'pip install xformers==0.0.16'"
         )
         attn_type = "vanilla-xformers"
-    print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
+    print(f"making attention of type '{attn_type}' with {in_channels} in_channels", color.ORANGE)
     if attn_type == "vanilla":
         assert attn_kwargs is None
         return AttnBlock(in_channels)
     elif attn_type == "vanilla-xformers":
-        print(f"building MemoryEfficientAttnBlock with {in_channels} in_channels...")
+        print(f"building MemoryEfficientAttnBlock with {in_channels} in_channels...", color.ORANGE)
         return MemoryEfficientAttnBlock(in_channels)
     elif type == "memory-efficient-cross-attn":
         attn_kwargs["query_dim"] = in_channels

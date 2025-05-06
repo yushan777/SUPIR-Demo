@@ -377,19 +377,19 @@ class BasicTransformerBlock(nn.Module):
         if attn_mode != "softmax" and not XFORMERS_IS_AVAILABLE:
             print(
                 f"Attention mode '{attn_mode}' is not available. Falling back to native attention. "
-                f"This is not a problem in Pytorch >= 2.0. FYI, you are running with PyTorch version {torch.__version__}"
+                f"This is not a problem in Pytorch >= 2.0. FYI, you are running with PyTorch version {torch.__version__}", color.ORANGE
             )
             attn_mode = "softmax"
         elif attn_mode == "softmax" and not SDP_IS_AVAILABLE:
             print(
-                "We do not support vanilla attention anymore, as it is too expensive. Sorry."
+                "We do not support softmax vanilla attention anymore, as it is too expensive. Sorry.", color.ORANGE
             )
             if not XFORMERS_IS_AVAILABLE:
                 assert (
                     False
                 ), "Please install xformers via e.g. 'pip install xformers==0.0.16'"
             else:
-                print("Falling back to xformers efficient attention.")
+                print("Falling back to xformers efficient attention."), color.ORANGE
                 attn_mode = "softmax-xformers"
         attn_cls = self.ATTENTION_MODES[attn_mode]
         if version.parse(torch.__version__) >= version.parse("2.0.0"):
@@ -418,8 +418,8 @@ class BasicTransformerBlock(nn.Module):
         self.norm2 = nn.LayerNorm(dim)
         self.norm3 = nn.LayerNorm(dim)
         self.checkpoint = checkpoint
-        if self.checkpoint:
-            print(f"{self.__class__.__name__} is using checkpointing")
+        # if self.checkpoint:
+        #     print(f"{self.__class__.__name__} is using checkpointing")
 
     def forward(
         self, x, context=None, additional_tokens=None, n_times_crossframe_attn_in_self=0
@@ -541,24 +541,52 @@ class SpatialTransformer(nn.Module):
         )
         from omegaconf import ListConfig
 
+        # Ensure context_dim is a list. If it's a single value (e.g., an int), wrap it in a list.
+        # This allows the UNetModel to pass a single context_dim that applies to all SpatialTransformer depths,
+        # or a pre-formatted list if more specific control is needed (though UNetModel currently passes a single value/
         if exists(context_dim) and not isinstance(context_dim, (list, ListConfig)):
             context_dim = [context_dim]
+
+        # If context_dim is now a list (either originally or after the above conversion)
         if exists(context_dim) and isinstance(context_dim, list):
+
+            # Check if the length of the provided context_dim list matches the depth of this SpatialTransformer.
+            # Each SpatialTransformer instance can have a different 'depth' (number of internal BasicTransformerBlocks)
+            # based on its level in the U-Net, but UNetModel passes the same context_dim config to all of them.            
             if depth != len(context_dim):
-                print(
-                    f"WARNING: {self.__class__.__name__}: Found context dims {context_dim} of depth {len(context_dim)}, "
-                    f"which does not match the specified 'depth' of {depth}. Setting context_dim to {depth * [context_dim[0]]} now."
+
+                # If there's a mismatch, print a warning.
+                # This typically happens if UNetModel is configured (in the yaml) with a single context_dim (e.g., 2048 or [2048])
+                # but this SpatialTransformer instance has a depth > 1.                
+                print(                    
+                    f"WARNING: {self.__class__.__name__}:\n - Found context dims {context_dim} of depth {len(context_dim)}, "
+                    f"doesn't match the specified 'depth' of {depth}.\n - Setting context_dim to {depth * [context_dim[0]]} now.", color.ORANGE
                 )
+                
                 # depth does not match context dims.
+                # To adapt, the code assumes that if context_dim was a list and mismatched,
+                # all its elements should be identical (homogenous). This allows safely taking the first element.                
                 assert all(
                     map(lambda x: x == context_dim[0], context_dim)
                 ), "need homogenous context_dim to match depth automatically"
+
+                # Recreate context_dim as a list of 'depth' copies of its first element.
+                # This ensures each internal BasicTransformerBlock gets a context_dim.                
                 context_dim = depth * [context_dim[0]]
+
+        # If context_dim was initially None, create a list of 'depth' Nones.
+        # This ensures each internal BasicTransformerBlock receives a None context_dim.                
         elif context_dim is None:
             context_dim = [None] * depth
+
+
+
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
         self.norm = Normalize(in_channels)
+
+
+
         if not use_linear:
             self.proj_in = nn.Conv2d(
                 in_channels, inner_dim, kernel_size=1, stride=1, padding=0
