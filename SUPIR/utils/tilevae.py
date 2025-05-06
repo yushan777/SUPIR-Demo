@@ -131,6 +131,7 @@ def inplace_nonlinearity(x):
 
 # extracted from ldm.modules.diffusionmodules.model
 
+# ====================================================================================
 # from diffusers lib
 def attn_forward_new(self, h_):
     batch_size, channel, height, width = h_.shape
@@ -168,6 +169,7 @@ def attn_forward_new(self, h_):
 
     return hidden_states
 
+# ====================================================================================
 def attn_forward_new_pt2_0(self, hidden_states,):
     scale = 1
     attention_mask = None
@@ -229,6 +231,7 @@ def attn_forward_new_pt2_0(self, hidden_states,):
 
     return hidden_states
 
+# ====================================================================================
 def attn_forward_new_xformers(self, hidden_states):
     scale = 1
     attention_op = None
@@ -289,6 +292,70 @@ def attn_forward_new_xformers(self, hidden_states):
 
     return hidden_states
 
+# ====================================================================================
+# new attention function for sdpa
+def attn_forward_sdpa(self, h_):
+    """
+    Attention implementation using PyTorch's actual scaled_dot_product_attention
+    function with compatible tensor reshaping for SUPIR's architecture.
+    """
+    # Get q, k, v using either naming convention
+    if hasattr(self, 'q'):
+        q = self.q(h_)
+        k = self.k(h_)
+        v = self.v(h_)
+    elif hasattr(self, 'to_q'):
+        q = self.to_q(h_)
+        k = self.to_k(h_)
+        v = self.to_v(h_)
+    else:
+        # Fall back if the structure is unknown
+        return attn_forward_new(self, h_)
+
+    # Get shapes
+    b, c, h, w = q.shape
+    
+    # For compatibility with different architectures, we'll use the actual standard attention
+    # implementation first, then apply SDPA to the attention matrix directly
+    
+    # Reshape for standard attention calculation
+    q_flat = q.reshape(b, c, h*w)
+    k_flat = k.reshape(b, c, h*w)
+    v_flat = v.reshape(b, c, h*w)
+    
+    q_flat = q_flat.permute(0, 2, 1)   # b,hw,c
+    
+    # Now we can use SDPA with the proper shape
+    # We need to add the heads dimension for SDPA (batch, heads, seq_len, dim)
+    # In our case, we're treating it as a single head with the full dimension
+    q_sdpa = q_flat.unsqueeze(1)     # [b, 1, hw, c]
+    k_sdpa = k_flat.permute(0, 2, 1).unsqueeze(1)  # [b, 1, hw, c]
+    v_sdpa = v_flat.permute(0, 2, 1).unsqueeze(1)  # [b, 1, hw, c]
+    
+    # Apply SDPA
+    attn_output = F.scaled_dot_product_attention(q_sdpa, k_sdpa, v_sdpa)  # [b, 1, hw, c]
+    
+    # Remove the head dimension and reshape back
+    attn_output = attn_output.squeeze(1)  # [b, hw, c]
+    attn_output = attn_output.permute(0, 2, 1).reshape(b, c, h, w)  # [b, c, h, w]
+    
+    # Apply output projection
+    if hasattr(self, 'proj_out'):
+        out = self.proj_out(attn_output)
+    elif hasattr(self, 'to_out'):
+        if isinstance(self.to_out, torch.nn.Sequential):
+            out = self.to_out[0](attn_output.reshape(b, c, h*w).permute(0, 2, 1))
+            out = self.to_out[1](out)
+            out = out.permute(0, 2, 1).reshape(b, c, h, w)
+        else:
+            out = self.to_out(attn_output.reshape(b, c, h*w).permute(0, 2, 1))
+            out = out.permute(0, 2, 1).reshape(b, c, h, w)
+    else:
+        out = attn_output
+        
+    return out
+
+# ====================================================================================
 def attn_forward(self, h_):
     q = self.q(h_)
     k = self.k(h_)
@@ -314,16 +381,43 @@ def attn_forward(self, h_):
 
     return h_
 
-
+# ====================================================================================
 def xformer_attn_forward(self, h_):
-    q = self.q(h_)
-    k = self.k(h_)
-    v = self.v(h_)
+    """
+    Safer version of xformer_attn_forward that handles import errors
+    and different attention block structures.
+    """
+    try:
+        import xformers
+        import xformers.ops
+    except Exception:
+        return attn_forward_new(self, h_)
+    
+    # Get q, k, v using either naming convention
+    if hasattr(self, 'q'):
+        q = self.q(h_)
+        k = self.k(h_)
+        v = self.v(h_)
+    elif hasattr(self, 'to_q'):
+        q = self.to_q(h_)
+        k = self.to_k(h_)
+        v = self.to_v(h_)
+    else:
+        return attn_forward_new(self, h_)
 
     # compute attention
     B, C, H, W = q.shape
-    q, k, v = map(lambda x: rearrange(x, 'b c h w -> b (h w) c'), (q, k, v))
+    
+    # Use einops if available, otherwise reshape manually
+    try:
+        from einops import rearrange
+        q, k, v = map(lambda x: rearrange(x, 'b c h w -> b (h w) c'), (q, k, v))
+    except ImportError:
+        q = q.reshape(B, C, H*W).permute(0, 2, 1)  # B, HW, C
+        k = k.reshape(B, C, H*W).permute(0, 2, 1)  # B, HW, C
+        v = v.reshape(B, C, H*W).permute(0, 2, 1)  # B, HW, C
 
+    # Reshape for xformers
     q, k, v = map(
         lambda t: t.unsqueeze(3)
         .reshape(B, t.shape[1], 1, C)
@@ -332,20 +426,43 @@ def xformer_attn_forward(self, h_):
         .contiguous(),
         (q, k, v),
     )
+    
+    # Get attention_op if available
+    attention_op = getattr(self, 'attention_op', None)
+    
+    # Use xformers memory efficient attention
     out = xformers.ops.memory_efficient_attention(
-        q, k, v, attn_bias=None, op=self.attention_op)
+        q, k, v, attn_bias=None, op=attention_op)
 
+    # Reshape back
     out = (
         out.unsqueeze(0)
         .reshape(B, 1, out.shape[1], C)
         .permute(0, 2, 1, 3)
         .reshape(B, out.shape[1], C)
     )
-    out = rearrange(out, 'b (h w) c -> b c h w', b=B, h=H, w=W, c=C)
-    out = self.proj_out(out)
+    
+    # Back to original shape
+    try:
+        from einops import rearrange
+        out = rearrange(out, 'b (h w) c -> b c h w', b=B, h=H, w=W, c=C)
+    except ImportError:
+        out = out.permute(0, 2, 1).reshape(B, C, H, W)
+    
+    # Apply output projection
+    if hasattr(self, 'proj_out'):
+        out = self.proj_out(out)
+    elif hasattr(self, 'to_out'):
+        if isinstance(self.to_out, torch.nn.Sequential):
+            out = self.to_out[0](out.reshape(B, C, H*W).permute(0, 2, 1))
+            out = self.to_out[1](out)
+            out = out.permute(0, 2, 1).reshape(B, C, H, W)
+        else:
+            out = self.to_out(out)
+    
     return out
 
-
+# ====================================================================================
 def attn2task(task_queue, net):
     if False: #isinstance(net, AttnBlock):
         task_queue.append(('store_res', lambda x: x))
@@ -361,16 +478,32 @@ def attn2task(task_queue, net):
     else:
         task_queue.append(('store_res', lambda x: x))
         task_queue.append(('pre_norm', net.norm))
-        if is_xformers_available:
-            # task_queue.append(('attn', lambda x, net=net: attn_forward_new_xformers(net, x)))
-            task_queue.append(
-                ('attn', lambda x, net=net: xformer_attn_forward(net, x)))
-        elif hasattr(F, "scaled_dot_product_attention"):
-            task_queue.append(('attn', lambda x, net=net: attn_forward_new_pt2_0(net, x)))
+        
+        # Prioritize SDPA if PyTorch supports it
+        if hasattr(F, "scaled_dot_product_attention"):
+            print("[Tiled VAE]: Using PyTorch SDPA-based attention")
+            task_queue.append(('attn', lambda x, net=net: attn_forward_sdpa(net, x)))
+        # Only use xformers if explicitly available and imported
+        elif is_xformers_available and 'xformers' in sys.modules:
+            try:
+                import xformers
+                import xformers.ops
+                print("[Tiled VAE]: Using xformers for attention")
+                task_queue.append(
+                    ('attn', lambda x, net=net: xformer_attn_forward(net, x)))
+            except Exception as e:
+                print(f"[Tiled VAE]: xformers import failed ({str(e)}), falling back to standard attention")
+                task_queue.append(('attn', lambda x, net=net: attn_forward_new(net, x)))
         else:
+            print("[Tiled VAE]: Using standard attention")
             task_queue.append(('attn', lambda x, net=net: attn_forward_new(net, x)))
+        
+
+
+
         task_queue.append(['add_res', None])
 
+# ====================================================================================
 def resblock2task(queue, block):
     """
     Turn a ResNetBlock into a sequence of tasks and append to the task queue

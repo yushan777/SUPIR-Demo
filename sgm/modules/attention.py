@@ -3,8 +3,6 @@ from inspect import isfunction
 from typing import Any, Optional
 import torch
 import torch.nn.functional as F
-# from einops._torch_specific import allow_ops_in_compiled_graph
-# allow_ops_in_compiled_graph()
 from einops import rearrange, repeat
 from packaging import version
 from torch import nn
@@ -559,8 +557,8 @@ class SpatialTransformer(nn.Module):
                 # This typically happens if UNetModel is configured (in the yaml) with a single context_dim (e.g., 2048 or [2048])
                 # but this SpatialTransformer instance has a depth > 1.                
                 print(                    
-                    f"WARNING: {self.__class__.__name__}:\n - Found context dims {context_dim} of depth {len(context_dim)}, "
-                    f"doesn't match the specified 'depth' of {depth}.\n - Setting context_dim to {depth * [context_dim[0]]} now.", color.ORANGE
+                    f"INFO: {self.__class__.__name__}:\n - Found context dims {context_dim} of depth {len(context_dim)}, "
+                    f"doesn't match the specified 'depth' of {depth}.\n - Correcting and setting context_dim to {depth * [context_dim[0]]} now.", color.ORANGE
                 )
                 
                 # depth does not match context dims.
