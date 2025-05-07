@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Prompt for HF token
-read -sp "Enter your Hugging Face access token: " HF_TOKEN
-echo
+# read -sp "Enter your Hugging Face access token: " HF_TOKEN
+# echo
 
 # install deps
 sudo apt update
