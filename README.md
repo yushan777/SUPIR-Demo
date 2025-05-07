@@ -16,7 +16,7 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
     git clone https://github.com/yushan777/SUPIR.git
     cd SUPIR
     ```
-## Vast.ai Install
+## Vast.ai Install (will automatically download models)
     ```bash
     chmod +x install_vastai.sh
     ./install_vastai.sh
