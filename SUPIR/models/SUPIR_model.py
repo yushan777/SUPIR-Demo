@@ -140,7 +140,7 @@ class SUPIRModel(DiffusionEngine):
 
     # ========================================================================================
     @torch.no_grad()
-    def batchify_sample(self, img, prompt_lst, 
+    def batchify_sample(self, img, prompt, 
                         p_p='default', 
                         n_p='default', 
                         num_steps=50, 
@@ -161,28 +161,30 @@ class SUPIRModel(DiffusionEngine):
 
         print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
         
-        print(f'p = {type(prompt_lst)}', color.BRIGHT_CYAN)
+        print(f'prompt = {type(prompt)}', color.BRIGHT_CYAN)
 
         '''
         [N, C], [-1, 1], RGB
         '''
 
-        
+        # !>>> Assert that we only have one image
+        assert len(img) == 1, "This version only supports processing one image at a time"
+    
+        # !>>> Assert that multiple samples isn't being requested (optional, remove if needed)
+        # assert num_samples == 1, "This version doesn't support multiple samples"
 
-        # check that the number of images matches the number of prompts (should just be 1 for each)
-        assert len(img) == len(prompt_lst)
         # check if the color_fix_type parameter has a valid value
         assert color_fix_type in ['Wavelet', 'AdaIn', 'None']
 
-        # get batch size from input tensor
-        N = len(img)
-        # Checks if the user wants to generate multiple variations from a single input image
-        # if so ensures only one input image was provided. (model only supports creating multiple variations from a single image)
-        if num_samples > 1:
-            assert N == 1
-            N = num_samples #  update the batch size
-            img = img.repeat(N, 1, 1, 1) # dupe the single input image to create a batch of identical images:
-            prompt_lst = prompt_lst * N # dupe the prompt list to match the number of images
+        # # get batch size from input tensor
+        # N = len(img)
+        # # Checks if the user wants to generate multiple variations from a single input image
+        # # if so ensures only one input image was provided. (model only supports creating multiple variations from a single image)
+        # if num_samples > 1:
+        #     assert N == 1
+        #     N = num_samples #  update the batch size
+        #     img = img.repeat(N, 1, 1, 1) # dupe the single input image to create a batch of identical images:
+        #     prompt_lst = prompt_lst * N # dupe the prompt list to match the number of images
 
         # additional pos/neg prompts
         if p_p == 'default':
@@ -214,7 +216,9 @@ class SUPIRModel(DiffusionEngine):
         x_stage1 = self.decode_first_stage(_z)
         z_stage1 = self.encode_first_stage(x_stage1)
 
-        c, uc = self.prepare_condition(_z, prompt_lst, p_p, n_p, N)
+        # !>>> Pass the string prompt directly to prepare_condition
+        c, uc = self.prepare_condition(_z, prompt, p_p, n_p)
+
 
         denoiser = lambda input, sigma, c, control_scale: self.denoiser(
             self.model, input, sigma, c, control_scale, **kwargs
@@ -249,8 +253,11 @@ class SUPIRModel(DiffusionEngine):
 
     # ========================================================================================
     #  prepare the conditioning inputs that guide the diffusion model during inference
-    def prepare_condition(self, _z, p, p_p, n_p, N):
+    def prepare_condition(self, _z, prompt, p_p, n_p):
         print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
+
+        # !>>> Get the batch size from the image tensor
+        N = len(_z)
 
         batch = {}
         batch['original_size_as_tuple'] = torch.tensor([1024, 1024]).repeat(N, 1).to(_z.device)
@@ -260,24 +267,35 @@ class SUPIRModel(DiffusionEngine):
         batch['control'] = _z
 
         batch_uc = copy.deepcopy(batch)
-        batch_uc['txt'] = [n_p for _ in p]
 
-        if not isinstance(p[0], list):
-            batch['txt'] = [''.join([_p, p_p]) for _p in p]
-            with torch.amp.autocast('cuda', dtype=self.ae_dtype):
-                c, uc = self.conditioner.get_unconditional_conditioning(batch, batch_uc)
-        else:
-            assert len(p) == 1, 'Support bs=1 only for local prompt conditioning.'
-            p_tiles = p[0]
-            c = []
-            for i, p_tile in enumerate(p_tiles):
-                batch['txt'] = [''.join([p_tile, p_p])]
-                with torch.cuda.amp.autocast(dtype=self.ae_dtype):
-                    if i == 0:
-                        _c, uc = self.conditioner.get_unconditional_conditioning(batch, batch_uc)
-                    else:
-                        _c, _ = self.conditioner.get_unconditional_conditioning(batch, None)
-                c.append(_c)
+        # !>>> Use the negative prompt string directly
+        batch_uc['txt'] = [n_p]
+                
+        # batch_uc['txt'] = [n_p for _ in prompt]
+
+        # !>>> Create the positive prompt by concatenating prompt and p_p
+        batch['txt'] = [''.join([prompt, p_p])]
+
+        with torch.amp.autocast('cuda', dtype=self.ae_dtype):
+            c, uc = self.conditioner.get_unconditional_conditioning(batch, batch_uc)
+
+        # if not isinstance(prompt[0], list):
+        #     batch['txt'] = [''.join([_p, p_p]) for _p in prompt]
+        #     with torch.amp.autocast('cuda', dtype=self.ae_dtype):
+        #         c, uc = self.conditioner.get_unconditional_conditioning(batch, batch_uc)
+        # else:
+        #     assert len(prompt) == 1, 'Support bs=1 only for local prompt conditioning.'
+        #     p_tiles = prompt[0]
+        #     c = []
+        #     for i, p_tile in enumerate(p_tiles):
+        #         batch['txt'] = [''.join([p_tile, p_p])]
+        #         with torch.cuda.amp.autocast(dtype=self.ae_dtype):
+        #             if i == 0:
+        #                 _c, uc = self.conditioner.get_unconditional_conditioning(batch, batch_uc)
+        #             else:
+        #                 _c, _ = self.conditioner.get_unconditional_conditioning(batch, None)
+        #         c.append(_c)
+        
         return c, uc
 
 

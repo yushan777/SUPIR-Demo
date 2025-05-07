@@ -69,10 +69,6 @@ In contrast, the v0F model (Fidelity) is specifically trained on lighter degrada
 * [Juggernaut-XL_v9_RunDiffusionPhoto_v2](https://huggingface.co/yushan777/SUPIR/resolve/main/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors)  
   Place in `models/SDXL`
 
-
-
-
-
 4. Edit Custom Path for Checkpoints
     ```
     * [options/SUPIR_v0.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. CLIP1, CLIP2

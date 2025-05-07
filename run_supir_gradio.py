@@ -34,12 +34,28 @@ def generate_random_seed():
     return random.randint(1, 2147483647)
 
 # Process the image with SUPIR
-def process_image(input_image, upscale, supir_sign, seed,  edm_steps, 
-                 s_stage1, s_churn, s_noise, s_cfg, s_stage2,
-                 img_caption, a_prompt, n_prompt,
-                 spt_linear_CFG, spt_linear_s_stage2,
-                 config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
-                 ae_dtype, diff_dtype):
+def process_image(input_image, 
+                  upscale, 
+                  supir_sign, 
+                  seed,  
+                  edm_steps, 
+                  restoration_scale, 
+                  s_churn, 
+                  s_noise, 
+                  cfg_scale_end, 
+                  control_scale_end,
+                  img_caption, 
+                  a_prompt, 
+                  n_prompt,
+                  cfg_scale_start, 
+                  control_scale_start,
+                  config_path, 
+                  loading_half_params, 
+                  use_tile_vae, 
+                  encoder_tile_size, 
+                  decoder_tile_size,
+                  ae_dtype, 
+                  diff_dtype):
 
     # Load model with specified precision and performance settings
     global model
@@ -87,23 +103,23 @@ def process_image(input_image, upscale, supir_sign, seed,  edm_steps,
     LQ_img = LQ_img.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
     
     # Use the provided caption
-    captions = [img_caption]
+    # captions = [img_caption]
     
     # Run diffusion process
-    samples = model.batchify_sample(LQ_img, captions, 
+    samples = model.batchify_sample(LQ_img, img_caption, 
                                     num_steps=edm_steps, 
-                                    restoration_scale=s_stage1, 
+                                    restoration_scale=restoration_scale, 
                                     s_churn=s_churn,
                                     s_noise=s_noise, 
-                                    cfg_scale=s_cfg, 
-                                    control_scale=s_stage2, 
+                                    cfg_scale_start=cfg_scale_start,
+                                    cfg_scale_end=cfg_scale_end, 
+                                    control_scale_start=control_scale_start,
+                                    control_scale_end=control_scale_end, 
                                     seed=seed,
                                     num_samples=1,  # Always 1 for UI 
                                     p_p=a_prompt, 
                                     n_p=n_prompt, 
-                                    color_fix_type="Wavelet",
-                                    cfg_scale_start=spt_linear_CFG, 
-                                    control_scale_start=spt_linear_s_stage2)
+                                    color_fix_type="Wavelet")
     
     # Convert result to PIL image
     result_img = Tensor2PIL(samples[0], h0, w0)
@@ -147,144 +163,215 @@ def update_tile_vae_visibility(use_tile):
 default_positive_prompt = 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
 default_negative_prompt = 'painting, oil painting, illustration, drawing, art, sketch, oil painting, cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth'
 
-# Create the Gradio UI
+
+# =================================================================================
+# GRADIO UI SHIT
+# =================================================================================
 def create_ui():
-
-
-    # with gr.Blocks(title="SUPIR Image Restoration", css=".container { max-width: 600px; margin: auto; }") as demo:
     with gr.Blocks(title="SUPIR Image Restoration") as demo:
-        gr.Markdown("# SUPIR Image Restoration.")
-        gr.Markdown("Upload an image to enhance/detail/restore it using the SUPIR model")
-        
-        # =========================================================================
+        # Two-column main layout
         with gr.Row():
-            with gr.Column():
-                input_image = gr.Image(label="Input Image", type="pil", height=512)
-                run_button = gr.Button("Enhance Image")
-            
-            with gr.Column():
-                output_image = gr.Image(label="Enhanced Image", height=512)
-        
-        # =========================================================================
-        with gr.Row():
-            img_caption = gr.Textbox(
-                    label="Image Caption (Leave empty for no caption)", 
-                    lines=3,
-                    placeholder="Describe the image to be enhanced. This will usually help improve results."
+            # Left sidebar for all controls
+            with gr.Column(scale=1, min_width=380):
+                # gr.Markdown("## Controls")
+                gr.Markdown("# SUPIR Image Restoration")
+
+                # Main controls in sidebar
+                with gr.Group():
+                    run_button = gr.Button("▶️ ENHANCE", variant="primary", size="lg")
+                    
+                    with gr.Row():
+                        seed = gr.Number(value=1234567891, precision=0, label="Seed")
+                        random_seed_button = gr.Button("🎲", size="sm")
+                
+                # Image caption (describes the image to be restored/upscaled)
+                img_caption = gr.Textbox(
+                    label="Image Caption", 
+                    placeholder="Describe the image",
+                    lines=3
                 )
-
-        with gr.Row():
-            upscale = gr.Slider(minimum=1, maximum=4, value=2, step=1, label="Upscale Factor")
-            supir_sign = gr.Radio(
-                    choices=["Q", "F"], 
-                    value="Q", 
-                    label="SUPIR Model :",
-                    info="v0Q is trained for wide range of image degradation, so it may overcorrect or hallucinate details on lightly degraded images due to its bias toward heavy damage. v0F targets light degradation, preserving fine details and structure for high-fidelity restoration with minimal alteration."
-            )
-
-        with gr.Column():
-            seed = gr.Number(value=1234567891, precision=0, label="Seed")
-            random_seed_button = gr.Button("🎲 Random", size="sm")     
-
-        # =========================================================================
-        with gr.Accordion("Precision & Performance Settings", open=True):
-            config_path = gr.Radio(
-                choices=[("Standard Sampler (More VRAM)", 'options/SUPIR_v0.yaml'), 
-                         ("Tiled Sampler (Less VRAM)", 'options/SUPIR_v0_tiled.yaml')],
-                value='options/SUPIR_v0_tiled.yaml',
-                label="Processing Mode"
-            )
-            with gr.Row():
-                loading_half_params = gr.Checkbox(value=True, label="Load Half Precision Parameters (use if <=24GB VRAM)")
-
-            with gr.Row():
-                ae_dtype = gr.Radio(choices=["fp32", "bf16"], value="bf16", label="Autoencoder Data Type")
-                diff_dtype = gr.Radio(choices=["fp32", "fp16", "bf16"], value="fp16", label="Diffusion Model Data Type")
-            
-            with gr.Row():
-                use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE (use if <=24GB VRAM)")
-
-            # Create a visible container for tile VAE settings
-            with gr.Column(visible=True) as tile_vae_settings:  # Set to True since use_tile_vae is True by default
-                with gr.Row():  # Add this Row to arrange sliders horizontally
-                    encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
-                    decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
-            
-            # Connect the checkbox to update visibility
-            use_tile_vae.change(
-                fn=update_tile_vae_visibility,
-                inputs=[use_tile_vae],
-                outputs=[tile_vae_settings]
-            )
-        
-        # =========================================================================
-        # with gr.Accordion("Basic Settings", open=True):
+                
+                # Basic settings as dropdowns for space efficiency
+                with gr.Group():
+                    with gr.Row():
+                        upscale = gr.Dropdown(
+                            choices=[1, 2, 3, 4], 
+                            value=2, 
+                            label="Upscale",
+                            interactive=True
+                        )
+                        supir_sign = gr.Dropdown(
+                            choices=["Q", "F"], 
+                            value="Q", 
+                            label="Model Type"
+                        )
+                
+                # Compact tabbed interface for advanced settings
+                with gr.Tabs():
+                    # Model Settings Tab
+                    with gr.TabItem("Model"):
+                        config_path = gr.Dropdown(
+                            choices=[
+                                ("Standard (High VRAM)", 'options/SUPIR_v0.yaml'),
+                                ("Tiled (Low VRAM)", 'options/SUPIR_v0_tiled.yaml')
+                            ],
+                            value=('options/SUPIR_v0_tiled.yaml'),
+                            label="Sampler"
+                        )
                         
-        #     min_size = gr.Slider(minimum=1024, maximum=2048, value=1024, step=64, label="Minimum Size (`min_size` ensures that the image being processed has a minimum width or height)")
-        #     color_fix_type = gr.Radio(choices=["None", "AdaIn", "Wavelet"], value="Wavelet", label="Color Fix Type")
-        
-        with gr.Accordion("Advanced Settings", open=True):
-            edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="EDM Steps")
-            s_stage1 = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Stage 1 Scale (kijai restore_cfg)")
-            s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="Churn")
-            s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="Noise")
-            s_cfg = gr.Slider(minimum=1.0, maximum=15.0, value=4.0, step=0.1, label="CFG Scale (kijai cfg_scale_end)")
-            s_stage2 = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Stage 2 Scale (kijai control_scale_end)")
+                        with gr.Row():
+                            loading_half_params = gr.Checkbox(value=True, label="Half Precision")
+                            use_tile_vae = gr.Checkbox(value=True, label="Tile VAE")
+                        
+                        # Compact data type selection
+                        with gr.Row():
+                            ae_dtype = gr.Dropdown(
+                                choices=["fp32", "bf16"], 
+                                value="bf16", 
+                                label="AE Type"
+                            )
+                            diff_dtype = gr.Dropdown(
+                                choices=["fp32", "fp16", "bf16"], 
+                                value="fp16", 
+                                label="Diff Type"
+                            )
+                        
+                        # Tile settings in collapsible group
+                        with gr.Accordion("Tile Settings", open=False) as tile_vae_settings:
+                            encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile")
+                            decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile")
+                    
+                    # Diffusion Tab  
+                    with gr.TabItem("Diffusion"):
+                        # Use compact sliders with labels above
+                        edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="Sampler Steps")
+                        
+                        # Group similar controls
+                        with gr.Group():
+                            gr.Markdown("##### Noise Settings")
+                            with gr.Row():
+                                s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="Churn")
+                                s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="Noise")
+                        
+                        with gr.Group():
+                            gr.Markdown("##### Guidance")
+                            with gr.Row():
+                                cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="CFG Scale Start")        
+                                cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=4.0, step=0.1, label="CFG Scale End")
+                            
+                            with gr.Row():
+                                control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale Start")
+                                control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale End")
+                            
+                            restoration_scale = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Restoration Scale(-1=Off)")
+                
+                    # Prompts Tab
+                    with gr.TabItem("Prompts"):
+                        a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
+                        n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
+                
+                # # Quick preset buttons
+                # with gr.Group():
+                #     gr.Markdown("### Quick Presets")
+                #     with gr.Row():
+                #         preset_detail = gr.Button("Detail Enhancement", size="sm")
+                #         preset_restore = gr.Button("Photo Restoration", size="sm") 
+                #         preset_upscale = gr.Button("Upscale 4x", size="sm")
             
-            with gr.Row():
-                spt_linear_CFG = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="Start Linear CFG (kijai cfg_scale_start)")
-            
-            with gr.Row():
-                spt_linear_s_stage2 = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Start Linear Stage 2 (kijai control_scale_start)")
+            # Right main area for images and results
+            with gr.Column(scale=2):
+                # App title and description
+                with gr.Row():
+                    pass
+                    # gr.Markdown("# SUPIR Image Restoration")
+                
+                # Before/After with tabs
+                with gr.Tabs():
+                    with gr.TabItem("Input Image"):
+                        input_image = gr.Image(
+                            label="Upload an image to enhance", 
+                            type="pil", 
+                            height=600
+                        )
+                        gr.Markdown("Upload an image to enhance or restore")
+                    
+                    with gr.TabItem("Enhanced Result"):
+                        output_image = gr.Image(
+                            label="Enhanced Image", 
+                            height=600
+                        )
+                        with gr.Row():
+                            compare_btn = gr.Button("Compare with Original", size="sm")
+                
+                # Help accordion at bottom
+                with gr.Accordion("Help & Tips", open=False):
+                    gr.Markdown("""
+                    ## Quick Start
+                    1. Upload an image on the Input tab
+                    2. Optionally describe what to enhance
+                    3. Click ENHANCE button
+                    4. View result in the Enhanced Result tab
+                    
+                    ## Performance Tips
+                    - For faster processing: Lower steps (20-30), use fp16 precision
+                    - For better quality: Higher steps (50+), use fp32 precision
+                    - For large images: Enable Tile VAE in the Model tab
+                    """)
 
-        # =========================================================================
-        with gr.Accordion("(Additional) Prompt Settings - these are appended to the main caption.", open=False):
-            a_prompt = gr.Textbox(value=default_positive_prompt, lines=3, label="Positive Prompt")
-            n_prompt = gr.Textbox(value=default_negative_prompt, lines=3, label="Negative Prompt")
+        # Connect UI functions
+        use_tile_vae.change(
+            fn=update_tile_vae_visibility,
+            inputs=[use_tile_vae],
+            outputs=[tile_vae_settings]
+        )
         
-        # Random seed button functionality
         random_seed_button.click(
             fn=generate_random_seed,
             inputs=[],
             outputs=[seed]
         )
-
-        # Connect the run button to the process_image function
-        # note: min_size and color_fix_type are hardcoded
+        
+        # # Connect preset buttons
+        # def set_detail_preset():
+        #     return gr.update(value="Detail enhancement, clear and sharp"), gr.update(value=50), gr.update(value="Q")
+        
+        # def set_restore_preset():
+        #     return gr.update(value="Restore damaged photo, fix artifacts"), gr.update(value=70), gr.update(value="Q")
+            
+        # def set_upscale_preset():
+        #     return gr.update(value="High quality upscale"), gr.update(value=4), gr.update(value="F")
+        
+        # preset_detail.click(fn=set_detail_preset, inputs=[], outputs=[img_caption, edm_steps, supir_sign])
+        # preset_restore.click(fn=set_restore_preset, inputs=[], outputs=[img_caption, edm_steps, supir_sign])
+        # preset_upscale.click(fn=set_upscale_preset, inputs=[], outputs=[img_caption, upscale, supir_sign])
+        
+        # !>>>> Added input validation wrapper
+        def validate_and_process(input_image, *args):
+            if input_image is None:
+                return gr.update(value="Please upload an image first.")
+            try:
+                return process_image(input_image, *args)
+            except Exception as e:
+                return gr.update(value=f"Error processing image: {str(e)}")
+        
+        # !>>>> Connected run button with validation
         run_button.click(
-            fn=process_image,
+            fn=validate_and_process,
             inputs=[
-                input_image, upscale, supir_sign, seed,  edm_steps,
-                s_stage1, s_churn, s_noise, s_cfg, s_stage2,
+                input_image, upscale, supir_sign, seed, edm_steps,
+                restoration_scale, s_churn, s_noise, cfg_scale_end, control_scale_end,
                 img_caption, a_prompt, n_prompt, 
-                spt_linear_CFG, spt_linear_s_stage2,
+                cfg_scale_start, control_scale_start,
                 config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                 ae_dtype, diff_dtype
             ],
             outputs=output_image
         )
-        
-        gr.Markdown("## Instructions")
-        gr.Markdown("""
-        1. Upload an image you want to enhance
-        2. Adjust the settings as needed (default settings are sufficient for most uses)
-        3. Click 'Enhance Image' to process
-        4. The enhanced image will appear on the right
-        
-        Note: Processing may take some time depending on your GPU and image size.
-        """)
-        
-        gr.Markdown("## Precision & Performance Tips")
-        gr.Markdown("""
-        - **Loading Half Precision**: Reduces memory usage but may slightly reduce quality
-        - **Tile VAE**: Useful for processing large images with limited VRAM
-        - **Data Types**: 
-          - fp32: Best quality, highest memory usage
-          - bf16: Good balance of quality and memory (not supported on all GPUs)
-          - fp16: Fastest, lowest memory usage
-        """)
     
     return demo
+
+
+
 
 # Parse command line arguments
 if __name__ == "__main__":

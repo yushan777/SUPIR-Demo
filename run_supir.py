@@ -85,11 +85,11 @@ def process_image(model, args, device):
     LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
     
     # Image caption(s)
-    captions = [args.img_caption]
+    # captions = [args.img_caption]
     
     # Diffusion Process
     # batchify_sample() is in SUPIR/models/SUPIR_model.py
-    samples = model.batchify_sample(LQ_img, captions, 
+    samples = model.batchify_sample(LQ_img, args.img_caption, 
                                     num_steps=args.edm_steps, 
                                     restoration_scale=args.restoration_scale, 
                                     s_churn=args.s_churn,
