@@ -4,7 +4,8 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 - Added safetensors support. 
 - Updated dependencies. 
 - Replaced Xformers with SDPA as default attention
-
+- Removed `use_linear_control_scale (linear_s_stage2)` and `use_linear_cfg_scale (linear_CFG)` arguments.  
+  Instead will use the start and end scale values to determine whether linear scaling will be used/have effect or not.
 ---
 ## 🔧 Dependencies and Installation
 
@@ -100,10 +101,8 @@ python3 test.py \
 --edm_steps=50 \
 --s_churn=5 \
 --s_cfg=4.0 \
---linear_CFG \
 --spt_linear_CFG=2.0 \
 --s_stage2=0.9 \
---linear_s_stage2 \
 --spt_linear_s_stage2=0.9 \
 --loading_half_params \
 --use_tile_vae
@@ -185,7 +184,7 @@ python3 test.py \
   * Slightly > 1: More variation
 
 * `--s_cfg`
-  Prompt guidance strength. Default: `7.5`
+  Prompt guidance strength. Default: `4`
 
   * `1.0`: Weak (ignores prompt)
   * `7.5`: Strong (follows prompt closely)
@@ -194,7 +193,8 @@ python3 test.py \
 
 * `--s_stage1` (aka restoration_scale)
   Early-stage restoration strength .
-  Default: `-1` (disabled). Typical values: `1–6`
+  Default: `-1` (disabled). 
+  Typical values: `1–6`
 
 * `--s_stage2` (aka control_scale)
   Structural guidance from input image. Default: `1.0`
@@ -238,17 +238,16 @@ python3 test.py \
 
 ### Linear Scheduling (for dynamic scaling during sampling)
 
-* `--linear_CFG`
-  Enable linear scheduling for prompt guidance (`--s_cfg`). Default: `True`
+* `--spt_linear_CFG` 
+  Start Value of linear_cfg_scaling.  if it is the same value as `--s_cfg` (cfg_scale), then if has no effect
+  When on (i.e. start and end are different values) then scheduling with run from `--spt_linear_CFG` -> `--s_cfg`
+  Default: `2.0`
 
-* `--spt_linear_CFG`
-  Start value of `--s_cfg` when linear scheduling is enabled. Default: `4.0`
-
-* `--linear_s_stage2`
-  Enable linear scheduling for structure guidance (`--s_stage2`). Default: `False`
 
 * `--spt_linear_s_stage2`
-  Start value of `--s_stage2` if `--linear_s_stage2` is enabled. Default: `0.0`
+  Start value of linear_control_scaling. if it is the same value as `--s_stage2` (control_scale), then it has no effect
+  When on (i.e. start and end are different values) then scheduling with run from `--spt_linear_s_stage2` -> `--s_stage2`
+  Default: `0.9`
 
 **Purpose:**
 Linear scheduling gradually adjusts values during sampling based on noise level (`sigma`).
