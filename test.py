@@ -16,11 +16,11 @@ def parse_arguments():
     parser.add_argument("--seed", type=int, default=1234)
     parser.add_argument("--min_size", type=int, default=1024)
     parser.add_argument("--edm_steps", type=int, default=50)
-    parser.add_argument("--s_stage1", type=int, default=-1)
+    parser.add_argument("--restoration_scale", type=int, default=-1) #renamed from s_stage1
     parser.add_argument("--s_churn", type=int, default=5)
     parser.add_argument("--s_noise", type=float, default=1.003)
-    parser.add_argument("--s_cfg", type=float, default=4.0)
-    parser.add_argument("--s_stage2", type=float, default=1.0)
+    parser.add_argument("--cfg_scale_end", type=float, default=4.0) #renamed from s_cfg
+    parser.add_argument("--control_scale_end", type=float, default=1.0) #renamed from s_stage2
     parser.add_argument("--num_samples", type=int, default=1)
     parser.add_argument("--img_caption", type=str, default='', help="Specific caption for the input image.")
     parser.add_argument("--a_prompt", type=str,
@@ -34,8 +34,8 @@ def parse_arguments():
                                 'worst quality, low quality, frames, watermark, signature, jpeg artifacts, '
                                 'deformed, lowres, over-smooth')
     parser.add_argument("--color_fix_type", type=str, default='Wavelet', choices=["None", "AdaIn", "Wavelet"])
-    parser.add_argument("--spt_linear_CFG", type=float, default=2.0)
-    parser.add_argument("--spt_linear_s_stage2", type=float, default=0.9)
+    parser.add_argument("--cfg_scale_start", type=float, default=2.0) #renamed from spt_linear_CFG
+    parser.add_argument("--control_scale_start", type=float, default=0.9) #renamed from spt_linear_s_stage2
     parser.add_argument("--ae_dtype", type=str, default="bf16", choices=['fp32', 'bf16'])
     parser.add_argument("--diff_dtype", type=str, default="fp16", choices=['fp32', 'fp16', 'bf16'])
     parser.add_argument("--loading_half_params", action='store_true', default=False)
@@ -91,18 +91,18 @@ def process_image(model, args, device):
     # batchify_sample() is in SUPIR/models/SUPIR_model.py
     samples = model.batchify_sample(LQ_img, captions, 
                                     num_steps=args.edm_steps, 
-                                    restoration_scale=args.s_stage1, 
+                                    restoration_scale=args.restoration_scale, 
                                     s_churn=args.s_churn,
-                                    s_noise=args.s_noise, 
-                                    cfg_scale=args.s_cfg, 
-                                    control_scale=args.s_stage2, 
+                                    s_noise=args.s_noise,
+                                    cfg_scale_start=args.cfg_scale_start,                                     
+                                    cfg_scale_end=args.cfg_scale_end, 
+                                    control_scale_start=args.control_scale_start,
+                                    control_scale_end=args.control_scale_end, 
                                     seed=args.seed,
                                     num_samples=args.num_samples, 
                                     p_p=args.a_prompt, 
                                     n_p=args.n_prompt, 
-                                    color_fix_type=args.color_fix_type,
-                                    cfg_scale_start=args.spt_linear_CFG, 
-                                    control_scale_start=args.spt_linear_s_stage2)
+                                    color_fix_type=args.color_fix_type)
     
     return samples, h0, w0, img_name
 

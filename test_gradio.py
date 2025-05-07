@@ -153,7 +153,7 @@ def create_ui():
 
     # with gr.Blocks(title="SUPIR Image Restoration", css=".container { max-width: 600px; margin: auto; }") as demo:
     with gr.Blocks(title="SUPIR Image Restoration") as demo:
-        gr.Markdown("# SUPIR Image Restoration Shit")
+        gr.Markdown("# SUPIR Image Restoration.")
         gr.Markdown("Upload an image to enhance/detail/restore it using the SUPIR model")
         
         # =========================================================================

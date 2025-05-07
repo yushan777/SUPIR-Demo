@@ -100,10 +100,10 @@ python3 test.py \
 --img_caption 'A woman has dark brown eyes, dark curly hair wearing a dark scarf on her head. She is wearing a black shirt on with a pattern on it. The wall behind her is brown and green.' \
 --edm_steps=50 \
 --s_churn=5 \
---s_cfg=4.0 \
---spt_linear_CFG=2.0 \
---s_stage2=0.9 \
---spt_linear_s_stage2=0.9 \
+--cfg_scale_start=2.0 \
+--cfg_scale_end=4.0 \
+--control_scale_start=0.9 \
+--control_scale_end=0.9 \
 --loading_half_params \
 --use_tile_vae
 
@@ -183,26 +183,56 @@ python3 test.py \
   * Slightly < 1: More stable
   * Slightly > 1: More variation
 
-* `--s_cfg`
-  Prompt guidance strength. Default: `4`
+* `--cfg_scale_start` 
+  Prompt guidance strength start
+  Default: `2.0`
+
+* `--cfg_scale_end`
+  Prompt guidance strength end. 
+  Default: `4`
 
   * `1.0`: Weak (ignores prompt)
   * `7.5`: Strong (follows prompt closely)
 
+  If `--cfg_scale_start` and `--cfg_scale_end` have the same value, no scaling occurs - 
+  When these values differ, then linear scheduling is applied, 
+  starting from `--cfg_scale_start` and gradually changing to `--cfg_scale_end` during processing.
+
+  `--cfg_scale_start` doesn't have to be lower than `--cfg_scale_end`.  
+  They can start strong and finish weaker
+   - More creative freedom early in the process while enforcing prompt adherence later
+  or start weaker and finish strong
+   - Establish initial structure from the prompt while allowing more freedom for details later
+  
 ### Image Structure Guidance
 
-* `--s_stage1` (aka restoration_scale)
+* `--restoration_scale`
   Early-stage restoration strength .
   Default: `-1` (disabled). 
   Typical values: `1–6`
 
-* `--s_stage2` (aka control_scale)
+* `--control_scale_start`
+  Structural guidance from input image. Default: `1.0`
+
+* `--control_scale_end` 
   Structural guidance from input image. Default: `1.0`
 
   * `0.0`: Disabled
   * `0.1–0.5`: Light
   * `0.6–1.0`: Balanced (default)
   * `1.1–1.5+`: Very strong
+
+  If `--control_scale_start` and `--control_scale_end` have the same value, no scaling occurs - 
+  That single value throughout the process. When these values differ, then linear scheduling is applied, 
+  starting from `--control_scale_start` and gradually changing to `--control_scale_end` during processing.
+
+  `--control_scale_start` doesn't have to be lower than `--control_scale_end`.  
+  They can start strong and finish weaker
+   - Starts with stronger adherence to the structure of the original image
+   - Gradually gives the model more freedom to deviate and enhance details
+  or start weaker and finish strong
+   - Starts with more creative freedom
+   - Gradually increases control to ensure the final result maintains key structural elements
 
 ### Color Correction
 
@@ -236,48 +266,11 @@ python3 test.py \
 
 ---
 
-### Linear Scheduling (for dynamic scaling during sampling)
 
-* `--spt_linear_CFG` 
-  Start Value of linear_cfg_scaling.  if it is the same value as `--s_cfg` (cfg_scale), then if has no effect
-  When on (i.e. start and end are different values) then scheduling with run from `--spt_linear_CFG` -> `--s_cfg`
-  Default: `2.0`
-
-
-* `--spt_linear_s_stage2`
-  Start value of linear_control_scaling. if it is the same value as `--s_stage2` (control_scale), then it has no effect
-  When on (i.e. start and end are different values) then scheduling with run from `--spt_linear_s_stage2` -> `--s_stage2`
-  Default: `0.9`
-
-**Purpose:**
-Linear scheduling gradually adjusts values during sampling based on noise level (`sigma`).
-
-* Prompt guidance (`CFG`) moves from `--spt_linear_CFG` (start value) → `--s_cfg` (end value)
-* Structure guidance (`Control scale`) moves from `--spt_linear_s_stage2` (start value) → `--s_stage2` (end value)
-
-See below for mappings to Kijai's SUPIR custom nodes
----
-
-### ComfyUI Mapping (Kijai's Node)
-
-| ComfyUI Parameter     | Equivalent CLI Option   |
-| --------------------- | ----------------------- |
-| `cfg_scale_start`     | `--spt_linear_CFG`      |
-| `cfg_scale_end`       | `--s_cfg`               |
-| `control_scale_start` | `--spt_linear_s_stage2` |
-| `control_scale_end`   | `--s_stage2`            |
-| `restore_cfg`         | `--s_stage1`            |                       
-
-* Setting both start and end to the same value disables linear scheduling.
-* Setting different values enables dynamic scheduling.
 
 #### Example Behaviors:
 
-* `control_scale_start=1.0`, `control_scale_end=0.0`:
-  Strong guidance early, fading out for prompt-driven details later.
 
-* `control_scale_start=0.0`, `control_scale_end=1.0`:
-  No early structural bias, gradually increasing structure influence.
 
 ---
 

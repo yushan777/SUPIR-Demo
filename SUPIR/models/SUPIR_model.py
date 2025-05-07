@@ -147,10 +147,10 @@ class SUPIRModel(DiffusionEngine):
                         restoration_scale=-1, 
                         s_churn=5, 
                         s_noise=1.003, 
-                        cfg_scale=4.0, 
+                        cfg_scale_end=4.0, 
                         seed=-1,
                         num_samples=1, 
-                        control_scale=1, 
+                        control_scale_end=1, 
                         color_fix_type='Wavelet', 
                         cfg_scale_start=1.0, 
                         control_scale_start=0.0, 
@@ -197,7 +197,7 @@ class SUPIRModel(DiffusionEngine):
         # scale_min is set to cfg_scale (the ending scale)
         # scale is set to cfg_scale_start (the starting scale)    
         # if both the same, then it's like having linear scaling turned off        
-        self.sampler_config.params.guider_config.params.scale_min = cfg_scale
+        self.sampler_config.params.guider_config.params.scale_min = cfg_scale_end
         self.sampler_config.params.guider_config.params.scale = cfg_scale_start
 
 
@@ -223,7 +223,7 @@ class SUPIRModel(DiffusionEngine):
         noised_z = torch.randn_like(_z).to(_z.device)
 
         # sgm/modules/diffusionmodules/sampling.py
-        _samples = self.sampler(denoiser, noised_z, cond=c, uc=uc, x_center=z_stage1, control_scale=control_scale, control_scale_start=control_scale_start)
+        _samples = self.sampler(denoiser, noised_z, cond=c, uc=uc, x_center=z_stage1, control_scale=control_scale_end, control_scale_start=control_scale_start)
         
         samples = self.decode_first_stage(_samples)
         if color_fix_type == 'Wavelet':
