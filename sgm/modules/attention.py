@@ -538,23 +538,24 @@ class SpatialTransformer(nn.Module):
             # based on its level in the U-Net, but UNetModel passes the same context_dim config to all of them.            
             if depth != len(context_dim):
 
-                # If there's a mismatch, print a warning.
+                # If there's a mismatch, print a message.
                 # This typically happens if UNetModel is configured (in the yaml) with a single context_dim (e.g., 2048 or [2048])
-                # but this SpatialTransformer instance has a depth > 1.                
-                print(                    
-                    f"INFO: {self.__class__.__name__}:\n - Found context dims {context_dim} of depth {len(context_dim)}, "
-                    f"doesn't match the specified 'depth' of {depth}.\n - Correcting and setting context_dim to {depth * [context_dim[0]]} now.", color.ORANGE
-                )
-                
-                # depth does not match context dims.
-                # To adapt, the code assumes that if context_dim was a list and mismatched,
-                # all its elements should be identical (homogenous). This allows safely taking the first element.                
+                # but the SpatialTransformer instance has a depth > 1.                
+                # print(                    
+                #     f"INFO: {self.__class__.__name__}:\n - Found context dims {context_dim} of depth {len(context_dim)}, "
+                #     f"doesn't match the specified 'depth' of {depth}.\n - Correcting and setting context_dim to {depth * [context_dim[0]]} now."
+                # )
+
+                # assert checks if all elements in context_dim are identical to the first element. 
+                # This is using Python's map() function with lambda x: x == context_dim[0] to compare each element to the first one, 
+                # and then all() to ensure every comparison returns True. 
+                # If not all elements are identical, it raises an AssertionError with the message "need homogenous context_dim... blah blah".
                 assert all(
                     map(lambda x: x == context_dim[0], context_dim)
                 ), "need homogenous context_dim to match depth automatically"
 
-                # Recreate context_dim as a list of 'depth' copies of its first element.
-                # This ensures each internal BasicTransformerBlock gets a context_dim.                
+                # Finally, if the assertion passes, it recreates context_dim as a new list by repeating the first element 'depth' number of times 
+                # using the expression depth * [context_dim[0]]. This ensures that each transformer block gets the same context dimension value.
                 context_dim = depth * [context_dim[0]]
 
         # If context_dim was initially None, create a list of 'depth' Nones.

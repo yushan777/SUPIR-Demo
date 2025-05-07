@@ -126,6 +126,9 @@ python3 test.py \
 * `--SUPIR_sign`
   Model type. Options: `['F', 'Q']`. Default: `'Q'`
 
+* `--sampler_mode`
+  Sampler choice",  Options: `['TiledRestoreEDMSampler', 'RestoreEDMSampler']`. Default: `'TiledRestoreEDMSampler'`
+
 * `--seed`
   Random seed for reproducibility. Default: `1234`
 
@@ -189,11 +192,11 @@ python3 test.py \
 
 ### Image Structure Guidance
 
-* `--s_stage1`
-  Early-stage restoration strength.
+* `--s_stage1` (aka restoration_scale)
+  Early-stage restoration strength .
   Default: `-1` (disabled). Typical values: `1–6`
 
-* `--s_stage2`
+* `--s_stage2` (aka control_scale)
   Structural guidance from input image. Default: `1.0`
 
   * `0.0`: Disabled

@@ -8,6 +8,23 @@ from SUPIR.utils.colorfix import wavelet_reconstruction, adaptive_instance_norma
 from pytorch_lightning import seed_everything
 from torch.nn.functional import interpolate
 from SUPIR.utils.tilevae import VAEHook
+from SUPIR.utils.colored_print import color, style
+import inspect 
+
+"""
+
+self.model:
+ - The main diffusion model component (U-Net)
+
+self.first_stage_model
+ - SUPIR VAE component. Even though it's called first stage, the vae is used to encode/decode at beginning and end of diffusion.      
+
+control_model 
+ - An additional neural network that works alongside the main diffusion model (U-Net) 
+   to provide more guidance control over the image generation process.  It is loaded into the main model
+
+
+"""
 
 class SUPIRModel(DiffusionEngine):
     def __init__(self, control_stage_config, ae_dtype='fp32', diffusion_dtype='fp32', p_p='', n_p='', *args, **kwargs):
@@ -38,18 +55,27 @@ class SUPIRModel(DiffusionEngine):
         self.p_p = p_p
         self.n_p = n_p
 
-    @torch.no_grad()
-    def encode_first_stage(self, x):
-        print("encode_first_stage")
 
+
+
+    # SUPIR VAE - ENCODE
+    @torch.no_grad()    
+    def encode_first_stage(self, x):
+        print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - ENCODE)", color.ORANGE)
+        
+
+        # first_stage_model is actually the SUPIR VAE component
         with torch.autocast("cuda", dtype=self.ae_dtype):
             z = self.first_stage_model.encode(x)
         z = self.scale_factor * z
         return z
 
+    # SUPIR VAE - ENCODE
     @torch.no_grad()
     def encode_first_stage_with_denoise(self, x, use_sample=True, is_stage1=False):
-        print("encode_first_stage_with_denoise")
+        print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - ENCODE WITH DENOISE: is_stage1={is_stage1})", color.ORANGE)
+
+        # first_stage_model is actually the SUPIR VAE component
         with torch.autocast("cuda", dtype=self.ae_dtype):
             if is_stage1:
                 h = self.first_stage_model.denoise_encoder_s1(x)
@@ -64,9 +90,11 @@ class SUPIRModel(DiffusionEngine):
         z = self.scale_factor * z
         return z
 
+    # SUPIR VAE - DECODE
     @torch.no_grad()
     def decode_first_stage(self, z):
-        print("decode_first_stage")
+        print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - DECODE)", color.ORANGE)
+        
 
         z = 1.0 / self.scale_factor * z
         with torch.autocast("cuda", dtype=self.ae_dtype):
@@ -99,34 +127,71 @@ class SUPIRModel(DiffusionEngine):
 
         return out.float()
 
+    # utility function that provides a simplified way to perform the denoise-encode-decode process on a batch of images.
+    # not used in general inference
     @torch.no_grad()
     def batchify_denoise(self, x, is_stage1=False):
+        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
         '''
         [N, C, H, W], [-1, 1], RGB
         '''
         x = self.encode_first_stage_with_denoise(x, use_sample=False, is_stage1=is_stage1)
         return self.decode_first_stage(x)
 
+    # ========================================================================================
     @torch.no_grad()
-    def batchify_sample(self, x, p, p_p='default', n_p='default', num_steps=100, restoration_scale=4.0, s_churn=0, s_noise=1.003, cfg_scale=4.0, seed=-1,
-                        num_samples=1, control_scale=1, color_fix_type='None', use_linear_CFG=False, use_linear_control_scale=False,
-                        cfg_scale_start=1.0, control_scale_start=0.0, **kwargs):
+    def batchify_sample(self, img, prompt_lst, 
+                        p_p='default', 
+                        n_p='default', 
+                        num_steps=50, 
+                        restoration_scale=-1, 
+                        s_churn=5, 
+                        s_noise=1.003, 
+                        cfg_scale=4.0, 
+                        seed=-1,
+                        num_samples=1, 
+                        control_scale=1, 
+                        color_fix_type='Wavelet', 
+                        use_linear_CFG=False, 
+                        use_linear_control_scale=False,
+                        cfg_scale_start=1.0, 
+                        control_scale_start=0.0, 
+                        **kwargs):
+
+        # img : image tensor
+        # prompt_lst : prompt list
+
+        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
+        
+        print(f'p = {type(prompt_lst)}', color.BRIGHT_CYAN)
+
         '''
         [N, C], [-1, 1], RGB
         '''
-        assert len(x) == len(p)
+
+        
+
+        # check that the number of images matches the number of prompts (should just be 1 for each)
+        assert len(img) == len(prompt_lst)
+        # check if the color_fix_type parameter has a valid value
         assert color_fix_type in ['Wavelet', 'AdaIn', 'None']
 
-        N = len(x)
+        # get batch size from input tensor
+        N = len(img)
+        # Checks if the user wants to generate multiple variations from a single input image
+        # if so ensures only one input image was provided. (model only supports creating multiple variations from a single image)
         if num_samples > 1:
             assert N == 1
-            N = num_samples
-            x = x.repeat(N, 1, 1, 1)
-            p = p * N
+            N = num_samples #  update the batch size
+            img = img.repeat(N, 1, 1, 1) # dupe the single input image to create a batch of identical images:
+            prompt_lst = prompt_lst * N # dupe the prompt list to match the number of images
 
+        # additional pos/neg prompts
         if p_p == 'default':
+            # use built-in default value stored in self.p_p
             p_p = self.p_p
         if n_p == 'default':
+            # use built-in default value stored in self.n_p
             n_p = self.n_p
 
         self.sampler_config.params.num_steps = num_steps
@@ -145,11 +210,11 @@ class SUPIRModel(DiffusionEngine):
             seed = random.randint(0, 65535)
         seed_everything(seed)
 
-        _z = self.encode_first_stage_with_denoise(x, use_sample=False)
+        _z = self.encode_first_stage_with_denoise(img, use_sample=False)
         x_stage1 = self.decode_first_stage(_z)
         z_stage1 = self.encode_first_stage(x_stage1)
 
-        c, uc = self.prepare_condition(_z, p, p_p, n_p, N)
+        c, uc = self.prepare_condition(_z, prompt_lst, p_p, n_p, N)
 
         denoiser = lambda input, sigma, c, control_scale: self.denoiser(
             self.model, input, sigma, c, control_scale, **kwargs
@@ -167,6 +232,7 @@ class SUPIRModel(DiffusionEngine):
         return samples
 
     def init_tile_vae(self, encoder_tile_size=512, decoder_tile_size=256):
+        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
         self.first_stage_model.denoise_encoder.original_forward = self.first_stage_model.denoise_encoder.forward
         self.first_stage_model.encoder.original_forward = self.first_stage_model.encoder.forward
         self.first_stage_model.decoder.original_forward = self.first_stage_model.decoder.forward
@@ -180,7 +246,11 @@ class SUPIRModel(DiffusionEngine):
             self.first_stage_model.decoder, decoder_tile_size, is_decoder=True, fast_decoder=False,
             fast_encoder=False, color_fix=False, to_gpu=True)
 
+    # ========================================================================================
+    #  prepare the conditioning inputs that guide the diffusion model during inference
     def prepare_condition(self, _z, p, p_p, n_p, N):
+        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
+
         batch = {}
         batch['original_size_as_tuple'] = torch.tensor([1024, 1024]).repeat(N, 1).to(_z.device)
         batch['crop_coords_top_left'] = torch.tensor([0, 0]).repeat(N, 1).to(_z.device)

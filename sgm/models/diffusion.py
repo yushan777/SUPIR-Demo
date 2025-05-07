@@ -114,6 +114,7 @@ class DiffusionEngine(pl.LightningModule):
         # image tensors should be scaled to -1 ... 1 and in bchw format
         return batch[self.input_key]
 
+    # first_stage_model is actually the SUPIR VAE component
     @torch.no_grad()
     def decode_first_stage(self, z):
         z = 1.0 / self.scale_factor * z
@@ -121,6 +122,7 @@ class DiffusionEngine(pl.LightningModule):
             out = self.first_stage_model.decode(z)
         return out
 
+    # first_stage_model is actually the SUPIR VAE component
     @torch.no_grad()
     def encode_first_stage(self, x):
         with torch.autocast("cuda", enabled=not self.disable_first_stage_autocast):
