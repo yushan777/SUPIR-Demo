@@ -1,11 +1,13 @@
 Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 
-- Removed the LLaVA implementation. 
+- Removed the heavy LLaVA implementation. 
 - Added safetensors support. 
 - Updated dependencies. 
 - Replaced Xformers with SDPA as default attention
 - Removed `use_linear_control_scale (linear_s_stage2)` and `use_linear_cfg_scale (linear_CFG)` arguments.  
-  Instead will use the start and end scale values to determine whether linear scaling will be used/have effect or not.
+   - Uses the start and end scale values to determine whether linear scaling will be used/have effect or not.
+- Renamed arguments to make settings a bit more intuitive (more alignment with kijai's SUPIR ComfyUI custom nodes)
+
 ---
 ## 🔧 Dependencies and Installation
 
@@ -85,13 +87,13 @@ RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd
 
 ```bash
 # for gradio test
-python3 test_gradio.py --listen
+python3 run_supir_gradio.py --listen
 
 # for cli test
-python3 test.py [options]
-python3 test.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
+python3 run_supir.py [options]
+python3 run_supir.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
 
-python3 test.py \
+python3 run_supir.py \
 --img_path 'input/woman-low-res.jpg' \
 --save_dir ./output \
 --SUPIR_sign Q \
