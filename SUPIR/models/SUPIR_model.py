@@ -152,8 +152,6 @@ class SUPIRModel(DiffusionEngine):
                         num_samples=1, 
                         control_scale=1, 
                         color_fix_type='Wavelet', 
-                        use_linear_CFG=False, 
-                        use_linear_control_scale=False,
                         cfg_scale_start=1.0, 
                         control_scale_start=0.0, 
                         **kwargs):
@@ -195,12 +193,14 @@ class SUPIRModel(DiffusionEngine):
             n_p = self.n_p
 
         self.sampler_config.params.num_steps = num_steps
-        if use_linear_CFG:
-            self.sampler_config.params.guider_config.params.scale_min = cfg_scale
-            self.sampler_config.params.guider_config.params.scale = cfg_scale_start
-        else:
-            self.sampler_config.params.guider_config.params.scale_min = cfg_scale
-            self.sampler_config.params.guider_config.params.scale = cfg_scale
+
+        # scale_min is set to cfg_scale (the ending scale)
+        # scale is set to cfg_scale_start (the starting scale)    
+        # if both the same, then it's like having linear scaling turned off        
+        self.sampler_config.params.guider_config.params.scale_min = cfg_scale
+        self.sampler_config.params.guider_config.params.scale = cfg_scale_start
+
+
         self.sampler_config.params.restore_cfg = restoration_scale
         self.sampler_config.params.s_churn = s_churn
         self.sampler_config.params.s_noise = s_noise
@@ -222,8 +222,9 @@ class SUPIRModel(DiffusionEngine):
 
         noised_z = torch.randn_like(_z).to(_z.device)
 
-        _samples = self.sampler(denoiser, noised_z, cond=c, uc=uc, x_center=z_stage1, control_scale=control_scale,
-                                use_linear_control_scale=use_linear_control_scale, control_scale_start=control_scale_start)
+        # sgm/modules/diffusionmodules/sampling.py
+        _samples = self.sampler(denoiser, noised_z, cond=c, uc=uc, x_center=z_stage1, control_scale=control_scale, control_scale_start=control_scale_start)
+        
         samples = self.decode_first_stage(_samples)
         if color_fix_type == 'Wavelet':
             samples = wavelet_reconstruction(samples, x_stage1)

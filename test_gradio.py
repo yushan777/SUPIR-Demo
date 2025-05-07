@@ -37,7 +37,7 @@ def generate_random_seed():
 def process_image(input_image, upscale, supir_sign, seed,  edm_steps, 
                  s_stage1, s_churn, s_noise, s_cfg, s_stage2,
                  img_caption, a_prompt, n_prompt,
-                 linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2,
+                 spt_linear_CFG, spt_linear_s_stage2,
                  config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                  ae_dtype, diff_dtype):
 
@@ -102,8 +102,6 @@ def process_image(input_image, upscale, supir_sign, seed,  edm_steps,
                                     p_p=a_prompt, 
                                     n_p=n_prompt, 
                                     color_fix_type="Wavelet",
-                                    use_linear_CFG=linear_CFG, 
-                                    use_linear_control_scale=linear_s_stage2,
                                     cfg_scale_start=spt_linear_CFG, 
                                     control_scale_start=spt_linear_s_stage2)
     
@@ -234,11 +232,9 @@ def create_ui():
             s_stage2 = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Stage 2 Scale (kijai control_scale_end)")
             
             with gr.Row():
-                linear_CFG = gr.Checkbox(value=True, label="Linear CFG")
                 spt_linear_CFG = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="Start Linear CFG (kijai cfg_scale_start)")
             
             with gr.Row():
-                linear_s_stage2 = gr.Checkbox(value=True, label="Linear Stage 2")
                 spt_linear_s_stage2 = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Start Linear Stage 2 (kijai control_scale_start)")
 
         # =========================================================================
@@ -261,7 +257,7 @@ def create_ui():
                 input_image, upscale, supir_sign, seed,  edm_steps,
                 s_stage1, s_churn, s_noise, s_cfg, s_stage2,
                 img_caption, a_prompt, n_prompt, 
-                linear_CFG, linear_s_stage2, spt_linear_CFG, spt_linear_s_stage2,
+                spt_linear_CFG, spt_linear_s_stage2,
                 config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
                 ae_dtype, diff_dtype
             ],

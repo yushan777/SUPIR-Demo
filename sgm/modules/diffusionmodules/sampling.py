@@ -552,7 +552,8 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
         return denoised
 
     def sampler_step(self, sigma, next_sigma, denoiser, x, cond, uc=None, gamma=0.0, x_center=None, eps_noise=None,
-                     control_scale=1.0, use_linear_control_scale=False, control_scale_start=0.0):
+                     control_scale=1.0, control_scale_start=0.0):
+        
         sigma_hat = sigma * (gamma + 1.0)
         if gamma > 0:
             if eps_noise is not None:
@@ -561,8 +562,8 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
                 eps = torch.randn_like(x) * self.s_noise
             x = x + eps * append_dims(sigma_hat**2 - sigma**2, x.ndim) ** 0.5
 
-        if use_linear_control_scale:
-            control_scale = (sigma[0].item() / self.sigma_max) * (control_scale_start - control_scale) + control_scale
+        # if control_scale_start - control_scale are same then it's same as having linear control scale turned off
+        control_scale = (sigma[0].item() / self.sigma_max) * (control_scale_start - control_scale) + control_scale
 
         denoised = self.denoise(x, denoiser, sigma_hat, cond, uc, control_scale=control_scale)
 
@@ -575,8 +576,8 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
         x = self.euler_step(x, d, dt)
         return x
 
-    def __call__(self, denoiser, x, cond, uc=None, num_steps=None, x_center=None, control_scale=1.0,
-                 use_linear_control_scale=False, control_scale_start=0.0):
+    def __call__(self, denoiser, x, cond, uc=None, num_steps=None, x_center=None, control_scale=1.0, control_scale_start=0.0):
+        
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(
             x, cond, uc, num_steps
         )
@@ -598,7 +599,6 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
                 gamma,
                 x_center,
                 control_scale=control_scale,
-                use_linear_control_scale=use_linear_control_scale,
                 control_scale_start=control_scale_start,
             )
 
@@ -613,8 +613,7 @@ class TiledRestoreEDMSampler(RestoreEDMSampler):
         self.tile_stride = tile_stride
         self.tile_weights = gaussian_weights(self.tile_size, self.tile_size, 1)
 
-    def __call__(self, denoiser, x, cond, uc=None, num_steps=None, x_center=None, control_scale=1.0,
-                 use_linear_control_scale=False, control_scale_start=0.0):
+    def __call__(self, denoiser, x, cond, uc=None, num_steps=None, x_center=None, control_scale=1.0, control_scale_start=0.0):
         
         use_local_prompt = isinstance(cond, list)
         b, _, h, w = x.shape
@@ -662,7 +661,6 @@ class TiledRestoreEDMSampler(RestoreEDMSampler):
                     x_center_tile,
                     eps_noise=_eps_noise,
                     control_scale=control_scale,
-                    use_linear_control_scale=use_linear_control_scale,
                     control_scale_start=control_scale_start,
                 )
                 x_next[:, :, hi:hi_end, wi:wi_end] += _x * tile_weights
