@@ -1,0 +1,5 @@
+Add arg --skip_1st_stage to skipe the VAE encode/denoise/decode stage that's 
+designed to smooth out rough artefacts from crappy low resolution images before 
+the main sampling stage. 
+
+If image quality is already high, then this stage can be skipped, or maybe you prefer to denoise or soften your image manually or with other tools.  
