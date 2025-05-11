@@ -55,7 +55,8 @@ def process_image(input_image,
                   encoder_tile_size, 
                   decoder_tile_size,
                   ae_dtype, 
-                  diff_dtype):
+                  diff_dtype, 
+                  skip_denoise):
 
     # Load model with specified precision and performance settings
     global model
@@ -103,8 +104,8 @@ def process_image(input_image,
     LQ_img = LQ_img.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
     
     # Use the provided caption
-    # captions = [img_caption]
-    
+    # captions = [img_caption]    
+
     # Run diffusion process
     samples = model.batchify_sample(LQ_img, img_caption, 
                                     num_steps=edm_steps, 
@@ -119,7 +120,8 @@ def process_image(input_image,
                                     num_samples=1,  # Always 1 for UI 
                                     p_p=a_prompt, 
                                     n_p=n_prompt, 
-                                    color_fix_type="Wavelet")
+                                    color_fix_type="Wavelet",
+                                    skip_denoise_stage=skip_denoise)
     
     # Convert result to PIL image
     result_img = Tensor2PIL(samples[0], h0, w0)
@@ -176,40 +178,41 @@ def create_ui():
                 # gr.Markdown("## Controls")
                 gr.Markdown("# SUPIR Image Restoration")
 
-                # Main controls in sidebar
-                with gr.Group():
-                    run_button = gr.Button("▶️ ENHANCE", variant="primary", size="lg")
-                    
-                    with gr.Row():
-                        seed = gr.Number(value=1234567891, precision=0, label="Seed")
-                        random_seed_button = gr.Button("🎲", size="sm")
-                
-                # Image caption (describes the image to be restored/upscaled)
+                # Image caption (Optional)
                 img_caption = gr.Textbox(
                     label="Image Caption", 
-                    placeholder="Describe the image",
-                    lines=3
+                    placeholder="Describe the image to be restored / upscaled",
+                    lines=2
                 )
                 
-                # Basic settings as dropdowns for space efficiency
-                with gr.Group():
-                    with gr.Row():
+                with gr.Row():
+                        seed = gr.Number(value=1234567891, precision=0, label="Seed")
                         upscale = gr.Dropdown(
                             choices=[1, 2, 3, 4], 
                             value=2, 
                             label="Upscale",
                             interactive=True
-                        )
-                        supir_sign = gr.Dropdown(
-                            choices=["Q", "F"], 
-                            value="Q", 
-                            label="Model Type"
-                        )
+                        )                
+
+                        skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
                 
+                # Basic settings as dropdowns for space efficiency
+                # with gr.Group():
+                #     with gr.Row():
+
+                        # skip_denoise_stage = gr.Checkbox(value=False, label="Skip Stage 1 Denoise")
+
+                run_button = gr.Button("▶️ Process SUPIR", variant="primary", size="lg")
+                        
                 # Compact tabbed interface for advanced settings
                 with gr.Tabs():
                     # Model Settings Tab
                     with gr.TabItem("Model"):
+                        supir_sign = gr.Dropdown(
+                            choices=["Q", "F"], 
+                            value="Q", 
+                            label="Model Type"
+                        )                        
                         config_path = gr.Dropdown(
                             choices=[
                                 ("Standard (High VRAM)", 'options/SUPIR_v0.yaml'),
@@ -325,11 +328,11 @@ def create_ui():
             outputs=[tile_vae_settings]
         )
         
-        random_seed_button.click(
-            fn=generate_random_seed,
-            inputs=[],
-            outputs=[seed]
-        )
+        # random_seed_button.click(
+        #     fn=generate_random_seed,
+        #     inputs=[],
+        #     outputs=[seed]
+        # )
         
         # # Connect preset buttons
         # def set_detail_preset():
@@ -363,7 +366,7 @@ def create_ui():
                 img_caption, a_prompt, n_prompt, 
                 cfg_scale_start, control_scale_start,
                 config_path, loading_half_params, use_tile_vae, encoder_tile_size, decoder_tile_size,
-                ae_dtype, diff_dtype
+                ae_dtype, diff_dtype, skip_denoise_stage
             ],
             outputs=output_image
         )

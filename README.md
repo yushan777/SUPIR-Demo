@@ -123,6 +123,11 @@ python3 run_supir.py \
 * `--SUPIR_sign`
   Model type. Options: `['F', 'Q']`. Default: `'Q'`
 
+* `--skip_denoise_stage`
+  Skips the VAE Denoiser Stage.  
+  Default: `'False'`
+  The denoise stage softens the input image to smooth out artefacts that is typical of low quality or low resolution images in order to prevent SUPIR from processing them as details. If your input image is already of high quality then you can enable this. 
+
 * `--sampler_mode`
   Sampler choice",  Options: `['TiledRestoreEDMSampler', 'RestoreEDMSampler']`. Default: `'TiledRestoreEDMSampler'`
 

@@ -42,6 +42,7 @@ def parse_arguments():
     parser.add_argument("--use_tile_vae", action='store_true', default=False)
     parser.add_argument("--encoder_tile_size", type=int, default=512)
     parser.add_argument("--decoder_tile_size", type=int, default=64)
+    parser.add_argument("--skip_denoise_stage", action='store_true', default=False)
     
 
     return parser.parse_args()
@@ -81,6 +82,7 @@ def process_image(model, args, device):
         print(f"Error opening image {img_path}: {e}")
         return None
     
+    # update the input image
     LQ_img, h0, w0 = PIL2Tensor(LQ_ips, upsacle=args.upscale, min_size=args.min_size)
     LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
     
@@ -102,7 +104,8 @@ def process_image(model, args, device):
                                     num_samples=args.num_samples, 
                                     p_p=args.a_prompt, 
                                     n_p=args.n_prompt, 
-                                    color_fix_type=args.color_fix_type)
+                                    color_fix_type=args.color_fix_type
+                                    skip_denoise_stage=args.skip_denoise_stage)
     
     return samples, h0, w0, img_name
 

@@ -9,6 +9,7 @@ from pytorch_lightning import seed_everything
 from torch.nn.functional import interpolate
 from SUPIR.utils.tilevae import VAEHook
 from SUPIR.utils.colored_print import color, style
+from pathlib import Path
 import inspect 
 
 """
@@ -100,35 +101,36 @@ class SUPIRModel(DiffusionEngine):
         with torch.autocast("cuda", dtype=self.ae_dtype):
             out = self.first_stage_model.decode(z)
 
-        # >>
-        # Save decoded image
+        # =============================================================
+        # # Save decoded image
+        # _z = self.encode_first_stage_with_denoise(img, use_sample=False)
+        # x_stage1 = self.decode_first_stage(_z)   
 
+        # # Save x_stage1 as JPG
         # import numpy as np
         # from PIL import Image
         # import os
-        
-        # # Use the specified output directory
-        # output_dir = "/home/xxxx/ai/SUPIR/output"
-        
-        # # Create directory if it doesn't exist
+
+        # # Create output directory if it doesn't exist
+        # output_dir = str(Path.home() / "ai" / "SUPIR" / "output")
         # if not os.path.exists(output_dir):
         #     os.makedirs(output_dir)
-        
-        # # Create the full path
-        # full_path = os.path.join(output_dir, "denoised.jpg")
-        
+
         # # Convert to numpy and save
-        # out_float = out.float()  # Ensure we're working with float32
-        # image_np = ((out_float[0].cpu().numpy().transpose(1, 2, 0) + 1) / 2)
+        # x_stage1_float = x_stage1.float()  # Ensure we're working with float32
+        # image_np = ((x_stage1_float[0].cpu().numpy().transpose(1, 2, 0) + 1) / 2)
         # image_np = np.clip(image_np, 0, 1)
         # image_pil = Image.fromarray((image_np * 255).astype(np.uint8))
-        # image_pil.save(full_path)
-        # print(f"Decoded image saved to {full_path}")     
-
+        # image_pil.save(os.path.join(output_dir, "x_stage1_denoised.jpg"))
+        # print(f"x_stage1 saved to {os.path.join(output_dir, 'x_stage1_denoised.jpg')}")
+        # =============================================================
+   
         return out.float()
 
-    # utility function that provides a simplified way to perform the denoise-encode-decode process on a batch of images.
-    # not used in general inference
+    # ================================================================
+    # utility function that provides a simplified way to perform the 
+    # denoise-encode-decode process on a batch of images.
+    # this is not used in general inference
     @torch.no_grad()
     def batchify_denoise(self, x, is_stage1=False):
         print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
@@ -153,15 +155,14 @@ class SUPIRModel(DiffusionEngine):
                         control_scale_end=1, 
                         color_fix_type='Wavelet', 
                         cfg_scale_start=1.0, 
-                        control_scale_start=0.0, 
+                        control_scale_start=0.0,
+                        skip_denoise_stage=False, 
                         **kwargs):
 
         # img : image tensor
         # prompt_lst : prompt list
 
-        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
-        
-        print(f'prompt = {type(prompt)}', color.BRIGHT_CYAN)
+        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)        
 
         '''
         [N, C], [-1, 1], RGB
@@ -175,16 +176,6 @@ class SUPIRModel(DiffusionEngine):
 
         # check if the color_fix_type parameter has a valid value
         assert color_fix_type in ['Wavelet', 'AdaIn', 'None']
-
-        # # get batch size from input tensor
-        # N = len(img)
-        # # Checks if the user wants to generate multiple variations from a single input image
-        # # if so ensures only one input image was provided. (model only supports creating multiple variations from a single image)
-        # if num_samples > 1:
-        #     assert N == 1
-        #     N = num_samples #  update the batch size
-        #     img = img.repeat(N, 1, 1, 1) # dupe the single input image to create a batch of identical images:
-        #     prompt_lst = prompt_lst * N # dupe the prompt list to match the number of images
 
         # additional pos/neg prompts
         if p_p == 'default':
@@ -212,9 +203,21 @@ class SUPIRModel(DiffusionEngine):
             seed = random.randint(0, 65535)
         seed_everything(seed)
 
-        _z = self.encode_first_stage_with_denoise(img, use_sample=False)
-        x_stage1 = self.decode_first_stage(_z)
-        z_stage1 = self.encode_first_stage(x_stage1)
+        # ==============================================================
+        # use VAE to denoise upscaled input image. 
+        # softens image to smooth out any compression artefacts so they don't become ehnanced as details.
+        # first check if option to skip it has been set or not.
+        # if not....
+        if not skip_denoise_stage:          
+            # denoise the image
+            _z = self.encode_first_stage_with_denoise(img, use_sample=False)
+            x_stage1 = self.decode_first_stage(_z)  # this is the decoded denoised image in pixel space.              
+            z_stage1 = self.encode_first_stage(x_stage1)
+        else:
+            print(f"Skipping Stage 1 Denoise.", color.ORANGE)
+            _z = self.encode_first_stage(img)
+            x_stage1 = self.decode_first_stage(_z)
+            z_stage1 = self.encode_first_stage(img)
 
         # !>>> Pass the string prompt directly to prepare_condition
         c, uc = self.prepare_condition(_z, prompt, p_p, n_p)
