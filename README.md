@@ -268,18 +268,4 @@ python3 run_supir.py \
   Encoder defaults to 512, decoder to 64.
 
 
----
-
-
-
-#### Example Behaviors:
-
-
-
----
-
-
-
-### Python Script
-
 
