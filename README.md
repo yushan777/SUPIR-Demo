@@ -29,13 +29,12 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
     ```bash
         python3 -m venv venv
         source venv/bin/activate
+        pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --extra-index-url https://download.pytorch.org/whl/cu126
         pip install torch==2.7.0+cu126 torchvision==0.22.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126
         pip install -r requirements.txt
     ```
-
+    
 2. Download Models
-
-Here's a cleaned-up and clearer version of your SUPIR model documentation:
 
 ---
 

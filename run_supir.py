@@ -104,7 +104,7 @@ def process_image(model, args, device):
                                     num_samples=args.num_samples, 
                                     p_p=args.a_prompt, 
                                     n_p=args.n_prompt, 
-                                    color_fix_type=args.color_fix_type
+                                    color_fix_type=args.color_fix_type,
                                     skip_denoise_stage=args.skip_denoise_stage)
     
     return samples, h0, w0, img_name
