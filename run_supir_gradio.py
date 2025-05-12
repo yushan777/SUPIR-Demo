@@ -7,6 +7,8 @@ import tempfile
 import glob  # Added import
 from PIL import Image
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
+import time
+from Y7.colored_print import color, style
 
 # Check for CUDA availability
 if torch.cuda.device_count() >= 1:
@@ -57,6 +59,8 @@ def process_image(input_image,
                   ae_dtype, 
                   diff_dtype, 
                   skip_denoise):
+
+    start_time = time.time()
 
     # Load model with specified precision and performance settings
     global model
@@ -154,6 +158,10 @@ def process_image(input_image,
     except Exception as e:
         print(f"Error saving image: {e}")
     # --- End saving logic ---
+
+    end_time = time.time()
+    SUPIR_Process_Time = end_time - start_time
+    print(f"SUPIR Processing executed in {SUPIR_Process_Time:.2f} seconds.", color.GREEN)
 
     return result_img
 

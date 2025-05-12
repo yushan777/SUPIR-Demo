@@ -37,4 +37,4 @@ uvicorn==0.34.2
 wandb==0.19.10
 webdataset==0.2.111
 xformers==0.0.29.post3
-
+xxhash
