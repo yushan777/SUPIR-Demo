@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from transformers import AutoProcessor, AutoModelForVision2Seq, AutoModelForImageTextToText
 import gradio as gr
-from colored_print import color, style
+from Y7.colored_print import color, style
 import os
 import time
 from threading import Thread
@@ -15,17 +15,6 @@ import json
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
-# # Parse command line arguments
-# parser = argparse.ArgumentParser(description="Run SmolVLM with Gradio")
-# parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
-# parser.add_argument("--model", 
-#                     choices=["SmolVLM-Instruct", "SmolVLM-500M-Instruct", "SmolVLM-256M-Instruct"],
-#                     default="SmolVLM-Instruct", 
-#                     help="Model to use (default: SmolVLM-Instruct)")
-# args = parser.parse_args()
-
-# # MODEL SELECTION AND PATH
-# MODEL_PATH = f"model/{args.model}"
 
 # ================================================
 # DEFAULT PARAM VALUESS
@@ -384,7 +373,7 @@ def process_edited_caption(additional_text):
 # ====================================================================
 # GRADIO SHIT
 # ====================================================================
-def launch_gradio(use_stream):
+def launch_gradio(use_stream, listen):
 
     # Create custom theme
     custom_theme = gr.themes.Base(
@@ -520,7 +509,11 @@ def launch_gradio(use_stream):
             inputs=[output_text]
         )
 
-        demo.launch()
+        demo.launch(
+                # if --listen arg is passed then bind to 0.0.0.0, otherwise default to localhost (127.0.0.1) only
+                server_name='0.0.0.0' if listen else None
+                # server_port=args.server_port
+        )
         
 
 def main():
@@ -528,6 +521,7 @@ def main():
 
     # Parse CLI arguments (can be passed manually as `argv` for testing)
     parser = argparse.ArgumentParser(description="Run SmolVLM with Gradio")
+    parser.add_argument("--listen", action="store_true", help="Make the interface accessible on the network")
     parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
     parser.add_argument("--model", 
                         choices=["SmolVLM-Instruct", "SmolVLM-500M-Instruct", "SmolVLM-256M-Instruct"],
@@ -536,7 +530,7 @@ def main():
     args = parser.parse_args()
 
     # Set model path
-    MODEL_PATH = f"model/{args.model}"
+    MODEL_PATH = f"models/{args.model}"
     
     # Set mode for UI display
     global UI_MODE
@@ -555,8 +549,8 @@ def main():
     model_load_time = end_time - start_time
     print(f"Model {os.path.basename(MODEL_PATH)} loaded on {DEVICE} in {model_load_time:.2f} seconds.", color.GREEN)
 
-    # Attach to Gradio (if needed)
-    launch_gradio(args.use_stream)
+    # Attach to Gradio
+    launch_gradio(args.use_stream, args.listen)
 
 # Launch the Gradio app
 if __name__ == "__main__":
