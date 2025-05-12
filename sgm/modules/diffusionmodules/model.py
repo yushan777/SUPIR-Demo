@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from packaging import version
-from SUPIR.utils.colored_print import color, style
+from Y7.colored_print import color, style
 
 try:
     import xformers
@@ -271,13 +271,61 @@ class MemoryEfficientCrossAttentionWrapper(MemoryEfficientCrossAttention):
         out = rearrange(out, "b (h w) c -> b c h w", h=h, w=w, c=c)
         return x + out
 
+class SDPAAttnBlock(nn.Module):
+    """
+    Uses PyTorch's native scaled_dot_product_attention implementation
+    Available in PyTorch 2.0+
+    Can automatically use Flash Attention when available
+    """
+    def __init__(self, in_channels):
+        super().__init__()
+        self.in_channels = in_channels
 
+        self.norm = Normalize(in_channels)
+        self.q = torch.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.k = torch.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.v = torch.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.proj_out = torch.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
+
+    def attention(self, h_: torch.Tensor) -> torch.Tensor:
+        h_ = self.norm(h_)
+        q = self.q(h_)
+        k = self.k(h_)
+        v = self.v(h_)
+
+        # Reshape for attention
+        b, c, h, w = q.shape
+        q, k, v = map(
+            lambda x: rearrange(x, "b c h w -> b 1 (h w) c").contiguous(), (q, k, v)
+        )
+        
+        # Use PyTorch's native scaled_dot_product_attention
+        h_ = torch.nn.functional.scaled_dot_product_attention(q, k, v)
+        
+        # Reshape back to spatial representation
+        return rearrange(h_, "b 1 (h w) c -> b c h w", h=h, w=w, c=c, b=b)
+
+    def forward(self, x, **kwargs):
+        h_ = x
+        h_ = self.attention(h_)
+        h_ = self.proj_out(h_)
+        return x + h_
+    
 def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
     assert attn_type in [
         "vanilla",
         "vanilla-xformers",
         "memory-efficient-cross-attn",
         "linear",
+        "sdpa",
         "none",
     ], f"attn_type {attn_type} unknown"
     if (
@@ -296,9 +344,12 @@ def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
     elif attn_type == "vanilla-xformers":
         print(f"building MemoryEfficientAttnBlock with {in_channels} in_channels...", color.ORANGE)
         return MemoryEfficientAttnBlock(in_channels)
-    elif type == "memory-efficient-cross-attn":
+    elif attn_type == "memory-efficient-cross-attn":
         attn_kwargs["query_dim"] = in_channels
         return MemoryEfficientCrossAttentionWrapper(**attn_kwargs)
+    elif attn_type == "sdpa":
+            print(f"building SDPAAttnBlock with {in_channels} in_channels...", color.ORANGE)
+            return SDPAAttnBlock(in_channels)  # You'd need to implement this class    
     elif attn_type == "none":
         return nn.Identity(in_channels)
     else:

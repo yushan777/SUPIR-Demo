@@ -8,7 +8,7 @@ from SUPIR.utils.colorfix import wavelet_reconstruction, adaptive_instance_norma
 from pytorch_lightning import seed_everything
 from torch.nn.functional import interpolate
 from SUPIR.utils.tilevae import VAEHook
-from SUPIR.utils.colored_print import color, style
+from Y7.colored_print import color, style
 from pathlib import Path
 import inspect 
 

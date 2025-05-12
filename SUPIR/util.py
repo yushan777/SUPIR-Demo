@@ -6,7 +6,7 @@ from PIL import Image
 from torch.nn.functional import interpolate
 from omegaconf import OmegaConf
 from sgm.util import instantiate_from_config
-from SUPIR.utils.colored_print import color, style
+from Y7.colored_print import color, style
 
 def get_state_dict(d):
     return d.get('state_dict', d)

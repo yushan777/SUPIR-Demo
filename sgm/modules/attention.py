@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from einops import rearrange, repeat
 from packaging import version
 from torch import nn
-from SUPIR.utils.colored_print import color, style
+from Y7.colored_print import color, style
 
 
 #  PyTorch versions - assume version >= 2.0.0
@@ -338,8 +338,10 @@ class MemoryEfficientCrossAttention(nn.Module):
 
 class BasicTransformerBlock(nn.Module):
     ATTENTION_MODES = {
-        "softmax": CrossAttention,  # vanilla attention
-        "softmax-xformers": MemoryEfficientCrossAttention,  # ampere
+        # Remove "softmax" from officially supported modes
+        "sdpa": CrossAttention,  # optimized attention with SDPA
+        "xformers": MemoryEfficientCrossAttention, 
+        # "softmax-xformers": MemoryEfficientCrossAttention,  # ampere
     }
 
     def __init__(
@@ -352,29 +354,42 @@ class BasicTransformerBlock(nn.Module):
         gated_ff=True,
         checkpoint=True,
         disable_self_attn=False,
-        attn_mode="softmax",
+        attn_mode="sdpa",  # Change default to "sdpa"
         sdpa_backend=None,
     ):
         super().__init__()
-        assert attn_mode in self.ATTENTION_MODES
-        if attn_mode != "softmax" and not XFORMERS_IS_AVAILABLE:
+        
+        # print(f"Calling BasicTransformerBlock()", color.ORANGE)  
+
+        # Handle legacy "softmax" parameter by converting it to "sdpa"
+        if attn_mode == "softmax":
+            print("Warning: 'softmax' attention mode is deprecated. Converting to 'sdpa'.", color.ORANGE)
+            attn_mode = "sdpa"
+            
+        assert attn_mode in self.ATTENTION_MODES, f"Attention mode {attn_mode} not recognized. Use one of: {list(self.ATTENTION_MODES.keys())}"
+        
+        if attn_mode != "sdpa" and not XFORMERS_IS_AVAILABLE:
             print(
-                f"Attention mode '{attn_mode}' is not available. Falling back to native attention. "
+                f"Attention mode '{attn_mode}' is not available. Falling back to SDPA. "
                 f"This is not a problem in Pytorch >= 2.0. FYI, you are running with PyTorch version {torch.__version__}", color.ORANGE
             )
-            attn_mode = "softmax"
-        elif attn_mode == "softmax" and not SDPA_IS_AVAILABLE:
+            attn_mode = "sdpa"
+            
+        if attn_mode == "sdpa" and not SDPA_IS_AVAILABLE:
             print(
-                "We do not support softmax vanilla attention anymore, as it is too expensive. Sorry.", color.ORANGE
+                "SDPA is not available. This requires PyTorch >= 2.0", color.ORANGE
             )
             if not XFORMERS_IS_AVAILABLE:
                 assert (
                     False
-                ), "Please install xformers via e.g. 'pip install xformers==0.0.16'"
+                ), "Please install PyTorch >= 2.0 or xformers via e.g. 'pip install xformers==0.0.16'"
             else:
-                print("Falling back to xformers efficient attention."), color.ORANGE
-                attn_mode = "softmax-xformers"
-        attn_cls = self.ATTENTION_MODES[attn_mode]
+                print("Falling back to xformers efficient attention.", color.ORANGE)
+                attn_mode = "xformers"
+                
+        attn_cls = self.ATTENTION_MODES[attn_mode]          
+        
+
         if version.parse(torch.__version__) >= version.parse("2.0.0"):
             assert sdpa_backend is None or isinstance(sdpa_backend, SDPBackend)
         else:
@@ -451,9 +466,11 @@ class BasicTransformerBlock(nn.Module):
 
 class BasicTransformerSingleLayerBlock(nn.Module):
     ATTENTION_MODES = {
-        "softmax": CrossAttention,  # vanilla attention
-        "softmax-xformers": MemoryEfficientCrossAttention  # on the A100s not quite as fast as the above version
-        # (todo might depend on head_dim, check, falls back to semi-optimized kernels for dim!=[16,32,64,128])
+        # Replace "softmax" with "sdpa"
+        "sdpa": CrossAttention,  # optimized attention with SDPA
+        "xformers": MemoryEfficientCrossAttention,  # ampere
+        # "softmax-xformers": MemoryEfficientCrossAttention  # on the A100s not quite as fast as the above version
+        
     }
 
     def __init__(
@@ -465,11 +482,43 @@ class BasicTransformerSingleLayerBlock(nn.Module):
         context_dim=None,
         gated_ff=True,
         checkpoint=True,
-        attn_mode="softmax",
-    ):
+        attn_mode="sdpa",  # Change default to "sdpa"
+    ):        
         super().__init__()
-        assert attn_mode in self.ATTENTION_MODES
+
+        # print(f"Calling BasicTransformerSingleLayerBlock()", color.ORANGE)  
+
+        # Handle legacy "softmax" parameter by converting it to "sdpa"
+        if attn_mode == "softmax":
+            print("Warning: 'softmax' attention mode is deprecated. Converting to 'sdpa'.", color.ORANGE)
+            attn_mode = "sdpa"
+            
+        # Check if the attention mode is valid
+        assert attn_mode in self.ATTENTION_MODES, f"Attention mode {attn_mode} not recognized. Use one of: {list(self.ATTENTION_MODES.keys())}"
+        
+        # Check if the required attention implementation is available
+        if attn_mode != "sdpa" and not XFORMERS_IS_AVAILABLE:
+            print(
+                f"Attention mode '{attn_mode}' is not available. Falling back to SDPA. "
+                f"This is not a problem in Pytorch >= 2.0. FYI, you are running with PyTorch version {torch.__version__}", color.ORANGE
+            )
+            attn_mode = "sdpa"
+            
+        if attn_mode == "sdpa" and not SDPA_IS_AVAILABLE:
+            print(
+                "SDPA is not available. This requires PyTorch >= 2.0", color.ORANGE
+            )
+            if not XFORMERS_IS_AVAILABLE:
+                assert (
+                    False
+                ), "Please install PyTorch >= 2.0 or xformers via e.g. 'pip install xformers==0.0.16'"
+            else:
+                print("Falling back to xformers efficient attention.", color.ORANGE)
+                attn_mode = "xformers"
+        
         attn_cls = self.ATTENTION_MODES[attn_mode]
+        
+        # Rest of the initialization remains the same
         self.attn1 = attn_cls(
             query_dim=dim,
             heads=n_heads,
@@ -482,6 +531,7 @@ class BasicTransformerSingleLayerBlock(nn.Module):
         self.norm2 = nn.LayerNorm(dim)
         self.checkpoint = checkpoint
 
+    # The forward methods remain unchanged
     def forward(self, x, context=None):
         return checkpoint(
             self._forward, (x, context), self.parameters(), self.checkpoint
@@ -513,7 +563,7 @@ class SpatialTransformer(nn.Module):
         context_dim=None,
         disable_self_attn=False,
         use_linear=False,
-        attn_type="softmax",
+        attn_type="sdpa",  # Change default from "softmax" to "sdpa"
         use_checkpoint=True,
         # sdp_backend=SDPBackend.FLASH_ATTENTION
         sdp_backend=None,

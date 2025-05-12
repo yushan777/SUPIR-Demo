@@ -3,7 +3,7 @@ Modification of [SUPIR](https://github.com/Fanghua-Yu/SUPIR) repository.
 - Removed the heavy LLaVA implementation. 
 - Added safetensors support. 
 - Updated dependencies. 
-- Replaced Xformers with SDPA as default attention
+- Replaced SoftMax with SDPA is default attention.
 - Removed `use_linear_control_scale (linear_s_stage2)` and `use_linear_cfg_scale (linear_CFG)` arguments.  
    - Uses the start and end scale values to determine whether linear scaling will be used/have effect or not.
 - Renamed arguments to make settings a bit more intuitive (more alignment with kijai's SUPIR ComfyUI custom nodes)

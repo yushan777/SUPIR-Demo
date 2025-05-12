@@ -5,6 +5,7 @@ import torch
 import torch as th
 import torch.nn as nn
 from einops import rearrange, repeat
+from Y7.colored_print import color, style
 
 from sgm.modules.diffusionmodules.util import (
     avg_pool_nd,
@@ -24,6 +25,11 @@ import re
 import torch
 from functools import partial
 
+#  PyTorch versions - assume version >= 2.0.0
+SDPA_IS_AVAILABLE = True
+from torch.backends.cuda import SDPBackend
+from torch.nn.attention import sdpa_kernel
+print("'SDPA available...'", color.ORANGE)
 
 try:
     import xformers
@@ -115,13 +121,23 @@ class ZeroSFT(nn.Module):
 
 class ZeroCrossAttn(nn.Module):
     ATTENTION_MODES = {
-        "softmax": CrossAttention,  # vanilla attention
-        "softmax-xformers": MemoryEfficientCrossAttention
+        # Remove "softmax" from officially supported modes
+        "sdpa": CrossAttention,  # optimized attention with SDPA
+        "xformers": MemoryEfficientCrossAttention, 
+        # "softmax-xformers": MemoryEfficientCrossAttention,  # ampere
     }
+
+    print(f"Calling ZeroCrossAttn()", color.ORANGE)
 
     def __init__(self, context_dim, query_dim, zero_out=True, mask=False):
         super().__init__()
-        attn_mode = "softmax-xformers" if XFORMERS_IS_AVAILBLE else "softmax"
+        if SDPA_IS_AVAILABLE:
+            attn_mode = "sdpa"
+        elif XFORMERS_IS_AVAILBLE:
+            attn_mode = "xformers"
+        else:
+            raise RuntimeError("No supported attention backend available. Please install PyTorch >= 2.0 (for SDPA) or xformers.")
+        
         assert attn_mode in self.ATTENTION_MODES
         attn_cls = self.ATTENTION_MODES[attn_mode]
         self.attn = attn_cls(query_dim=query_dim, context_dim=context_dim, heads=query_dim//64, dim_head=64)

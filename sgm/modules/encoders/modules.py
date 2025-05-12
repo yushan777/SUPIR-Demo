@@ -1,7 +1,7 @@
 from contextlib import nullcontext
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Union
-from SUPIR.utils.colored_print import color, style
+from Y7.colored_print import color, style
 
 import kornia
 import numpy as np
