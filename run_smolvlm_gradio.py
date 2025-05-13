@@ -9,7 +9,7 @@ import time
 from threading import Thread
 from transformers.generation.streamers import TextIteratorStreamer
 from huggingface_hub import snapshot_download
-from smolvlm.verify_download_model import hash_file, validate_model_files, check_model_files, download_model_from_HF
+from smolvlm.verify_download_model import hash_file_partial, check_model_files, download_model_from_HF
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"

@@ -8,12 +8,31 @@ from huggingface_hub import snapshot_download
 
 
 # ==============================================================
-def hash_file(filepath, chunk_size=1024 * 1024):  # default 1MB
-    """Hash a file using xxhash for checksumming"""
+# def hash_file_full(filepath, chunk_size=1024 * 1024):  # default 1MB chunk
+#     """
+#     Hash a file using xxhash for checksumming
+#     """
+#     h = xxhash.xxh3_64()
+#     with open(filepath, 'rb') as f:
+#         for chunk in iter(lambda: f.read(chunk_size), b''):
+#             h.update(chunk)
+#     return h.hexdigest()
+
+# ==============================================================
+def hash_file_partial(filepath, chunk_size=1024 * 1024, max_chunks=25):
+    # partial hash of first(file max_chunks * 1MB)
+    # faster for large files
+    
     h = xxhash.xxh3_64()
+    chunks_processed = 0
+    
     with open(filepath, 'rb') as f:
         for chunk in iter(lambda: f.read(chunk_size), b''):
             h.update(chunk)
+            chunks_processed += 1
+            if chunks_processed >= max_chunks:
+                break
+    
     return h.hexdigest()
 
 # ==========================================================================
@@ -55,7 +74,7 @@ def validate_model_files(model_path, chunk_size=1024 * 1024, config_path=os.path
             continue
 
         try:
-            file_hash = hash_file(file_path, chunk_size=chunk_size)
+            file_hash = hash_file_partial(file_path, chunk_size=chunk_size)
 
             if file_hash == file_info["hash"]:    
                 # print(f' - {file_info["name"]}: {file_hash}: OKAY', color.BRIGHT_GREEN)
