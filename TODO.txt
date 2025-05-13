@@ -1,1 +1,1 @@
-LOTS OF STUFF!!!!!!!
+TEST with VAE dtype = FP32
