@@ -47,7 +47,7 @@ def validate_model_files(model_path, chunk_size=1024 * 1024, config_path=os.path
         with open(config_path, 'r') as f:
             model_configs = json.load(f)
     except Exception as e:
-        print(f"❌ Error loading config file: {str(e)}")
+        print(f"ⅹ Error loading config file: {str(e)}")
         return False
         
     # Determine which model we're validating
@@ -58,7 +58,7 @@ def validate_model_files(model_path, chunk_size=1024 * 1024, config_path=os.path
             break
             
     if not model_type:
-        print(f"❌ Unknown model type: {model_path}")
+        print(f"ⅹ Unknown model type: {model_path}")
         return False
         
     required_files = model_configs[model_type]      
@@ -69,7 +69,7 @@ def validate_model_files(model_path, chunk_size=1024 * 1024, config_path=os.path
         file_path = os.path.join(model_path, file_info["name"])
         
         if not os.path.isfile(file_path):
-            print(f"❌ Missing file: {file_info['name']}", color.RED)
+            print(f"ⅹ Missing file: {file_info['name']}", color.RED)
             valid = False
             continue
 
@@ -84,7 +84,7 @@ def validate_model_files(model_path, chunk_size=1024 * 1024, config_path=os.path
                 valid = False
 
         except Exception as e:
-            print(f'❌ Error checking hash for {file_info["name"]}: {str(e)}', color.RED)
+            print(f'ⅹ Error checking hash for {file_info["name"]}: {str(e)}', color.RED)
             valid = False
 
     return valid
@@ -96,7 +96,7 @@ def check_model_files(model_path):
 
     # validate model files first
     if validate_model_files(model_path):
-        print(f"✅ All model files are valid", color.GREEN)
+        print(f"✓ All model files are valid", color.GREEN)
         return True
     
     # If we get here, either directory doesn't exist or files are invalid
@@ -119,16 +119,16 @@ def download_model_from_HF(model_path):
             local_dir_use_symlinks=False,  
         )
         
-        print(f"✅ Model downloaded successfully", color.GREEN)
+        print(f"✓ Model downloaded successfully", color.GREEN)
         
         # Verify the downloaded files
         if validate_model_files(model_path):
-            print(f"✅ Downloaded files validated", color.GREEN)
+            print(f"✓ Downloaded files validated", color.GREEN)
             return True
         else:
-            print(f"❌ Downloaded files validation failed", color.RED)
+            print(f"ⅹ Downloaded files validation failed", color.RED)
             return False
             
     except Exception as e:
-        print(f"❌ Failed to download model: {str(e)}", color.RED)
+        print(f"ⅹ Failed to download model: {str(e)}", color.RED)
         return False

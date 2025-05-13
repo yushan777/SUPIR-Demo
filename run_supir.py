@@ -36,12 +36,15 @@ def parse_arguments():
     parser.add_argument("--color_fix_type", type=str, default='Wavelet', choices=["None", "AdaIn", "Wavelet"])
     parser.add_argument("--cfg_scale_start", type=float, default=2.0) #renamed from spt_linear_CFG
     parser.add_argument("--control_scale_start", type=float, default=0.9) #renamed from spt_linear_s_stage2
+
+    parser.add_argument("--loading_half_params", action='store_true', default=False) # load model weights in fp16
     parser.add_argument("--ae_dtype", type=str, default="bf16", choices=['fp32', 'bf16'])
     parser.add_argument("--diff_dtype", type=str, default="fp16", choices=['fp32', 'fp16', 'bf16'])
-    parser.add_argument("--loading_half_params", action='store_true', default=False)
+    
     parser.add_argument("--use_tile_vae", action='store_true', default=False)
     parser.add_argument("--encoder_tile_size", type=int, default=512)
     parser.add_argument("--decoder_tile_size", type=int, default=64)
+
     parser.add_argument("--skip_denoise_stage", action='store_true', default=False)
     
 

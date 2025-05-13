@@ -8,7 +8,7 @@ import os
 import time
 from threading import Thread
 from transformers.generation.streamers import TextIteratorStreamer
-from huggingface_hub import snapshot_download
+# from huggingface_hub import snapshot_download
 from smolvlm.verify_download_model import hash_file_partial, check_model_files, download_model_from_HF
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
@@ -26,9 +26,9 @@ TEMP = 0.4
 
 # Define caption style prompts
 STYLE_PROMPTS = {
-    "Brief and concise": "Caption this image with a brief and concise description.",
-    "Moderately detailed": "Caption this image with a moderately detailed description.",
-    "Highly detailed": "Caption this image with a highly detailed and comprehensive description."
+    "Brief and concise": "Caption this image with a short and concise description of the subject.",
+    "Moderately detailed": "Caption this image with a moderately detailed description of the subject and environment.",
+    "Highly detailed": "Caption this image with a highly detailed and lengthy description of the subject and environment."
 }
 # list of just the keys for gradio dropdown
 CAPTION_STYLE_OPTIONS = list(STYLE_PROMPTS.keys())
@@ -98,7 +98,6 @@ def load_model(model_path):
 # ====================================================================
 def generate_caption_streaming(
     image,
-    custom_prompt, # Added custom_prompt
     caption_style,
     max_new_tokens=MAX_NEW_TOKENS,
     repetition_penalty=REP_PENALTY,
@@ -115,10 +114,8 @@ def generate_caption_streaming(
     
     start_time = time.time()
     
-    if custom_prompt and custom_prompt.strip():
-        prompt_text = custom_prompt.strip()
-    else:
-        prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
+ 
+    prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
 
     # construct multi-modal input msg
     messages = [
@@ -182,7 +179,6 @@ def generate_caption_streaming(
 # ====================================================================
 def generate_caption_non_streaming(
     image,
-    custom_prompt, # Added custom_prompt
     caption_style,
     max_new_tokens=MAX_NEW_TOKENS,
     repetition_penalty=REP_PENALTY,
@@ -198,10 +194,7 @@ def generate_caption_non_streaming(
     
     start_time = time.time()
         
-    if custom_prompt and custom_prompt.strip():
-        prompt_text = custom_prompt.strip()
-    else:
-        prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
+    prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
 
     # construct multi-modal input msg
     messages = [
@@ -261,11 +254,13 @@ def process_edited_caption(additional_text):
     print(additional_text)
 
 # ====================================================================
-# GRADIO SHIT
 # ====================================================================
-def launch_gradio(use_stream, listen_on_network):
+# GRADIO UI SHIT
+# ====================================================================
+# ====================================================================
+def launch_gradio(use_stream, listen_on_network, port=None):
 
-    # Create custom theme
+    # Create custom theme (unchanged from your original code)
     custom_theme = gr.themes.Base(
         primary_hue=gr.themes.Color(
             c50="#faf8fc",
@@ -314,93 +309,224 @@ def launch_gradio(use_stream, listen_on_network):
                             /*  color: #2563eb !important;  text color */
                             font-family: 'monospace', monospace !important; 
                             font-size: 12px !important; 
-                        }                                
+                        }           
+                        /* Make dropdown menus taller */
+                        .gradio-dropdown .choices {
+                            max-height: 300px !important;  /* Adjust this value as needed */
+                            overflow-y: auto;
+                        }                                                                 
                     """) as demo:   
         
         gr.Markdown("# Image Captioner : SmolVLM-Instruct")    
         gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
-        gr.Markdown("Upload an image and adjust the settings to generate a caption")
         
-        with gr.Row():
-            # ================================================
-            # COL 1
-            with gr.Column(elem_classes=["fixed-width-column"]):
-                input_image = gr.Image(type="pil", label="Input Image", height=512)
-                                        
-                submit_btn = gr.Button("Generate Caption", variant="primary")
+        # Create tabs
+        with gr.Tabs() as tabs:
+            # ==============================================================================================
+            # First tab - INPUT IMAGE + SMOLVLM
+            # ==============================================================================================
+            with gr.TabItem("Input Image and Caption Generator"):
+                gr.Markdown("Upload an image and generate a caption (optional)")
                 
-            # ================================================
-            # COL 2                    
-            with gr.Column(elem_classes=["fixed-width-column"]):
-                
-                custom_prompt_textbox = gr.Textbox(
-                                            label="Custom Query/Prompt (Optional)", 
-                                            placeholder="Enter your custom query here, or select a caption preset below.", 
-                                            lines=2
-                                            )
+                with gr.Row():
+                    # ================================================
+                    # COL 1
+                    with gr.Column(elem_classes=["fixed-width-column"]):
+                        input_image = gr.Image(type="pil", label="Input Image", height=640)
+                                                
+                        submit_btn = gr.Button("Generate Caption", variant="primary")
+                        
+                    # ================================================
+                    # COL 2                    
+                    with gr.Column(elem_classes=["fixed-width-column"]):
+                        with gr.Accordion("Settings", open=True):
+                            with gr.Row():
+                                caption_style = gr.Dropdown(
+                                    choices=CAPTION_STYLE_OPTIONS,
+                                    value=CAPTION_STYLE_OPTIONS[1] if len(CAPTION_STYLE_OPTIONS) > 1 else CAPTION_STYLE_OPTIONS[0] if CAPTION_STYLE_OPTIONS else "Moderately detailed",
+                                    label="Caption Style"
+                                )
+                            gr.Markdown("Sampler Settings") 
+                            with gr.Row():
+                                max_tokens = gr.Slider(minimum=50, maximum=1024, value=MAX_NEW_TOKENS, step=1, label="Max New Tokens")
+                                rep_penalty = gr.Slider(minimum=1.0, maximum=2.0, value=REP_PENALTY, step=0.1, label="Repetition Penalty")
 
-                caption_style = gr.Dropdown(
-                    choices=CAPTION_STYLE_OPTIONS,
-                    value=CAPTION_STYLE_OPTIONS[1] if len(CAPTION_STYLE_OPTIONS) > 1 else CAPTION_STYLE_OPTIONS[0] if CAPTION_STYLE_OPTIONS else "Moderately detailed",
-                    label="Caption Style"
-                )
-                
-                with gr.Accordion("Advanced Settings", open=False):
-                    with gr.Row():
-                        max_tokens = gr.Slider(minimum=50, maximum=1024, value=MAX_NEW_TOKENS, step=1, label="Max New Tokens")
-                        rep_penalty = gr.Slider(minimum=1.0, maximum=2.0, value=REP_PENALTY, step=0.1, label="Repetition Penalty")
+                            gr.Markdown("""    
+                                        `Max New Tokens`: Controls the maximum length of the generated caption   
+                                        `Repetition Penalty`: Higher values discourage repetition in the text                                 
+                                        """)
+                            
+                            # Group the sampling-related controls together
+                            with gr.Group():
+                                do_sample_checkbox = gr.Checkbox(value=DO_SAMPLING, label="Do Sample")
+                                with gr.Row():
+                                    temperature_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TEMP, step=0.1, label="Temperature")
+                                    top_p_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TOP_P, step=0.1, label="Top P")
 
-                    # Group the sampling-related controls together
-                    with gr.Group():
-                        do_sample_checkbox = gr.Checkbox(value=DO_SAMPLING, label="Do Sample")
+                            gr.Markdown("""    
+                                        `Do Sample`: Enabled: uses Top P sampling for more diverse outputs. Disabled: use greedy mode (deterministic)  
+                                        `Temperature`: Higher values (>1.0) = output more random, lower values = more deterministic  
+                                        `Top P`: Higher values (0.8-0.95): More variability, more diverse outputs, Lower values (0.1-0.5): Less variability, more consistent outputs  
+                                        """)
+                
+                with gr.Row():
+                    with gr.Column():
+                        output_text = gr.Textbox(label="Generated Caption", lines=5, interactive=True, elem_id="text_box", info="you can edit the caption here before proceeding")
+                
+                        # Add the Process button under the second column
+                        # process_btn = gr.Button("Continue", variant="primary")
+            
+            # ==============================================================================================
+            # 2nd TAB
+            # ==============================================================================================
+            with gr.TabItem("SUPIR "):
+                gr.Markdown("Restore/Enhance/Upscale")
+                
+                with gr.Row():
+                    # ================================================
+                    # COL 1
+                    # Left column content
+                    with gr.Column(elem_classes=["fixed-width-column"]):
                         with gr.Row():
-                            temperature_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TEMP, step=0.1, label="Temperature")
-                            top_p_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TOP_P, step=0.1, label="Top P")
+                            supir_sign = gr.Dropdown(
+                                choices=["Q", "F"], 
+                                value="Q", 
+                                label="Model Type"
+                            )  
+                            config_path = gr.Dropdown(
+                                choices=[
+                                    ("Standard (High VRAM)", 'options/SUPIR_v0.yaml'),
+                                    ("Tiled (Low VRAM)", 'options/SUPIR_v0_tiled.yaml')
+                                ],
+                                value=('options/SUPIR_v0_tiled.yaml'),
+                                label="Sampler"
+                            )
+                        with gr.Row():
+                                seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
+                                upscale = gr.Dropdown(choices=[1, 2, 3, 4], value=2, label="Upscale", interactive=True)      
+                                skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
-                    gr.Markdown("""    
-                                ### Parameters:
-                                - **Max New Tokens**: Controls the maximum length of the generated caption
-                                - **Repetition Penalty**: Higher values discourage repetition in the text
-                                - **Do Sample**: Enabled: uses Top P sampling for more diverse outputs. Disabled: use greedy mode (deterministic)
-                                - **Temperature**: Higher values (>1.0) = output more random, lower values = more deterministic
-                                - **Top P**: Higher values (0.8-0.95): More variability, more diverse outputs, Lower values (0.1-0.5): Less variability, more consistent outputs
-                                
-                                """)
+                        # sample_image = gr.Image(type="pil", label="Sample Image Input", height=400)
+                        
+                        sample_dropdown = gr.Dropdown(
+                            choices=["Option 1", "Option 2", "Option 3"],
+                            value="Option 1",
+                            label="Sample Dropdown"
+                        )
+                        
+                        sample_checkbox = gr.Checkbox(value=False, label="Sample Checkbox")
+                        
+                        sample_btn = gr.Button("Process", variant="primary")
+                        
+                    # ================================================
+                    # COL 2                    
+                    with gr.Column(elem_classes=["fixed-width-column"]):
+                        # Right column content
+                        with gr.Accordion("Advanced Settings", open=True):
+                            gr.Markdown("### Configuration Options")
+                            
+                            with gr.Row():
+                                sample_slider1 = gr.Slider(minimum=0, maximum=100, value=50, step=1, label="Parameter 1")
+                                sample_slider2 = gr.Slider(minimum=0, maximum=10, value=5, step=0.1, label="Parameter 2")
+                            
+                            gr.Markdown("### Processing Options")
+                            
+                            sample_radio = gr.Radio(
+                                choices=["Mode A", "Mode B", "Mode C"],
+                                value="Mode A",
+                                label="Processing Mode"
+                            )
+                            
+                            with gr.Group():
+                                advanced_checkbox = gr.Checkbox(value=True, label="Enable Advanced Features")
+                                with gr.Row():
+                                    option1 = gr.Checkbox(value=False, label="Option 1")
+                                    option2 = gr.Checkbox(value=False, label="Option 2")
+                
+                # Common output area for tab 2
+                with gr.Row():
+                    with gr.Column():
+                        result_textbox = gr.Textbox(label="Results", lines=5, placeholder="Results will appear here...", interactive=True)
                     
-        with gr.Row():
-            with gr.Column():
-                output_text = gr.Textbox(label="Generated Caption", lines=5, interactive=True, elem_id="text_box", info="you can edit the caption here before proceeding")
-        
-                # Add the Process button under the second column
-                process_btn = gr.Button("Continue", variant="primary")
+                        # Add another button
+                        export_btn = gr.Button("Export Results", variant="secondary")
 
-        # Choose the appropriate generate function based on the argument
-        generate_function = generate_caption_streaming if use_stream else generate_caption_non_streaming
+         # Choose the appropriate generate function based on the argument
+        if use_stream:
+            generate_function = generate_caption_streaming 
+        else:
+            generate_function = generate_caption_non_streaming
 
+        # ==============================================================================================
+        # Tab 1 event handlers
+        # ==============================================================================================        
         submit_btn.click(
             fn=generate_function,
             inputs=[
                 input_image,
-                custom_prompt_textbox, # Added custom_prompt_textbox
                 caption_style,
                 max_tokens,
                 rep_penalty,
                 do_sample_checkbox,
                 temperature_slider,
                 top_p_slider
-                
             ],
             outputs=[output_text]
         )
 
-        # Add the click handler for the Process button
-        process_btn.click(
-            fn=process_edited_caption,
-            inputs=[output_text]
+        # process_btn.click(
+        #     fn=process_edited_caption,
+        #     inputs=[output_text]
+        # )
+        
+        # ==============================================================================================
+        # Tab 2 event handlers
+        # ==============================================================================================
+        
+        # Add a placeholder function for the sample button in the second tab
+        def sample_process_function(image, dropdown_value, checkbox_value, slider1, slider2, radio_value, adv_enabled, opt1, opt2):
+            result = f"Processed with settings:\n"
+            result += f"- Selected option: {dropdown_value}\n"
+            result += f"- Checkbox: {'Enabled' if checkbox_value else 'Disabled'}\n"
+            result += f"- Parameter 1: {slider1}, Parameter 2: {slider2}\n"
+            result += f"- Mode: {radio_value}\n"
+            
+            if adv_enabled:
+                result += f"- Advanced options: {'Option 1 ' if opt1 else ''}{'Option 2' if opt2 else ''}"
+            else:
+                result += "- Advanced options disabled"
+                
+            return result
+            
+        sample_btn.click(
+            fn=sample_process_function,
+            inputs=[
+                supir_sign,
+                config_path,
+                # sample_image,
+                sample_dropdown,
+                sample_checkbox,
+                sample_slider1,
+                sample_slider2,
+                sample_radio,
+                advanced_checkbox,
+                option1,
+                option2
+            ],
+            outputs=[result_textbox]
+        )
+        
+        def export_function(text):
+            return "Export functionality would save: " + text
+            
+        export_btn.click(
+            fn=export_function,
+            inputs=[result_textbox],
+            outputs=[result_textbox]
         )
 
         server_name = "0.0.0.0" if listen_on_network else None
-        demo.launch(server_name=server_name)
+        demo.launch(server_name=server_name, server_port=port)
         
 
 def main():
@@ -410,10 +536,11 @@ def main():
     parser = argparse.ArgumentParser(description="Run SmolVLM with Gradio")
     parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
     parser.add_argument("--listen", action="store_true", help="Launch Gradio with server_name='0.0.0.0' to listen on all interfaces")
+    parser.add_argument("--port", type=int, default=7860, help="Port to run the Gradio on (default: 7860)")
     parser.add_argument("--model", 
                         choices=["SmolVLM-Instruct", "SmolVLM-500M-Instruct", "SmolVLM-256M-Instruct"],
                         default="SmolVLM-Instruct", 
-                        help="Model to use (default: SmolVLM-Instruct)")
+                        help="Select model (default: SmolVLM-Instruct)")
     args = parser.parse_args()
 
     # Set model path
@@ -437,7 +564,7 @@ def main():
     print(f"Model {os.path.basename(MODEL_PATH)} loaded on {DEVICE} in {model_load_time:.2f} seconds.", color.GREEN)
 
     # Attach to Gradio (if needed)
-    launch_gradio(args.use_stream, args.listen)
+    launch_gradio(args.use_stream, args.listen, args.port)
 
 # Launch the Gradio app
 if __name__ == "__main__":

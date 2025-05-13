@@ -26,7 +26,10 @@ def load_model(config_path, supir_sign='Q', loading_half_params=False, use_tile_
         model = model.half()
     if use_tile_vae:
         model.init_tile_vae(encoder_tile_size=encoder_tile_size, decoder_tile_size=decoder_tile_size)
+
+    # Set the precision for the VAE component
     model.ae_dtype = convert_dtype(ae_dtype)
+    # Set the precision for the diffusion component (unet)
     model.model.dtype = convert_dtype(diff_dtype)
     model = model.to(SUPIR_device)
     return model
@@ -194,13 +197,8 @@ def create_ui():
                 )
                 
                 with gr.Row():
-                        seed = gr.Number(value=1234567891, precision=0, label="Seed")
-                        upscale = gr.Dropdown(
-                            choices=[1, 2, 3, 4], 
-                            value=2, 
-                            label="Upscale",
-                            interactive=True
-                        )                
+                        seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
+                        upscale = gr.Dropdown(choices=[1, 2, 3, 4], value=2, label="Upscale", interactive=True)                
 
                         skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
                 
@@ -230,25 +228,25 @@ def create_ui():
                             label="Sampler"
                         )
                         
-                        with gr.Row():
-                            loading_half_params = gr.Checkbox(value=True, label="Half Precision")
-                            use_tile_vae = gr.Checkbox(value=True, label="Tile VAE")
-                        
-                        # Compact data type selection
-                        with gr.Row():
-                            ae_dtype = gr.Dropdown(
-                                choices=["fp32", "bf16"], 
-                                value="bf16", 
-                                label="AE Type"
-                            )
-                            diff_dtype = gr.Dropdown(
-                                choices=["fp32", "fp16", "bf16"], 
-                                value="fp16", 
-                                label="Diff Type"
-                            )
+                        with gr.Group():
+                            with gr.Row():
+                                loading_half_params = gr.Checkbox(value=True, label="Half Precision")
+
+                            with gr.Row():
+                                ae_dtype = gr.Dropdown(
+                                    choices=["fp32", "bf16"], 
+                                    value="bf16", 
+                                    label="AE Type"
+                                )
+                                diff_dtype = gr.Dropdown(
+                                    choices=["fp32", "fp16", "bf16"], 
+                                    value="fp16", 
+                                    label="Diff Type"
+                                )
                         
                         # Tile settings in collapsible group
                         with gr.Accordion("Tile Settings", open=False) as tile_vae_settings:
+                            use_tile_vae = gr.Checkbox(value=True, label="Tile VAE")
                             encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile")
                             decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile")
                     
@@ -390,7 +388,7 @@ if __name__ == "__main__":
     parser.add_argument("--listen", action="store_true", help="Make the interface accessible on the network")
     parser.add_argument("--share", action="store_true", help="Create a shareable link")
     parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Server name/IP to bind to")
-    parser.add_argument("--server-port", type=int, default=3000, help="Port to use")
+    parser.add_argument("--port", type=int, default=3000, help="Port to use")
     args = parser.parse_args()
     
     # Create and launch the interface
@@ -398,6 +396,6 @@ if __name__ == "__main__":
     demo.launch(
         # if --listen arg is passed then bind to 0.0.0.0, otherwise default to localhost (127.0.0.1) only
         server_name=args.server_name if args.listen else None,
-        server_port=args.server_port,
+        server_port=args.port,
         share=args.share
     )
