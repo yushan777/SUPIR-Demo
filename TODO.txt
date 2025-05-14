@@ -1,3 +1,5 @@
+Added Tab3 : put image results here
+
 TEST with VAE dtype = FP32
 PROLOAD SUPIR at start ?
 UNLOAD VLM after use
