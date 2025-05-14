@@ -457,7 +457,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
             generate_function = generate_caption_non_streaming
 
         # ==============================================================================================
-        # Tab 1 event handler(s)
+        # Tab 1 Event Handler(s)
         # ==============================================================================================        
         submit_btn.click(
             fn=generate_function,
