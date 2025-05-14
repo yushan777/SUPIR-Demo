@@ -9,6 +9,7 @@
    - Uses the start and end scale values to determine whether linear scaling will be used/have effect or not.
 - Renamed arguments to make settings a bit more intuitive (more alignment with kijai's SUPIR ComfyUI custom nodes)
 - Added `--skip_denoise_stage` argument to skip the initial denoising stage that softens the input image to smooth out image or compression artefacts. You might want to do this if your image is already high quality. 
+- Refactor: Renamed symbol `upsacle` in original code to `upscale`
 
 ---
 ## 🔧 Dependencies and Installation

@@ -20,8 +20,17 @@ from huggingface_hub import snapshot_download
 
 # ==============================================================
 def hash_file_partial(filepath, chunk_size=1024 * 1024, max_chunks=25):
-    # partial hash of first(file max_chunks * 1MB)
-    # faster for large files
+    
+    # compute a partial xxHash (xxh3_64) of a file for faster hashing of large files.
+    # reads and hashes only the first few chunks of a file (by default, the first 25 MB).
+    # useful when you want a fast checksum that doesn't require hashing the entire file.
+    # if the file is smaller than (chunk_size * max_chunks), then the result is effectively a full hash.
+    # Parameters:
+    #     filepath (str): Path to the file to be hashed.
+    #     chunk_size (int): Size (in bytes) of each chunk to read from the file. Default is 1MB.
+    #     max_chunks (int): Maximum number of chunks to read and hash. Default is 25.
+    # Returns:
+    #     str: The resulting hexadecimal hash string from the partial file content.
     
     h = xxhash.xxh3_64()
     chunks_processed = 0

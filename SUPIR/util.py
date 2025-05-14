@@ -79,23 +79,23 @@ def load_QF_ckpt(config_path):
     return ckpt_Q, ckpt_F
 
 
-def PIL2Tensor(img, upsacle=1, min_size=1024, fix_resize=None):
+def PIL2Tensor(img, upscale=1, min_size=1024, fix_resize=None):
     '''
     PIL.Image -> Tensor[C, H, W], RGB, [-1, 1]
     '''
     # size
     w, h = img.size
-    w *= upsacle
-    h *= upsacle
+    w *= upscale
+    h *= upscale
     w0, h0 = round(w), round(h)
     if min(w, h) < min_size:
-        _upsacle = min_size / min(w, h)
-        w *= _upsacle
-        h *= _upsacle
+        _upscale = min_size / min(w, h)
+        w *= _upscale
+        h *= _upscale
     if fix_resize is not None:
-        _upsacle = fix_resize / min(w, h)
-        w *= _upsacle
-        h *= _upsacle
+        _upscale = fix_resize / min(w, h)
+        w *= _upscale
+        h *= _upscale
         w0, h0 = round(w), round(h)
     w = int(np.round(w / 64.0)) * 64
     h = int(np.round(h / 64.0)) * 64
@@ -150,9 +150,9 @@ def upscale_image(input_image, upscale, min_size=None, unit_resolution=64):
     W *= upscale
     if min_size is not None:
         if min(H, W) < min_size:
-            _upsacle = min_size / min(W, H)
-            W *= _upsacle
-            H *= _upsacle
+            _upscale = min_size / min(W, H)
+            W *= _upscale
+            H *= _upscale
     H = int(np.round(H / unit_resolution)) * unit_resolution
     W = int(np.round(W / unit_resolution)) * unit_resolution
     img = cv2.resize(input_image, (W, H), interpolation=cv2.INTER_LANCZOS4 if upscale > 1 else cv2.INTER_AREA)

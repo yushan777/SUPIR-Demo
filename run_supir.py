@@ -37,7 +37,7 @@ def parse_arguments():
     parser.add_argument("--cfg_scale_start", type=float, default=2.0) #renamed from spt_linear_CFG
     parser.add_argument("--control_scale_start", type=float, default=0.9) #renamed from spt_linear_s_stage2
 
-    parser.add_argument("--loading_half_params", action='store_true', default=False) # load model weights in fp16
+    parser.add_argument("--loading_half_params", action='store_true', default=True) # load model weights in fp16
     parser.add_argument("--ae_dtype", type=str, default="bf16", choices=['fp32', 'bf16'])
     parser.add_argument("--diff_dtype", type=str, default="fp16", choices=['fp32', 'fp16', 'bf16'])
     
@@ -86,7 +86,7 @@ def process_image(model, args, device):
         return None
     
     # update the input image
-    LQ_img, h0, w0 = PIL2Tensor(LQ_ips, upsacle=args.upscale, min_size=args.min_size)
+    LQ_img, h0, w0 = PIL2Tensor(LQ_ips, upscale=args.upscale, min_size=args.min_size)
     LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
     
     # Image caption(s)
@@ -153,6 +153,13 @@ def format_elapsed_time(seconds):
 
 # =====================================================================
 def main():
+    # Clear CUDA cache and garbage collect
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        print("CUDA cache cleared")
+        import gc
+        gc.collect()
 
     # Check for CUDA availability
     if torch.cuda.device_count() >= 1:

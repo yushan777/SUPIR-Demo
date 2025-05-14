@@ -6,8 +6,11 @@ import gradio as gr
 from Y7.colored_print import color, style
 import os
 import time
+import glob
 from threading import Thread
 from transformers.generation.streamers import TextIteratorStreamer
+from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
+
 # from huggingface_hub import snapshot_download
 from smolvlm.verify_download_model import hash_file_partial, check_model_files, download_model_from_HF
 
@@ -31,6 +34,23 @@ STYLE_PROMPTS = {
     "Highly detailed": "Caption this image with a highly detailed and lengthy description of the subject and environment."
 }
 
+
+
+
+# GLOBAL VARIABLES SO SUPIR DOESN'T NEED TO BE RE-LOADED EACH TIME
+SUPIR_MODEL = None
+SUPIR_SETTINGS = {}
+
+# Constants for SUPIR_SETTINGS keys
+SUPIR_CONFIG_PATH = 'sampler_config_path'
+SUPIR_MODEL_TYPE = 'supir_model_type'
+SUPIR_HALF_PARAMS = 'loading_half_params'
+SUPIR_TILE_VAE = 'use_tile_vae'
+SUPIR_ENCODER_TILE_SIZE = 'encoder_tile_size'
+SUPIR_DECODER_TILE_SIZE = 'decoder_tile_size'
+SUPIR_AE_DTYPE = 'ae_dtype'
+SUPIR_DIFF_DTYPE = 'diff_dtype'
+
 # Default prompts (the positive is appended to the main caption (whether it exists or not))
 default_positive_prompt = 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
 default_negative_prompt = 'painting, oil painting, illustration, drawing, art, sketch, oil painting, cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth'
@@ -48,7 +68,7 @@ def get_device():
         return "cpu"
 
 # ====================================================================
-def load_model(model_path):
+def load_smolvlm_model(model_path):
     device = get_device()
     print(f"Using {device} device")
     
@@ -96,6 +116,33 @@ def load_model(model_path):
     
     # If we get here, all attempts failed
     raise Exception("Failed to load model with any attention implementation")
+
+
+# Create SUPIR model with specified settings
+def load_supir_model(sampler_config_path, 
+               supir_model_type='Q', 
+               loading_half_params=False, 
+               ae_dtype="bf16", 
+               diff_dtype="fp16",
+               use_tile_vae=False, 
+               encoder_tile_size=512, 
+               decoder_tile_size=64):
+    
+    device = get_device()
+
+    print(f"Loading SUPIR model from config: {sampler_config_path}")
+    model = create_SUPIR_model(sampler_config_path, SUPIR_sign=supir_model_type)
+    if loading_half_params:
+        model = model.half()
+    if use_tile_vae:
+        model.init_tile_vae(encoder_tile_size=encoder_tile_size, decoder_tile_size=decoder_tile_size)
+
+    # Set the precision for the VAE component
+    model.ae_dtype = convert_dtype(ae_dtype)
+    # Set the precision for the diffusion component (unet)
+    model.model.dtype = convert_dtype(diff_dtype)
+    model = model.to(device)
+    return model
 
 
 # ====================================================================
@@ -252,6 +299,174 @@ def generate_caption_non_streaming(
     
     return response_only
 
+# process SUPIR on the image
+def process_supir(
+            input_image,
+            image_caption, 
+            supir_model_type,  
+            sampler_config_path,
+            seed, 
+            upscale, 
+            skip_denoise_stage,
+            loading_half_params, 
+            ae_dtype, 
+            diff_dtype,
+            use_tile_vae, 
+            encoder_tile_size, 
+            decoder_tile_size,
+            edm_steps, 
+            s_churn, 
+            s_noise,
+            cfg_scale_start, 
+            cfg_scale_end,
+            control_scale_start, 
+            control_scale_end, 
+            restoration_scale,
+            a_prompt, 
+            n_prompt
+        ):
+    
+    
+    print("\n")
+    print(f"input_image: {input_image}", color.YELLOW)
+    print(f"image_caption: {image_caption}", color.YELLOW)
+    print(f"supir_model_type: {supir_model_type}", color.YELLOW)
+    print(f"sampler_config_path: {sampler_config_path}", color.YELLOW)
+    print(f"seed: {seed}", color.YELLOW)
+    print(f"upscale: {upscale}", color.YELLOW)
+    print(f"skip_denoise_stage: {skip_denoise_stage}", color.YELLOW)
+    print(f"loading_half_params: {loading_half_params}", color.YELLOW)
+    print(f"ae_dtype: {ae_dtype}", color.YELLOW)
+    print(f"diff_dtype: {diff_dtype}", color.YELLOW)
+    print(f"use_tile_vae: {use_tile_vae}", color.YELLOW)
+    print(f"encoder_tile_size: {encoder_tile_size}", color.YELLOW)
+    print(f"decoder_tile_size: {decoder_tile_size}", color.YELLOW)
+    print(f"edm_steps: {edm_steps}", color.YELLOW)
+    print(f"s_churn: {s_churn}", color.YELLOW)
+    print(f"s_noise: {s_noise}", color.YELLOW)
+    print(f"cfg_scale_start: {cfg_scale_start}", color.YELLOW)
+    print(f"cfg_scale_end: {cfg_scale_end}", color.YELLOW)
+    print(f"control_scale_start: {control_scale_start}", color.YELLOW)
+    print(f"control_scale_end: {control_scale_end}", color.YELLOW)
+    print(f"restoration_scale: {restoration_scale}", color.YELLOW)
+    print(f"a_prompt: {a_prompt}", color.YELLOW)
+    print(f"n_prompt: {n_prompt}", color.YELLOW)
+
+
+    start_time = time.time()
+
+    # Use the global SUPIR_MODEL and SUPIR_SETTINGS variables - declared at top level.
+    global SUPIR_MODEL, SUPIR_SETTINGS
+
+    # ONLY Reload SUPIR model if precision settings changed or not loaded yet
+    # print(f"SUPIR_MODEL is already 'loaded' if {SUPIR_MODEL is not None else 'not initialized'}", color.MAGENTA)
+    if SUPIR_MODEL:
+        status = "already loaded."
+    else:
+        status = "not initialized - Loading."
+
+    print(f"SUPIR_MODEL is {status}", color.MAGENTA)
+
+    if (SUPIR_MODEL is None or
+        not SUPIR_SETTINGS or  # Check if the dictionary is empty
+        SUPIR_SETTINGS.get(SUPIR_CONFIG_PATH) != sampler_config_path or
+        SUPIR_SETTINGS.get(SUPIR_MODEL_TYPE) != supir_model_type or
+        SUPIR_SETTINGS.get(SUPIR_HALF_PARAMS) != loading_half_params or
+        SUPIR_SETTINGS.get(SUPIR_TILE_VAE) != use_tile_vae or
+        SUPIR_SETTINGS.get(SUPIR_ENCODER_TILE_SIZE) != encoder_tile_size or
+        SUPIR_SETTINGS.get(SUPIR_DECODER_TILE_SIZE) != decoder_tile_size or
+        SUPIR_SETTINGS.get(SUPIR_AE_DTYPE) != ae_dtype or
+        SUPIR_SETTINGS.get(SUPIR_DIFF_DTYPE) != diff_dtype):
+
+        SUPIR_MODEL = load_supir_model(
+            sampler_config_path=sampler_config_path,
+            supir_model_type=supir_model_type,
+            loading_half_params=loading_half_params,
+            use_tile_vae=use_tile_vae,
+            encoder_tile_size=encoder_tile_size,
+            decoder_tile_size=decoder_tile_size,
+            ae_dtype=ae_dtype,
+            diff_dtype=diff_dtype
+        )
+
+        # Store current settings for future comparison
+        SUPIR_SETTINGS = {
+            SUPIR_CONFIG_PATH: sampler_config_path,
+            SUPIR_MODEL_TYPE: supir_model_type,
+            SUPIR_HALF_PARAMS: loading_half_params,
+            SUPIR_TILE_VAE: use_tile_vae,
+            SUPIR_ENCODER_TILE_SIZE: encoder_tile_size,
+            SUPIR_DECODER_TILE_SIZE: decoder_tile_size,
+            SUPIR_AE_DTYPE: ae_dtype,
+            SUPIR_DIFF_DTYPE: diff_dtype
+        }
+
+    # Convert to PIL if needed
+    if not isinstance(input_image, Image.Image):
+        input_image = Image.fromarray(input_image)
+    
+    # Process input image by upscaling it to the min
+    device = get_device()
+    LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale, min_size=1024)
+    LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
+
+    # Run diffusion process
+    samples = SUPIR_MODEL.batchify_sample(LQ_img, image_caption, 
+                                    num_steps=edm_steps, 
+                                    restoration_scale=restoration_scale, 
+                                    s_churn=s_churn,
+                                    s_noise=s_noise, 
+                                    cfg_scale_start=cfg_scale_start,
+                                    cfg_scale_end=cfg_scale_end, 
+                                    control_scale_start=control_scale_start,
+                                    control_scale_end=control_scale_end, 
+                                    seed=seed,
+                                    num_samples=1,  # Always 1 for UI 
+                                    p_p=a_prompt, 
+                                    n_p=n_prompt, 
+                                    color_fix_type="Wavelet",
+                                    skip_denoise_stage=skip_denoise_stage)
+    
+    # Convert result to PIL image
+    result_img = Tensor2PIL(samples[0], h0, w0)
+
+    # --- Save the image before returning ---
+    try:
+        # Ensure the output directory exists
+        output_dir = "output"
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Find existing gradio files in the output directory to determine the next index
+        existing_files = glob.glob(os.path.join(output_dir, "gradio_*.png"))
+        max_index = -1
+        for f in existing_files:
+            try:
+                # Extract index from filename like "gradio_123.png"
+                index_str = f.replace("gradio_", "").replace(".png", "")
+                index = int(index_str)
+                if index > max_index:
+                    max_index = index
+            except ValueError:
+                # Ignore files that don't match the pattern
+                pass
+
+        next_index = max_index + 1
+        # Construct the full save path within the output directory
+        save_path = os.path.join(output_dir, f"gradio_{supir_model_type}_{next_index}.png")
+        result_img.save(save_path)
+        print(f"Saved generated image to: {save_path}")
+    except Exception as e:
+        print(f"Error saving image: {e}")
+    # --- End saving logic ---
+
+    end_time = time.time()
+    SUPIR_Process_Time = end_time - start_time
+    print(f"SUPIR Processing executed in {SUPIR_Process_Time:.2f} seconds.", color.GREEN)
+
+    return result_img
+
+
+
 # ====================================================================
 def process_edited_caption(additional_text):
     print(additional_text)
@@ -261,7 +476,7 @@ def process_edited_caption(additional_text):
 # GRADIO UI SHIT
 # ====================================================================
 # ====================================================================
-def launch_gradio(use_stream, listen_on_network, port=None):
+def create_launch_gradio(use_stream, listen_on_network, port=None):
 
     # Create custom theme (unchanged from your original code)
     custom_theme = gr.themes.Base(
@@ -291,6 +506,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
 
     # Create Gradio interface
     with gr.Blocks(title="Image Captioner", theme=custom_theme,  
+                   
                 css="""           
                         /* outermost wrapper of the entire Gradio app */         
                         .gradio-container {
@@ -339,6 +555,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         gr.Markdown("# Image Captioner : SmolVLM-Instruct")    
         gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
         
+
         # Create tabs
         with gr.Tabs() as tabs:
             # ==============================================================================================
@@ -390,7 +607,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                 
                 with gr.Row():
                     with gr.Column():
-                        output_text = gr.Textbox(label="Generated Caption", lines=5, interactive=True, elem_id="text_box", info="you can edit the caption here before proceeding")
+                        image_caption = gr.Textbox(label="Generated Caption", lines=5, interactive=True, elem_id="text_box", info="you can edit the caption here before proceeding")
                 
                         # Add the Process button under the second column
                         # process_btn = gr.Button("Continue", variant="primary")
@@ -529,18 +746,17 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # ==============================================================================================
         # Tab 1 Event Handler(s)
         # ==============================================================================================        
-        submit_btn.click(
-            fn=generate_function,
-            inputs=[
-                input_image,
-                caption_style,
-                max_tokens,
-                rep_penalty,
-                do_sample_checkbox,
-                temperature_slider,
-                top_p_slider
-            ],
-            outputs=[output_text]
+        submit_btn.click(fn=generate_function,
+                        inputs=[
+                            input_image,
+                            caption_style,
+                            max_tokens,
+                            rep_penalty,
+                            do_sample_checkbox,
+                            temperature_slider,
+                            top_p_slider
+                        ],
+            outputs=[image_caption]
         )
 
         # process_btn.click(
@@ -552,60 +768,11 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # Tab 2 event handlers
         # ==============================================================================================
         
-        def process_supir(
-                    input_image, 
-                    super_model, 
-                    sampler_config_path,
-                    seed, 
-                    upscale, 
-                    skip_denoise_stage,
-                    loading_half_params, 
-                    ae_dtype, diff_dtype,
-                    use_tile_vae, 
-                    encoder_tile_size, 
-                    decoder_tile_size,
-                    edm_steps, 
-                    s_churn, 
-                    s_noise,
-                    cfg_scale_start, 
-                    cfg_scale_end,
-                    control_scale_start, 
-                    control_scale_end, 
-                    restoration_scale,
-                    a_prompt, 
-                    n_prompt
-                ):
-            
-            
-            print("\n")
-            print(f"input_image: {input_image}", color.YELLOW)
-            print(f"super_model: {super_model}", color.YELLOW)
-            print(f"sampler_config_path: {sampler_config_path}", color.YELLOW)
-            print(f"seed: {seed}", color.YELLOW)
-            print(f"upscale: {upscale}", color.YELLOW)
-            print(f"skip_denoise_stage: {skip_denoise_stage}", color.YELLOW)
-            print(f"loading_half_params: {loading_half_params}", color.YELLOW)
-            print(f"ae_dtype: {ae_dtype}", color.YELLOW)
-            print(f"diff_dtype: {diff_dtype}", color.YELLOW)
-            print(f"use_tile_vae: {use_tile_vae}", color.YELLOW)
-            print(f"encoder_tile_size: {encoder_tile_size}", color.YELLOW)
-            print(f"decoder_tile_size: {decoder_tile_size}", color.YELLOW)
-            print(f"edm_steps: {edm_steps}", color.YELLOW)
-            print(f"s_churn: {s_churn}", color.YELLOW)
-            print(f"s_noise: {s_noise}", color.YELLOW)
-            print(f"cfg_scale_start: {cfg_scale_start}", color.YELLOW)
-            print(f"cfg_scale_end: {cfg_scale_end}", color.YELLOW)
-            print(f"control_scale_start: {control_scale_start}", color.YELLOW)
-            print(f"control_scale_end: {control_scale_end}", color.YELLOW)
-            print(f"restoration_scale: {restoration_scale}", color.YELLOW)
-            print(f"a_prompt: {a_prompt}", color.YELLOW)
-            print(f"n_prompt: {n_prompt}", color.YELLOW)
-
-
         process_supir_btn.click(
             fn=process_supir,
             inputs=[
                 input_image,
+                image_caption,
                 supir_model,
                 sampler_config_path,
                 seed,
@@ -643,6 +810,14 @@ def launch_gradio(use_stream, listen_on_network, port=None):
 def main():
     global processor, model, DEVICE, MODEL_PATH
 
+    # Clear CUDA cache and garbage collect at startup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        print("CUDA cache cleared at startup")
+        import gc
+        gc.collect()
+
     # Parse CLI arguments (can be passed manually as `argv` for testing)
     parser = argparse.ArgumentParser(description="Run SmolVLM with Gradio")
     parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
@@ -668,14 +843,14 @@ def main():
     if not filesokay:
         download_model_from_HF(MODEL_PATH)
 
-    processor, model, DEVICE = load_model(MODEL_PATH)
+    processor, model, DEVICE = load_smolvlm_model(MODEL_PATH)
 
     end_time = time.time()
     model_load_time = end_time - start_time
     print(f"Model {os.path.basename(MODEL_PATH)} loaded on {DEVICE} in {model_load_time:.2f} seconds.", color.GREEN)
 
     # Attach to Gradio (if needed)
-    launch_gradio(args.use_stream, args.listen, args.port)
+    create_launch_gradio(args.use_stream, args.listen, args.port)
 
 # Launch the Gradio app
 if __name__ == "__main__":

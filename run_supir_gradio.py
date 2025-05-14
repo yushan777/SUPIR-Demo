@@ -4,7 +4,7 @@ import argparse
 import os
 import random
 import tempfile
-import glob  # Added import
+import glob
 from PIL import Image
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 import time
@@ -16,10 +16,20 @@ if torch.cuda.device_count() >= 1:
 else:
     raise ValueError('Currently support CUDA only.')
 
+# GLOBAL VARIABLES SO SUPIR DOESN'T NEED TO BE RE-LOADED EACH TIME
+SUPIR_MODEL = None
+SUPIR_SETTINGS = {}
+
 # Create SUPIR model with specified settings
-def load_model(config_path, supir_sign='Q', loading_half_params=False, use_tile_vae=False,
-               encoder_tile_size=512, decoder_tile_size=64,
-               ae_dtype="bf16", diff_dtype="fp16"):
+def load_supir_model(config_path, 
+               supir_sign='Q', 
+               loading_half_params=False, 
+               ae_dtype="bf16", 
+               diff_dtype="fp16",
+               use_tile_vae=False, 
+               encoder_tile_size=512, 
+               decoder_tile_size=64):
+    
     print(f"Loading SUPIR model from config: {config_path}")
     model = create_SUPIR_model(config_path, SUPIR_sign=supir_sign)
     if loading_half_params:
@@ -65,21 +75,24 @@ def process_image(input_image,
 
     start_time = time.time()
 
-    # Load model with specified precision and performance settings
-    global model
-    # Reload model if precision settings changed or not loaded yet
-    if ('model' not in globals() or
-        'current_settings' not in globals() or
-        current_settings['config_path'] != config_path or
-        current_settings['supir_sign'] != supir_sign or
-        current_settings['loading_half_params'] != loading_half_params or
-        current_settings['use_tile_vae'] != use_tile_vae or
-        current_settings['encoder_tile_size'] != encoder_tile_size or
-        current_settings['decoder_tile_size'] != decoder_tile_size or
-        current_settings['ae_dtype'] != ae_dtype or
-        current_settings['diff_dtype'] != diff_dtype):
+    # Use the global SUPIR_MODEL and SUPIR_SETTINGS variables - declared at top level.
+    global SUPIR_MODEL, SUPIR_SETTINGS
 
-        model = load_model(
+    # ONLY Reload SUPIR model if precision settings changed or not loaded yet
+    print(f"SUPIR_MODEL is already {'loaded' if SUPIR_MODEL is not None else 'not initialized'}", color.MAGENTA)
+
+    if (SUPIR_MODEL is None or
+        not SUPIR_SETTINGS or  # Check if the dictionary is empty
+        SUPIR_SETTINGS.get('config_path') != config_path or
+        SUPIR_SETTINGS.get('supir_sign') != supir_sign or
+        SUPIR_SETTINGS.get('loading_half_params') != loading_half_params or
+        SUPIR_SETTINGS.get('use_tile_vae') != use_tile_vae or
+        SUPIR_SETTINGS.get('encoder_tile_size') != encoder_tile_size or
+        SUPIR_SETTINGS.get('decoder_tile_size') != decoder_tile_size or
+        SUPIR_SETTINGS.get('ae_dtype') != ae_dtype or
+        SUPIR_SETTINGS.get('diff_dtype') != diff_dtype):
+
+        SUPIR_MODEL = load_supir_model(
             config_path=config_path,
             supir_sign=supir_sign,
             loading_half_params=loading_half_params,
@@ -91,7 +104,7 @@ def process_image(input_image,
         )
 
         # Store current settings for future comparison
-        globals()['current_settings'] = {
+        SUPIR_SETTINGS = {
             'config_path': config_path,
             'supir_sign': supir_sign,
             'loading_half_params': loading_half_params,
@@ -106,15 +119,12 @@ def process_image(input_image,
     if not isinstance(input_image, Image.Image):
         input_image = Image.fromarray(input_image)
     
-    # Process image
-    LQ_img, h0, w0 = PIL2Tensor(input_image, upsacle=upscale, min_size=1024)
+    # Process input image by upscaling it to the min
+    LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale, min_size=1024)
     LQ_img = LQ_img.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
     
-    # Use the provided caption
-    # captions = [img_caption]    
-
     # Run diffusion process
-    samples = model.batchify_sample(LQ_img, img_caption, 
+    samples = SUPIR_MODEL.batchify_sample(LQ_img, img_caption, 
                                     num_steps=edm_steps, 
                                     restoration_scale=restoration_scale, 
                                     s_churn=s_churn,
