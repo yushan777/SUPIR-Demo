@@ -552,15 +552,29 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # Tab 2 event handlers
         # ==============================================================================================
         
-        def process_supir(input_image, super_model, sampler_config_path,
-                        seed, upscale, skip_denoise_stage,
-                        loading_half_params, ae_dtype, diff_dtype,
-                        use_tile_vae, encoder_tile_size, decoder_tile_size,
-                        edm_steps, s_churn, s_noise,
-                        cfg_scale_start, cfg_scale_end,
-                        control_scale_start, control_scale_end, restoration_scale,
-                        a_prompt, n_prompt
-                        ):
+        def process_supir(
+                    input_image, 
+                    super_model, 
+                    sampler_config_path,
+                    seed, 
+                    upscale, 
+                    skip_denoise_stage,
+                    loading_half_params, 
+                    ae_dtype, diff_dtype,
+                    use_tile_vae, 
+                    encoder_tile_size, 
+                    decoder_tile_size,
+                    edm_steps, 
+                    s_churn, 
+                    s_noise,
+                    cfg_scale_start, 
+                    cfg_scale_end,
+                    control_scale_start, 
+                    control_scale_end, 
+                    restoration_scale,
+                    a_prompt, 
+                    n_prompt
+                ):
             
             
             print("\n")
