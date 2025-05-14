@@ -30,6 +30,11 @@ STYLE_PROMPTS = {
     "Moderately detailed": "Caption this image with a moderately detailed description of the subject and environment.",
     "Highly detailed": "Caption this image with a highly detailed and lengthy description of the subject and environment."
 }
+
+# Default prompts (the positive is appended to the main caption (whether it exists or not))
+default_positive_prompt = 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
+default_negative_prompt = 'painting, oil painting, illustration, drawing, art, sketch, oil painting, cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth'
+
 # list of just the keys for gradio dropdown
 CAPTION_STYLE_OPTIONS = list(STYLE_PROMPTS.keys())
 
@@ -312,7 +317,23 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                         .gradio-dropdown .choices {
                             max-height: 300px !important;  /* Adjust this value as needed */
                             overflow-y: auto;
-                        }                                                                 
+                        }       
+                        /* Force scrollbar to always be present */
+                        html {
+                            overflow-y: scroll !important;
+                        }
+                        
+                        /* For modern browsers that support it, we can make the scrollbar not take up space */
+                        @supports (scrollbar-gutter: stable) {
+                            html {
+                                scrollbar-gutter: stable !important;
+                            }
+                        }
+                        
+                        /* Alternative approach for browsers that don't support scrollbar-gutter */
+                        body {
+                            padding-right: calc(100vw - 100%) !important; /* This adds padding equal to the scrollbar width */
+                        }                                                                                                      
                     """) as demo:   
         
         gr.Markdown("# Image Captioner : SmolVLM-Instruct")    
@@ -323,7 +344,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
             # ==============================================================================================
             # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
-            with gr.TabItem("Input Image and Caption Generator"):
+            with gr.TabItem("Input Image / Caption Generator"):
                 gr.Markdown("Upload an image and generate a caption (optional)")
                 
                 with gr.Row():
@@ -377,15 +398,14 @@ def launch_gradio(use_stream, listen_on_network, port=None):
             # ==============================================================================================
             # TAB 2 - SUPIR
             # ==============================================================================================
-            with gr.TabItem("SUPIR "):
-                gr.Markdown("Restore/Enhance/Upscale")
+            with gr.TabItem("SUPIR"):
+                # gr.Markdown("Restore/Enhance/Upscale")
                 
                 # -------------------------------------------------
-                # ROW 
+                # ROW - OUTER
                 # -------------------------------------------------
                 with gr.Row():
-                    
-                    
+                                        
                     # -------------------------------------------------
                     # COL 1
                     # -------------------------------------------------
@@ -450,50 +470,54 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                         
                         # sample_checkbox = gr.Checkbox(value=False, label="Sample Checkbox")
                         
-                        sample_btn = gr.Button("Process", variant="primary")
+                        
                         
                     # -------------------------------------------------
                     # COL 2                    
                     # -------------------------------------------------
                     with gr.Column(elem_classes=["fixed-width-column"]):
-                        
-                        edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="Sampler Steps")
-
+                                            
                         with gr.Group():
-                            gr.Markdown("  Noise Settings")
+                            # gr.Markdown("  Noise Settings")
                             with gr.Row():
-                                s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="Churn")
-                                s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="Noise")                        
+                                edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="Steps") # sampler steps
+                                s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="S-Churn") # stochastic churn
+                                s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="S-Noise") # stochastic noise                        
+                                
+                        with gr.Group():
+                            gr.Markdown("CFG Guidance")
+                            with gr.Row():
+                                cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="CFG Scale Start")        
+                                cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=4.0, step=0.1, label="CFG Scale End")
+                            
+                        with gr.Group():
+                            gr.Markdown("Control Guidance")                            
+                            with gr.Row():
+                                control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale Start")
+                                control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale End")
 
-                        # # Right column content
-                        # with gr.Accordion("Advanced Settings", open=True):
-                        #     gr.Markdown("### Configuration Options")
-                            
-                        #     with gr.Row():
-                        #         sample_slider1 = gr.Slider(minimum=0, maximum=100, value=50, step=1, label="Parameter 1")
-                        #         sample_slider2 = gr.Slider(minimum=0, maximum=10, value=5, step=0.1, label="Parameter 2")
-                            
-                        #     gr.Markdown("### Processing Options")
-                            
-                        #     sample_radio = gr.Radio(
-                        #         choices=["Mode A", "Mode B", "Mode C"],
-                        #         value="Mode A",
-                        #         label="Processing Mode"
-                        #     )
-                            
-                        #     with gr.Group():
-                        #         advanced_checkbox = gr.Checkbox(value=True, label="Enable Advanced Features")
-                        #         with gr.Row():
-                        #             option1 = gr.Checkbox(value=False, label="Option 1")
-                        #             option2 = gr.Checkbox(value=False, label="Option 2")
-                
-                # Common output area for tab 2
+                            restoration_scale = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Restoration Scale(-1=Off)")
+                                
+                # additional prompt and standard neg. prompt
+                with gr.Accordion("Prompts", open=False):
+                    with gr.Row():
+                        a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
+                        n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
+
                 with gr.Row():
-                    with gr.Column():
-                        result_textbox = gr.Textbox(label="Results", lines=5, placeholder="Results will appear here...", interactive=True)
+                    process_supir_btn = gr.Button("Process", variant="primary")
+
+                with gr.Row():
+                    output_image = gr.Image(
+                        label="Enhanced Image", 
+                        height=300
+                    )
+                    # with gr.Row():
+                        # compare_btn = gr.Button("Compare with Original", size="sm")                    
+                        # result_textbox = gr.Textbox(label="Results", lines=5, placeholder="Results will appear here...", interactive=True)
                     
                         # Add another button
-                        export_btn = gr.Button("Export Results", variant="secondary")
+                        # export_btn = gr.Button("Export Results", variant="secondary")
 
         # Choose the appropriate generate function based on the argument 'use_stream'
         # and assign to function reference 'generate_function'  
@@ -534,11 +558,14 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                           loading_half_params, ae_dtype, diff_dtype,
                           use_tile_vae, encoder_tile_size, decoder_tile_size, 
                           edm_steps, s_churn, s_noise,
+                          cfg_scale_start, cfg_scale_end,
+                          control_scale_start, control_scale_end, restoration_scale,
+                          a_prompt, n_prompt
                           
                         ):
             pass
 
-        sample_btn.click(
+        process_supir_btn.click(
             fn=process_supir,
             inputs=[
                 input_image,
@@ -552,19 +579,21 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                 decoder_tile_size,
                 edm_steps,
                 s_churn,
-                s_noise
+                s_noise,
+                cfg_scale_start,
+                cfg_scale_end,
+                control_scale_start, 
+                control_scale_end, 
+                restoration_scale,
+                a_prompt, n_prompt
             ],
-            outputs=[result_textbox]
+            outputs=output_image
         )
         
         def export_function(text):
             return "Export functionality would save: " + text
             
-        export_btn.click(
-            fn=export_function,
-            inputs=[result_textbox],
-            outputs=[result_textbox]
-        )
+
 
         server_name = "0.0.0.0" if listen_on_network else None
         demo.launch(server_name=server_name, server_port=port)
