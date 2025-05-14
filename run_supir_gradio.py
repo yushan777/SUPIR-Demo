@@ -168,9 +168,7 @@ def process_image(input_image,
 
     return result_img
 
-# Function to update tile VAE visibility
-def update_tile_vae_visibility(use_tile):
-    return gr.update(visible=use_tile)
+
 
 # Default prompts
 default_positive_prompt = 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
@@ -230,25 +228,25 @@ def create_ui():
                         
                         with gr.Group():
                             with gr.Row():
-                                loading_half_params = gr.Checkbox(value=True, label="Half Precision")
+                                loading_half_params = gr.Checkbox(value=True, label="Load Model in Half Precision (fp16)")
 
                             with gr.Row():
                                 ae_dtype = gr.Dropdown(
                                     choices=["fp32", "bf16"], 
                                     value="bf16", 
-                                    label="AE Type"
+                                    label="AE dType"
                                 )
                                 diff_dtype = gr.Dropdown(
                                     choices=["fp32", "fp16", "bf16"], 
                                     value="fp16", 
-                                    label="Diff Type"
+                                    label="Diffusion dType"
                                 )
                         
                         # Tile settings in collapsible group
-                        with gr.Accordion("Tile Settings", open=False) as tile_vae_settings:
-                            use_tile_vae = gr.Checkbox(value=True, label="Tile VAE")
-                            encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile")
-                            decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile")
+                        with gr.Group() as tile_vae_settings:
+                            use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")
+                            encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size", info="The AE processes the input image in tiles of specified size instead of the full image at once.")
+                            decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size", info="The AE reconstructs the final image by stitching together outputs from smaller tile segments.")
                     
                     # Diffusion Tab  
                     with gr.TabItem("Diffusion"):
@@ -327,12 +325,16 @@ def create_ui():
                     - For large images: Enable Tile VAE in the Model tab
                     """)
 
-        # Connect UI functions
-        use_tile_vae.change(
-            fn=update_tile_vae_visibility,
-            inputs=[use_tile_vae],
-            outputs=[tile_vae_settings]
-        )
+        # # Function to update tile VAE visibility
+        # def update_tile_vae_visibility(use_tile):
+        #     return gr.update(visible=use_tile)
+
+        # # Connect UI functions
+        # use_tile_vae.change(
+        #     fn=update_tile_vae_visibility,
+        #     inputs=[use_tile_vae],
+        #     outputs=[tile_vae_settings]
+        # )
         
         # random_seed_button.click(
         #     fn=generate_random_seed,

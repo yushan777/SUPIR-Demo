@@ -321,7 +321,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # Create tabs
         with gr.Tabs() as tabs:
             # ==============================================================================================
-            # First tab - INPUT IMAGE + SMOLVLM
+            # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
             with gr.TabItem("Input Image and Caption Generator"):
                 gr.Markdown("Upload an image and generate a caption (optional)")
@@ -375,71 +375,117 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                         # process_btn = gr.Button("Continue", variant="primary")
             
             # ==============================================================================================
-            # 2nd TAB
+            # TAB 2 - SUPIR
             # ==============================================================================================
             with gr.TabItem("SUPIR "):
                 gr.Markdown("Restore/Enhance/Upscale")
                 
+                # -------------------------------------------------
+                # ROW 
+                # -------------------------------------------------
                 with gr.Row():
-                    # ================================================
+                    
+                    
+                    # -------------------------------------------------
                     # COL 1
+                    # -------------------------------------------------
                     # Left column content
                     with gr.Column(elem_classes=["fixed-width-column"]):
+
                         with gr.Row():
-                            supir_sign = gr.Dropdown(
+                            # supir_sign renamed to supir_model
+                            supir_model = gr.Dropdown(
                                 choices=["Q", "F"], 
                                 value="Q", 
                                 label="Model Type"
                             )  
-                            config_path = gr.Dropdown(
+
+                            # sampler type[RestoreEDMSampler, TiledRestoreEDMSampler] 
+                            # internally returns the config_path to the correct config (yaml)
+                            sampler_config_path = gr.Dropdown(
                                 choices=[
-                                    ("Standard (High VRAM)", 'options/SUPIR_v0.yaml'),
-                                    ("Tiled (Low VRAM)", 'options/SUPIR_v0_tiled.yaml')
+                                    ("RestoreEDMSampler (Higher VRAM)", 'options/SUPIR_v0.yaml'),
+                                    ("TiledRestoreEDMSampler (Lower VRAM)", 'options/SUPIR_v0_tiled.yaml')
                                 ],
                                 value=('options/SUPIR_v0_tiled.yaml'),
-                                label="Sampler"
+                                label="Sampler Type"
                             )
+
                         with gr.Row():
                                 seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
                                 upscale = gr.Dropdown(choices=[1, 2, 3, 4], value=2, label="Upscale", interactive=True)      
                                 skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
+                        with gr.Group():
+                            with gr.Row():
+                                loading_half_params = gr.Checkbox(value=True, label="Load Model in Half Precision (fp16)")
+                            with gr.Row():
+                                ae_dtype = gr.Dropdown(
+                                    choices=["fp32", "bf16"], 
+                                    value="bf16", 
+                                    label="AE dType"
+                                )
+                                diff_dtype = gr.Dropdown(
+                                    choices=["fp32", "fp16", "bf16"], 
+                                    value="fp16", 
+                                    label="Diffusion dType"
+                                )
+
+                        # Tile settings in collapsible group
+                        with gr.Group() as tile_vae_settings:
+                            with gr.Row():
+                                use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")
+                                # The AE processes the input image in tiles of specified size instead of the full image at once
+                                encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
+                                # The AE reconstructs the final image by stitching together outputs from smaller tile segments
+                                decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
+                                                    
                         # sample_image = gr.Image(type="pil", label="Sample Image Input", height=400)
                         
-                        sample_dropdown = gr.Dropdown(
-                            choices=["Option 1", "Option 2", "Option 3"],
-                            value="Option 1",
-                            label="Sample Dropdown"
-                        )
+                        # sample_dropdown = gr.Dropdown(
+                        #     choices=["Option 1", "Option 2", "Option 3"],
+                        #     value="Option 1",
+                        #     label="Sample Dropdown"
+                        # )
                         
-                        sample_checkbox = gr.Checkbox(value=False, label="Sample Checkbox")
+                        # sample_checkbox = gr.Checkbox(value=False, label="Sample Checkbox")
                         
                         sample_btn = gr.Button("Process", variant="primary")
                         
-                    # ================================================
+                    # -------------------------------------------------
                     # COL 2                    
+                    # -------------------------------------------------
                     with gr.Column(elem_classes=["fixed-width-column"]):
-                        # Right column content
-                        with gr.Accordion("Advanced Settings", open=True):
-                            gr.Markdown("### Configuration Options")
-                            
+                        
+                        edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="Sampler Steps")
+
+                        with gr.Group():
+                            gr.Markdown("  Noise Settings")
                             with gr.Row():
-                                sample_slider1 = gr.Slider(minimum=0, maximum=100, value=50, step=1, label="Parameter 1")
-                                sample_slider2 = gr.Slider(minimum=0, maximum=10, value=5, step=0.1, label="Parameter 2")
+                                s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="Churn")
+                                s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="Noise")                        
+
+                        # # Right column content
+                        # with gr.Accordion("Advanced Settings", open=True):
+                        #     gr.Markdown("### Configuration Options")
                             
-                            gr.Markdown("### Processing Options")
+                        #     with gr.Row():
+                        #         sample_slider1 = gr.Slider(minimum=0, maximum=100, value=50, step=1, label="Parameter 1")
+                        #         sample_slider2 = gr.Slider(minimum=0, maximum=10, value=5, step=0.1, label="Parameter 2")
                             
-                            sample_radio = gr.Radio(
-                                choices=["Mode A", "Mode B", "Mode C"],
-                                value="Mode A",
-                                label="Processing Mode"
-                            )
+                        #     gr.Markdown("### Processing Options")
                             
-                            with gr.Group():
-                                advanced_checkbox = gr.Checkbox(value=True, label="Enable Advanced Features")
-                                with gr.Row():
-                                    option1 = gr.Checkbox(value=False, label="Option 1")
-                                    option2 = gr.Checkbox(value=False, label="Option 2")
+                        #     sample_radio = gr.Radio(
+                        #         choices=["Mode A", "Mode B", "Mode C"],
+                        #         value="Mode A",
+                        #         label="Processing Mode"
+                        #     )
+                            
+                        #     with gr.Group():
+                        #         advanced_checkbox = gr.Checkbox(value=True, label="Enable Advanced Features")
+                        #         with gr.Row():
+                        #             option1 = gr.Checkbox(value=False, label="Option 1")
+                        #             option2 = gr.Checkbox(value=False, label="Option 2")
                 
                 # Common output area for tab 2
                 with gr.Row():
@@ -483,33 +529,30 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # ==============================================================================================
         
         # A placeholder function for the sample button in the second tab
-        def sample_process_function(image, dropdown_value, checkbox_value, slider1, slider2, radio_value, adv_enabled, opt1, opt2):
-            result = f"Processed with settings:\n"
-            result += f"- Selected option: {dropdown_value}\n"
-            result += f"- Checkbox: {'Enabled' if checkbox_value else 'Disabled'}\n"
-            result += f"- Parameter 1: {slider1}, Parameter 2: {slider2}\n"
-            result += f"- Mode: {radio_value}\n"
-            
-            if adv_enabled:
-                result += f"- Advanced options: {'Option 1 ' if opt1 else ''}{'Option 2' if opt2 else ''}"
-            else:
-                result += "- Advanced options disabled"
-                
-            return result
-            
+        def process_supir(input_image, super_model, sampler_config_path,
+                          seed, upscale, skip_denoise_stage,
+                          loading_half_params, ae_dtype, diff_dtype,
+                          use_tile_vae, encoder_tile_size, decoder_tile_size, 
+                          edm_steps, s_churn, s_noise,
+                          
+                        ):
+            pass
+
         sample_btn.click(
-            fn=sample_process_function,
+            fn=process_supir,
             inputs=[
-                config_path,
-                # sample_image,
-                sample_dropdown,
-                sample_checkbox,
-                sample_slider1,
-                sample_slider2,
-                sample_radio,
-                advanced_checkbox,
-                option1,
-                option2
+                input_image,
+                supir_model,
+                sampler_config_path,
+                seed,
+                upscale,
+                skip_denoise_stage,
+                use_tile_vae, 
+                encoder_tile_size, 
+                decoder_tile_size,
+                edm_steps,
+                s_churn,
+                s_noise
             ],
             outputs=[result_textbox]
         )
