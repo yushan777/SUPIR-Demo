@@ -552,18 +552,41 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # Tab 2 event handlers
         # ==============================================================================================
         
-        # A placeholder function for the sample button in the second tab
         def process_supir(input_image, super_model, sampler_config_path,
-                          seed, upscale, skip_denoise_stage,
-                          loading_half_params, ae_dtype, diff_dtype,
-                          use_tile_vae, encoder_tile_size, decoder_tile_size, 
-                          edm_steps, s_churn, s_noise,
-                          cfg_scale_start, cfg_scale_end,
-                          control_scale_start, control_scale_end, restoration_scale,
-                          a_prompt, n_prompt
-                          
+                        seed, upscale, skip_denoise_stage,
+                        loading_half_params, ae_dtype, diff_dtype,
+                        use_tile_vae, encoder_tile_size, decoder_tile_size,
+                        edm_steps, s_churn, s_noise,
+                        cfg_scale_start, cfg_scale_end,
+                        control_scale_start, control_scale_end, restoration_scale,
+                        a_prompt, n_prompt
                         ):
-            pass
+            
+            
+            print("\n")
+            print(f"input_image: {input_image}", color.YELLOW)
+            print(f"super_model: {super_model}", color.YELLOW)
+            print(f"sampler_config_path: {sampler_config_path}", color.YELLOW)
+            print(f"seed: {seed}", color.YELLOW)
+            print(f"upscale: {upscale}", color.YELLOW)
+            print(f"skip_denoise_stage: {skip_denoise_stage}", color.YELLOW)
+            print(f"loading_half_params: {loading_half_params}", color.YELLOW)
+            print(f"ae_dtype: {ae_dtype}", color.YELLOW)
+            print(f"diff_dtype: {diff_dtype}", color.YELLOW)
+            print(f"use_tile_vae: {use_tile_vae}", color.YELLOW)
+            print(f"encoder_tile_size: {encoder_tile_size}", color.YELLOW)
+            print(f"decoder_tile_size: {decoder_tile_size}", color.YELLOW)
+            print(f"edm_steps: {edm_steps}", color.YELLOW)
+            print(f"s_churn: {s_churn}", color.YELLOW)
+            print(f"s_noise: {s_noise}", color.YELLOW)
+            print(f"cfg_scale_start: {cfg_scale_start}", color.YELLOW)
+            print(f"cfg_scale_end: {cfg_scale_end}", color.YELLOW)
+            print(f"control_scale_start: {control_scale_start}", color.YELLOW)
+            print(f"control_scale_end: {control_scale_end}", color.YELLOW)
+            print(f"restoration_scale: {restoration_scale}", color.YELLOW)
+            print(f"a_prompt: {a_prompt}", color.YELLOW)
+            print(f"n_prompt: {n_prompt}", color.YELLOW)
+
 
         process_supir_btn.click(
             fn=process_supir,
@@ -574,6 +597,9 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                 seed,
                 upscale,
                 skip_denoise_stage,
+                loading_half_params,  
+                ae_dtype,            
+                diff_dtype,          
                 use_tile_vae, 
                 encoder_tile_size, 
                 decoder_tile_size,
@@ -585,7 +611,8 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                 control_scale_start, 
                 control_scale_end, 
                 restoration_scale,
-                a_prompt, n_prompt
+                a_prompt, 
+                n_prompt
             ],
             outputs=output_image
         )
