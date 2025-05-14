@@ -449,14 +449,15 @@ def launch_gradio(use_stream, listen_on_network, port=None):
                         # Add another button
                         export_btn = gr.Button("Export Results", variant="secondary")
 
-         # Choose the appropriate generate function based on the argument
+        # Choose the appropriate generate function based on the argument 'use_stream'
+        # and assign to function reference 'generate_function'  
         if use_stream:
             generate_function = generate_caption_streaming 
         else:
             generate_function = generate_caption_non_streaming
 
         # ==============================================================================================
-        # Tab 1 event handlers
+        # Tab 1 event handler(s)
         # ==============================================================================================        
         submit_btn.click(
             fn=generate_function,
