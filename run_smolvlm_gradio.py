@@ -49,8 +49,6 @@ def load_model(model_path):
     
 
     # FIRST CHECK IF MODEL EXISTS IN LOCAL DIRECTORY (./models/)
-
-
     processor = AutoProcessor.from_pretrained(model_path)
     
     # Attention fallback order 
