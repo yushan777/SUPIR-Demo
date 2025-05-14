@@ -481,7 +481,7 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         # Tab 2 event handlers
         # ==============================================================================================
         
-        # Add a placeholder function for the sample button in the second tab
+        # A placeholder function for the sample button in the second tab
         def sample_process_function(image, dropdown_value, checkbox_value, slider1, slider2, radio_value, adv_enabled, opt1, opt2):
             result = f"Processed with settings:\n"
             result += f"- Selected option: {dropdown_value}\n"
@@ -499,7 +499,6 @@ def launch_gradio(use_stream, listen_on_network, port=None):
         sample_btn.click(
             fn=sample_process_function,
             inputs=[
-                supir_sign,
                 config_path,
                 # sample_image,
                 sample_dropdown,
