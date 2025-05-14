@@ -9,6 +9,7 @@
    - Uses the start and end scale values to determine whether linear scaling will be used/have effect or not.
 - Renamed arguments to make settings a bit more intuitive (more alignment with kijai's SUPIR ComfyUI custom nodes)
 - Added `--skip_denoise_stage` argument to skip the initial denoising stage that softens the input image to smooth out image or compression artefacts. You might want to do this if your image is already high quality. 
+- Refactor: Renamed symbol `upsacle` in original code to `upscale`
 
 ---
 ## 🔧 Dependencies and Installation
@@ -246,18 +247,21 @@ python3 run_supir.py \
 
 ### Precision/Performance Settings
 
+* `--loading_half_params`
+  loads the SUPIR model weights in half precision (FP16). 
+  Default: `False`
+  Reduces VRAM usage and increases speed at the cost of slight precision loss.
+
+* `--diff_dtype`  
+  Precision to use for the diffusion model only (e.g., UNet).  
+  Allows overriding the default precision **independently of model-wide settings**, unless `--loading_half_params` is set.  
+  If `--loading_half_params` is enabled, this setting will have no effect.  
+  Default: `'fp16'`  
+  Options: `['fp32', 'fp16', 'bf16']`
+
 * `--ae_dtype`
   Autoencoder precision. Default: `'bf16'`
   Options: `['fp32', 'bf16']`
-
-* `--diff_dtype`
-  Diffusion model precision. Default: `'fp16'`
-  Options: `['fp32', 'fp16', 'bf16']`
-
-* `--loading_half_params`
-  loads the SUPIR model weights in half precision. 
-  Default: `False`
-  Reduces VRAM usage and increases speed at the cost of slight precision loss.
 
 * `--use_tile_vae`
   Enables tile-based encoding/decoding for memory efficiency with large images

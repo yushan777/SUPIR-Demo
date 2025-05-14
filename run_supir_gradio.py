@@ -4,7 +4,7 @@ import argparse
 import os
 import random
 import tempfile
-import glob  # Added import
+import glob
 from PIL import Image
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 import time
@@ -16,17 +16,30 @@ if torch.cuda.device_count() >= 1:
 else:
     raise ValueError('Currently support CUDA only.')
 
+# GLOBAL VARIABLES SO SUPIR DOESN'T NEED TO BE RE-LOADED EACH TIME
+SUPIR_MODEL = None
+SUPIR_SETTINGS = {}
+
 # Create SUPIR model with specified settings
-def load_model(config_path, supir_sign='Q', loading_half_params=False, use_tile_vae=False,
-               encoder_tile_size=512, decoder_tile_size=64,
-               ae_dtype="bf16", diff_dtype="fp16"):
+def load_supir_model(config_path, 
+               supir_sign='Q', 
+               loading_half_params=False, 
+               ae_dtype="bf16", 
+               diff_dtype="fp16",
+               use_tile_vae=False, 
+               encoder_tile_size=512, 
+               decoder_tile_size=64):
+    
     print(f"Loading SUPIR model from config: {config_path}")
     model = create_SUPIR_model(config_path, SUPIR_sign=supir_sign)
     if loading_half_params:
         model = model.half()
     if use_tile_vae:
         model.init_tile_vae(encoder_tile_size=encoder_tile_size, decoder_tile_size=decoder_tile_size)
+
+    # Set the precision for the VAE component
     model.ae_dtype = convert_dtype(ae_dtype)
+    # Set the precision for the diffusion component (unet)
     model.model.dtype = convert_dtype(diff_dtype)
     model = model.to(SUPIR_device)
     return model
@@ -62,21 +75,24 @@ def process_image(input_image,
 
     start_time = time.time()
 
-    # Load model with specified precision and performance settings
-    global model
-    # Reload model if precision settings changed or not loaded yet
-    if ('model' not in globals() or
-        'current_settings' not in globals() or
-        current_settings['config_path'] != config_path or
-        current_settings['supir_sign'] != supir_sign or
-        current_settings['loading_half_params'] != loading_half_params or
-        current_settings['use_tile_vae'] != use_tile_vae or
-        current_settings['encoder_tile_size'] != encoder_tile_size or
-        current_settings['decoder_tile_size'] != decoder_tile_size or
-        current_settings['ae_dtype'] != ae_dtype or
-        current_settings['diff_dtype'] != diff_dtype):
+    # Use the global SUPIR_MODEL and SUPIR_SETTINGS variables - declared at top level.
+    global SUPIR_MODEL, SUPIR_SETTINGS
 
-        model = load_model(
+    # ONLY Reload SUPIR model if precision settings changed or not loaded yet
+    print(f"SUPIR_MODEL is already {'loaded' if SUPIR_MODEL is not None else 'not initialized'}", color.MAGENTA)
+
+    if (SUPIR_MODEL is None or
+        not SUPIR_SETTINGS or  # Check if the dictionary is empty
+        SUPIR_SETTINGS.get('config_path') != config_path or
+        SUPIR_SETTINGS.get('supir_sign') != supir_sign or
+        SUPIR_SETTINGS.get('loading_half_params') != loading_half_params or
+        SUPIR_SETTINGS.get('use_tile_vae') != use_tile_vae or
+        SUPIR_SETTINGS.get('encoder_tile_size') != encoder_tile_size or
+        SUPIR_SETTINGS.get('decoder_tile_size') != decoder_tile_size or
+        SUPIR_SETTINGS.get('ae_dtype') != ae_dtype or
+        SUPIR_SETTINGS.get('diff_dtype') != diff_dtype):
+
+        SUPIR_MODEL = load_supir_model(
             config_path=config_path,
             supir_sign=supir_sign,
             loading_half_params=loading_half_params,
@@ -88,7 +104,7 @@ def process_image(input_image,
         )
 
         # Store current settings for future comparison
-        globals()['current_settings'] = {
+        SUPIR_SETTINGS = {
             'config_path': config_path,
             'supir_sign': supir_sign,
             'loading_half_params': loading_half_params,
@@ -103,15 +119,12 @@ def process_image(input_image,
     if not isinstance(input_image, Image.Image):
         input_image = Image.fromarray(input_image)
     
-    # Process image
-    LQ_img, h0, w0 = PIL2Tensor(input_image, upsacle=upscale, min_size=1024)
+    # Process input image by upscaling it to the min
+    LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale, min_size=1024)
     LQ_img = LQ_img.unsqueeze(0).to(SUPIR_device)[:, :3, :, :]
     
-    # Use the provided caption
-    # captions = [img_caption]    
-
     # Run diffusion process
-    samples = model.batchify_sample(LQ_img, img_caption, 
+    samples = SUPIR_MODEL.batchify_sample(LQ_img, img_caption, 
                                     num_steps=edm_steps, 
                                     restoration_scale=restoration_scale, 
                                     s_churn=s_churn,
@@ -165,9 +178,7 @@ def process_image(input_image,
 
     return result_img
 
-# Function to update tile VAE visibility
-def update_tile_vae_visibility(use_tile):
-    return gr.update(visible=use_tile)
+
 
 # Default prompts
 default_positive_prompt = 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
@@ -194,13 +205,8 @@ def create_ui():
                 )
                 
                 with gr.Row():
-                        seed = gr.Number(value=1234567891, precision=0, label="Seed")
-                        upscale = gr.Dropdown(
-                            choices=[1, 2, 3, 4], 
-                            value=2, 
-                            label="Upscale",
-                            interactive=True
-                        )                
+                        seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
+                        upscale = gr.Dropdown(choices=[1, 2, 3, 4], value=2, label="Upscale", interactive=True)                
 
                         skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
                 
@@ -230,27 +236,27 @@ def create_ui():
                             label="Sampler"
                         )
                         
-                        with gr.Row():
-                            loading_half_params = gr.Checkbox(value=True, label="Half Precision")
-                            use_tile_vae = gr.Checkbox(value=True, label="Tile VAE")
-                        
-                        # Compact data type selection
-                        with gr.Row():
-                            ae_dtype = gr.Dropdown(
-                                choices=["fp32", "bf16"], 
-                                value="bf16", 
-                                label="AE Type"
-                            )
-                            diff_dtype = gr.Dropdown(
-                                choices=["fp32", "fp16", "bf16"], 
-                                value="fp16", 
-                                label="Diff Type"
-                            )
+                        with gr.Group():
+                            with gr.Row():
+                                loading_half_params = gr.Checkbox(value=True, label="Load Model in Half Precision (fp16)")
+
+                            with gr.Row():
+                                ae_dtype = gr.Dropdown(
+                                    choices=["fp32", "bf16"], 
+                                    value="bf16", 
+                                    label="AE dType"
+                                )
+                                diff_dtype = gr.Dropdown(
+                                    choices=["fp32", "fp16", "bf16"], 
+                                    value="fp16", 
+                                    label="Diffusion dType"
+                                )
                         
                         # Tile settings in collapsible group
-                        with gr.Accordion("Tile Settings", open=False) as tile_vae_settings:
-                            encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile")
-                            decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile")
+                        with gr.Group() as tile_vae_settings:
+                            use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")
+                            encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size", info="The AE processes the input image in tiles of specified size instead of the full image at once.")
+                            decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size", info="The AE reconstructs the final image by stitching together outputs from smaller tile segments.")
                     
                     # Diffusion Tab  
                     with gr.TabItem("Diffusion"):
@@ -329,12 +335,16 @@ def create_ui():
                     - For large images: Enable Tile VAE in the Model tab
                     """)
 
-        # Connect UI functions
-        use_tile_vae.change(
-            fn=update_tile_vae_visibility,
-            inputs=[use_tile_vae],
-            outputs=[tile_vae_settings]
-        )
+        # # Function to update tile VAE visibility
+        # def update_tile_vae_visibility(use_tile):
+        #     return gr.update(visible=use_tile)
+
+        # # Connect UI functions
+        # use_tile_vae.change(
+        #     fn=update_tile_vae_visibility,
+        #     inputs=[use_tile_vae],
+        #     outputs=[tile_vae_settings]
+        # )
         
         # random_seed_button.click(
         #     fn=generate_random_seed,
@@ -390,7 +400,7 @@ if __name__ == "__main__":
     parser.add_argument("--listen", action="store_true", help="Make the interface accessible on the network")
     parser.add_argument("--share", action="store_true", help="Create a shareable link")
     parser.add_argument("--server-name", type=str, default="0.0.0.0", help="Server name/IP to bind to")
-    parser.add_argument("--server-port", type=int, default=3000, help="Port to use")
+    parser.add_argument("--port", type=int, default=3000, help="Port to use")
     args = parser.parse_args()
     
     # Create and launch the interface
@@ -398,6 +408,6 @@ if __name__ == "__main__":
     demo.launch(
         # if --listen arg is passed then bind to 0.0.0.0, otherwise default to localhost (127.0.0.1) only
         server_name=args.server_name if args.listen else None,
-        server_port=args.server_port,
+        server_port=args.port,
         share=args.share
     )

@@ -1,1 +1,3 @@
-LOTS OF STUFF!!!!!!!
+TEST with VAE dtype = FP32
+PROLOAD SUPIR at start ?
+UNLOAD VLM after use
