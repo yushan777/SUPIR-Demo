@@ -527,6 +527,7 @@ def process_supir(
 
 
 
+    
 # ====================================================================
 def process_edited_caption(additional_text):
     print(additional_text)
@@ -613,7 +614,13 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                 scrollbar-gutter: stable !important;
                             }
                         }
-                        
+                        .gradio-imageslider img {
+                            object-fit: contain !important;
+                            max-width: 100% !important;
+                            max-height: 100% !important;
+                            width: auto !important;
+                            height: auto !important;
+}                        
                         /* Alternative approach for browsers that don't support scrollbar-gutter */
                         body {
                             padding-right: calc(100vw - 100%) !important; /* This adds padding equal to the scrollbar width */
