@@ -10,15 +10,13 @@ import glob
 from threading import Thread
 from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
+from gradio_imageslider import ImageSlider
 
 # from huggingface_hub import snapshot_download
 from smolvlm.verify_download_model import hash_file_partial, check_smolvlm_model_files, download_smolvlm_model_from_HF
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-RestoreEDMSampler_config = 'options/SUPIR_v0.yaml'
-TiledRestoreEDMSampler_config = 'options/SUPIR_v0_tiled.yaml'
 
 # ================================================
 # DEFAULT PARAM VALUESS
@@ -37,12 +35,18 @@ STYLE_PROMPTS = {
     "Highly detailed": "Caption this image with a highly detailed and lengthy description of the subject and environment."
 }
 
-# path to smolvlm model
+# path to smolvlm model (global)
 SMOLVLM_MODEL_PATH = None
+
+#  ===================================================================
 
 # GLOBAL VARIABLES SO SUPIR DOESN'T NEED TO BE RE-LOADED EACH TIME
 SUPIR_MODEL = None
 SUPIR_SETTINGS = {}
+
+# SUPIR SAMPLER CONFIG PATHS
+RestoreEDMSampler_config = 'options/SUPIR_v0.yaml'
+TiledRestoreEDMSampler_config = 'options/SUPIR_v0_tiled.yaml'
 
 # Constants for SUPIR_SETTINGS keys
 # critical to model initialization and used for caching the model to avoid unecessary reloads
@@ -74,12 +78,11 @@ def get_device():
         return "cpu"
 
 # ====================================================================
+# LOAD SMOVLM MODEL
 def load_smolvlm_model(model_path):
     device = get_device()
     print(f"Using {device} device")
     
-
-    # FIRST CHECK IF MODEL EXISTS IN LOCAL DIRECTORY (./models/)
     processor = AutoProcessor.from_pretrained(model_path)
     
     # Attention fallback order 
@@ -266,7 +269,8 @@ def generate_caption_non_streaming(
     # Check if image is provided, if not, quit and show msg
     if image is None:
         msg = "Please upload an image first to generate a caption."
-        return msg
+        yield msg
+        return
     
     start_time = time.time()
         
@@ -357,6 +361,12 @@ def process_supir(
             a_prompt, 
             n_prompt
         ):
+    
+    # Check if input_image is provided, if not, quit and show msg
+    if input_image is None:
+        # Return a tuple with None for the image and an error message
+        return None, "Please upload an image first in Tab 1."
+        
     
     # Clear CUDA cache and garbage collect at startup
     if torch.cuda.is_available():
@@ -513,7 +523,7 @@ def process_supir(
     SUPIR_Process_Time = end_time - start_time
     print(f"SUPIR Processing executed in {SUPIR_Process_Time:.2f} seconds.", color.GREEN)
 
-    return result_img
+    return [input_image, result_img], "Processing complete! See results on Tab 3."
 
 
 
@@ -611,8 +621,8 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                                                                                                        
                     """) as demo:   
         
-        gr.Markdown("# Image Captioner : SmolVLM-Instruct")    
-        gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
+        gr.Markdown("# SUPIR (With SmolVLM)")    
+        # gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
         
 
         # Create tabs
@@ -715,7 +725,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
 
                         with gr.Group():
                             with gr.Row():
-                                loading_half_params = gr.Checkbox(value=True, label="Load Model in Half Precision (fp16)")
+                                loading_half_params = gr.Checkbox(value=True, label="Load Model in half precision (fp16) - if you have <= 24GB VRAM")
                             with gr.Row():
                                 ae_dtype = gr.Dropdown(
                                     choices=["fp32", "bf16"], 
@@ -739,18 +749,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                 # The AE reconstructs the final image by stitching together outputs from smaller tile segments
                                 decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
                                                     
-                        # sample_image = gr.Image(type="pil", label="Sample Image Input", height=400)
-                        
-                        # sample_dropdown = gr.Dropdown(
-                        #     choices=["Option 1", "Option 2", "Option 3"],
-                        #     value="Option 1",
-                        #     label="Sample Dropdown"
-                        # )
-                        
-                        # sample_checkbox = gr.Checkbox(value=False, label="Sample Checkbox")
-                        
-                        
-                        
+        
                     # -------------------------------------------------
                     # COL 2                    
                     # -------------------------------------------------
@@ -798,30 +797,32 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                         n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
 
                 with gr.Row():
-                    process_supir_btn = gr.Button("Process", variant="primary")
+                    with gr.Column():
+                        process_supir_btn = gr.Button("Process", variant="primary")
 
-                with gr.Row():
-                    output_image = gr.Image(
-                        label="Enhanced Image", 
-                        height=300
-                    )
-                    # with gr.Row():
-                        # compare_btn = gr.Button("Compare with Original", size="sm")                    
-                        # result_textbox = gr.Textbox(label="Results", lines=5, placeholder="Results will appear here...", interactive=True)
-                    
-                        # Add another button
-                        # export_btn = gr.Button("Export Results", variant="secondary")
+                        # status message box 
+                        status_message = gr.Textbox(label="", interactive=False)                    
 
+            
             # ==============================================================================================
             # TAB 3 - RESULTS
             # ==============================================================================================
             with gr.TabItem("3. Results"):
                 with gr.Row():
                     with gr.Column(elem_classes=["fixed-width-column-1200"]):
-                        output_image = gr.Image(
-                            label="Enhanced Image", 
-                            height=300
-                        )             
+        
+                        # Replace the single image with an image slider
+                        output_slider = ImageSlider(
+                            label="Before / After Comparison",
+                            height=800,
+                            width=1200
+                        )
+                        
+                        # single image
+                        # output_image = gr.Image(
+                        #     label="SUPIR Enhanced Image", 
+                        #     height=800
+                        # )             
 
         # Choose the appropriate generate function based on the argument 'use_stream'
         # and assign to function reference 'generate_function'  
@@ -879,7 +880,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                 a_prompt, 
                 n_prompt
             ],
-            outputs=output_image
+            outputs=[output_slider, status_message]
         )
         
         def export_function(text):
@@ -907,20 +908,17 @@ def main():
     parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
     parser.add_argument("--listen", action="store_true", help="Launch Gradio with server_name='0.0.0.0' to listen on all interfaces")
     parser.add_argument("--port", type=int, default=7860, help="Port to run the Gradio on (default: 7860)")
-    parser.add_argument("--model", 
+    parser.add_argument("--smolvlm_model", 
                         choices=["SmolVLM-Instruct", "SmolVLM-500M-Instruct", "SmolVLM-256M-Instruct"],
                         default="SmolVLM-Instruct", 
                         help="Select model (default: SmolVLM-Instruct)")
     args = parser.parse_args()
 
-    global processor, model, DEVICE, SMOLVLM_MODEL_PATH, UI_MODE
-
-    # Set model path
-    SMOLVLM_MODEL_PATH = f"models/{args.model}"
+    # Set model path to global SMOLVLM_MODEL_PATH
+    # required by generate_caption_streaming() and generate_caption_non_streaming()
+    global SMOLVLM_MODEL_PATH
+    SMOLVLM_MODEL_PATH = f"models/{args.smolvlm_model}"
     
-    # Set mode for UI display
-    UI_MODE = "Streaming" if args.use_stream else "Non-streaming"
-
     # Check SMOLVLM MODEL FILES ARE OKAY
     filesokay = check_smolvlm_model_files(SMOLVLM_MODEL_PATH)
     if not filesokay:

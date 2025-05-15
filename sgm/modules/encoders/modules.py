@@ -463,6 +463,8 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         if clip1_path and clip1_path.endswith(('.safetensors', '.pt', '.bin')):
             print(f"Loading CLIP text model from file: {clip1_path}", color.BRIGHT_BLUE)
             
+            
+
             # Load configuration from local file
             from transformers import CLIPConfig
             config = CLIPConfig.from_json_file("configs/clip1/clip_vit_config.json")
