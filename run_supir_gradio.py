@@ -273,7 +273,7 @@ def generate_caption_non_streaming(
     # load the smolvlm model. 
     processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
     print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
-            
+
     prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
 
     # construct multi-modal input msg
@@ -921,15 +921,12 @@ def main():
     # Set mode for UI display
     UI_MODE = "Streaming" if args.use_stream else "Non-streaming"
 
-
+    # Check SMOLVLM MODEL FILES ARE OKAY
     filesokay = check_smolvlm_model_files(SMOLVLM_MODEL_PATH)
     if not filesokay:
+        # IF NOTM THEN DOWNLOAD
         download_smolvlm_model_from_HF(SMOLVLM_MODEL_PATH)
 
-    # # load the smolvlm model. 
-    # processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
-
-    # print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
 
     # Attach to Gradio (if needed)
     create_launch_gradio(args.use_stream, args.listen, args.port)
