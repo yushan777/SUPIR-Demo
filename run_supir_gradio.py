@@ -12,7 +12,7 @@ from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 
 # from huggingface_hub import snapshot_download
-from smolvlm.verify_download_model import hash_file_partial, check_model_files, download_model_from_HF
+from smolvlm.verify_download_model import hash_file_partial, check_smolvlm_model_files, download_smolvlm_model_from_HF
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -37,8 +37,8 @@ STYLE_PROMPTS = {
     "Highly detailed": "Caption this image with a highly detailed and lengthy description of the subject and environment."
 }
 
-
-
+# path to smolvlm model
+SMOLVLM_MODEL_PATH = None
 
 # GLOBAL VARIABLES SO SUPIR DOESN'T NEED TO BE RE-LOADED EACH TIME
 SUPIR_MODEL = None
@@ -187,7 +187,10 @@ def generate_caption_streaming(
     
     start_time = time.time()
     
- 
+    # load the smolvlm model. 
+    processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
+    print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
+
     prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
 
     # construct multi-modal input msg
@@ -267,6 +270,10 @@ def generate_caption_non_streaming(
     
     start_time = time.time()
         
+    # load the smolvlm model. 
+    processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
+    print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
+            
     prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
 
     # construct multi-modal input msg
@@ -544,7 +551,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
         input_border_color="#e5e7eb",
     )
 
-    model_name = os.path.basename(MODEL_PATH)
+    model_name = os.path.basename(SMOLVLM_MODEL_PATH)
     mode = "Streaming" if use_stream else "Non-streaming"
 
     # Create Gradio interface
@@ -885,7 +892,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
         
 
 def main():
-    global processor, model, DEVICE, MODEL_PATH
+    
 
     # Clear CUDA cache and garbage collect at startup
     if torch.cuda.is_available():
@@ -906,25 +913,23 @@ def main():
                         help="Select model (default: SmolVLM-Instruct)")
     args = parser.parse_args()
 
+    global processor, model, DEVICE, SMOLVLM_MODEL_PATH, UI_MODE
+
     # Set model path
-    MODEL_PATH = f"models/{args.model}"
+    SMOLVLM_MODEL_PATH = f"models/{args.model}"
     
     # Set mode for UI display
-    global UI_MODE
     UI_MODE = "Streaming" if args.use_stream else "Non-streaming"
 
-    # Load/check model
-    start_time = time.time()
 
-    filesokay = check_model_files(MODEL_PATH)
+    filesokay = check_smolvlm_model_files(SMOLVLM_MODEL_PATH)
     if not filesokay:
-        download_model_from_HF(MODEL_PATH)
+        download_smolvlm_model_from_HF(SMOLVLM_MODEL_PATH)
 
-    processor, model, DEVICE = load_smolvlm_model(MODEL_PATH)
+    # # load the smolvlm model. 
+    # processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
 
-    end_time = time.time()
-    model_load_time = end_time - start_time
-    print(f"Model {os.path.basename(MODEL_PATH)} loaded on {DEVICE} in {model_load_time:.2f} seconds.", color.GREEN)
+    # print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
 
     # Attach to Gradio (if needed)
     create_launch_gradio(args.use_stream, args.listen, args.port)

@@ -99,7 +99,7 @@ def validate_model_files(model_path, chunk_size=1024 * 1024, config_path=os.path
     return valid
 
 # ==============================================================
-def check_model_files(model_path):
+def check_smolvlm_model_files(model_path):
     """Check if model files exist and are valid"""
     print(f"Checking Model Path: {model_path}", color.ORANGE)
 
@@ -113,7 +113,7 @@ def check_model_files(model_path):
     return False 
 
 # ==============================================================
-def download_model_from_HF(model_path):
+def download_smolvlm_model_from_HF(model_path):
     """Download model from HuggingFace"""
     # Download model from HF.
     REPO_NAME = f"yushan777/{os.path.basename(model_path)}"
