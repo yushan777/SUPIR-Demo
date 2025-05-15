@@ -9,11 +9,11 @@ import time
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--img_path", type=str, required=True, help="Path to the input image file")
-    parser.add_argument("--save_dir", type=str, required=True, help="Directory to save the output image")
+    parser.add_argument("--save_dir", type=str, default='output', help="Directory to save the output image")
     parser.add_argument("--upscale", type=int, default=1)
     parser.add_argument("--SUPIR_sign", type=str, default='Q', choices=['F', 'Q'])
     parser.add_argument("--sampler_mode", type=str, default='TiledRestoreEDMSampler', choices=['TiledRestoreEDMSampler', 'RestoreEDMSampler'])
-    parser.add_argument("--seed", type=int, default=1234)
+    parser.add_argument("--seed", type=int, default=1234567891)
     parser.add_argument("--min_size", type=int, default=1024)
     parser.add_argument("--edm_steps", type=int, default=50)
     parser.add_argument("--restoration_scale", type=int, default=-1) #renamed from s_stage1
@@ -46,20 +46,26 @@ def parse_arguments():
     parser.add_argument("--decoder_tile_size", type=int, default=64)
 
     parser.add_argument("--skip_denoise_stage", action='store_true', default=False)
-    
+
+    parser.add_argument("--tile_size", type=int, default=128, help="Tile size for TiledRestoreEDMSampler")
+    parser.add_argument("--tile_stride", type=int, default=64, help="Tile stride for TiledRestoreEDMSampler")
 
     return parser.parse_args()
 
 # =====================================================================
 def setup_model(args, device):
-    # Load SUPIR model
+    
+
+    # load the config
     if args.sampler_mode == "TiledRestoreEDMSampler":
         config = "options/SUPIR_v0_tiled.yaml"
     else:
         config = "options/SUPIR_v0.yaml"
 
+    # create SUPIR model
     model = create_SUPIR_model(config, SUPIR_sign=args.SUPIR_sign)
 
+    # precision settings
     if args.loading_half_params:
         model = model.half()
     if args.use_tile_vae:
@@ -67,7 +73,15 @@ def setup_model(args, device):
     
     model.ae_dtype = convert_dtype(args.ae_dtype)
     model.model.dtype = convert_dtype(args.diff_dtype)
+
+    # move the model to device (cuda or cpu)
     model = model.to(device)
+
+    # if using TiledRestoreEDMSampler
+    if args.sampler_mode == "TiledRestoreEDMSampler":
+        # set/override tile size and tile stride
+        model.sampler.tile_size = args.tile_size
+        model.sampler.tile_stride = args.tile_stride
     
     return model
 

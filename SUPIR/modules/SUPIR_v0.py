@@ -121,13 +121,13 @@ class ZeroSFT(nn.Module):
 
 class ZeroCrossAttn(nn.Module):
     ATTENTION_MODES = {
-        # Remove "softmax" from officially supported modes
+        # Remove "softmax"
         "sdpa": CrossAttention,  # optimized attention with SDPA
         "xformers": MemoryEfficientCrossAttention, 
         # "softmax-xformers": MemoryEfficientCrossAttention,  # ampere
     }
 
-    print(f"Calling ZeroCrossAttn()", color.ORANGE)
+    # print(f"Calling ZeroCrossAttn()", color.ORANGE)
 
     def __init__(self, context_dim, query_dim, zero_out=True, mask=False):
         super().__init__()

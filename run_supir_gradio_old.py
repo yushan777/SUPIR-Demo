@@ -334,38 +334,7 @@ def create_ui():
                     - For better quality: Higher steps (50+), use fp32 precision
                     - For large images: Enable Tile VAE in the Model tab
                     """)
-
-        # # Function to update tile VAE visibility
-        # def update_tile_vae_visibility(use_tile):
-        #     return gr.update(visible=use_tile)
-
-        # # Connect UI functions
-        # use_tile_vae.change(
-        #     fn=update_tile_vae_visibility,
-        #     inputs=[use_tile_vae],
-        #     outputs=[tile_vae_settings]
-        # )
-        
-        # random_seed_button.click(
-        #     fn=generate_random_seed,
-        #     inputs=[],
-        #     outputs=[seed]
-        # )
-        
-        # # Connect preset buttons
-        # def set_detail_preset():
-        #     return gr.update(value="Detail enhancement, clear and sharp"), gr.update(value=50), gr.update(value="Q")
-        
-        # def set_restore_preset():
-        #     return gr.update(value="Restore damaged photo, fix artifacts"), gr.update(value=70), gr.update(value="Q")
-            
-        # def set_upscale_preset():
-        #     return gr.update(value="High quality upscale"), gr.update(value=4), gr.update(value="F")
-        
-        # preset_detail.click(fn=set_detail_preset, inputs=[], outputs=[img_caption, edm_steps, supir_sign])
-        # preset_restore.click(fn=set_restore_preset, inputs=[], outputs=[img_caption, edm_steps, supir_sign])
-        # preset_upscale.click(fn=set_upscale_preset, inputs=[], outputs=[img_caption, upscale, supir_sign])
-        
+                            
         # !>>>> Added input validation wrapper
         def validate_and_process(input_image, *args):
             if input_image is None:

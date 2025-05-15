@@ -17,6 +17,9 @@ from smolvlm.verify_download_model import hash_file_partial, check_model_files, 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
+RestoreEDMSampler_config = 'options/SUPIR_v0.yaml'
+TiledRestoreEDMSampler_config = 'options/SUPIR_v0_tiled.yaml'
+
 # ================================================
 # DEFAULT PARAM VALUESS
 MAX_NEW_TOKENS = 512
@@ -42,7 +45,8 @@ SUPIR_MODEL = None
 SUPIR_SETTINGS = {}
 
 # Constants for SUPIR_SETTINGS keys
-SUPIR_CONFIG_PATH = 'sampler_config_path'
+# critical to model initialization and used for caching the model to avoid unecessary reloads
+SUPIR_SAMPLER_TYPE = 'sampler_config_path'
 SUPIR_MODEL_TYPE = 'supir_model_type'
 SUPIR_HALF_PARAMS = 'loading_half_params'
 SUPIR_TILE_VAE = 'use_tile_vae'
@@ -50,6 +54,8 @@ SUPIR_ENCODER_TILE_SIZE = 'encoder_tile_size'
 SUPIR_DECODER_TILE_SIZE = 'decoder_tile_size'
 SUPIR_AE_DTYPE = 'ae_dtype'
 SUPIR_DIFF_DTYPE = 'diff_dtype'
+SUPIR_DIFF_SAMPLER_TILE_SIZE = 'sampler_tile_size'
+SUPIR_DIFF_SAMPLER_TILE_STRIDE = 'sampler_tile_stride'
 
 # Default prompts (the positive is appended to the main caption (whether it exists or not))
 default_positive_prompt = 'Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.'
@@ -119,18 +125,28 @@ def load_smolvlm_model(model_path):
 
 
 # Create SUPIR model with specified settings
-def load_supir_model(sampler_config_path, 
+def load_supir_model(sampler_type, 
                supir_model_type='Q', 
                loading_half_params=False, 
                ae_dtype="bf16", 
                diff_dtype="fp16",
                use_tile_vae=False, 
                encoder_tile_size=512, 
-               decoder_tile_size=64):
+               decoder_tile_size=64,
+               sampler_tile_size=128,
+               sampler_tile_stride=64):
     
     device = get_device()
 
+    
+
+    if sampler_type == "RestoreEDMSampler":
+        sampler_config_path = RestoreEDMSampler_config
+    elif sampler_type == "TiledRestoreEDMSampler":
+        sampler_config_path = TiledRestoreEDMSampler_config
+
     print(f"Loading SUPIR model from config: {sampler_config_path}")
+
     model = create_SUPIR_model(sampler_config_path, SUPIR_sign=supir_model_type)
     if loading_half_params:
         model = model.half()
@@ -142,6 +158,13 @@ def load_supir_model(sampler_config_path,
     # Set the precision for the diffusion component (unet)
     model.model.dtype = convert_dtype(diff_dtype)
     model = model.to(device)
+
+    # if using TiledRestoreEDMSampler - set sampler tile size and stride   
+    if sampler_type == "TiledRestoreEDMSampler":
+        # set/override tile size and tile stride
+        model.sampler.tile_size = sampler_tile_size
+        model.sampler.tile_stride = sampler_tile_stride
+
     return model
 
 
@@ -304,7 +327,7 @@ def process_supir(
             input_image,
             image_caption, 
             supir_model_type,  
-            sampler_config_path,
+            sampler_type,
             seed, 
             upscale, 
             skip_denoise_stage,
@@ -322,16 +345,25 @@ def process_supir(
             control_scale_start, 
             control_scale_end, 
             restoration_scale,
+            sampler_tile_size,
+            sampler_tile_stride,            
             a_prompt, 
             n_prompt
         ):
     
-    
+    # Clear CUDA cache and garbage collect at startup
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        print("CUDA cache cleared at startup")
+        import gc
+        gc.collect()
+            
     print("\n")
     print(f"input_image: {input_image}", color.YELLOW)
     print(f"image_caption: {image_caption}", color.YELLOW)
     print(f"supir_model_type: {supir_model_type}", color.YELLOW)
-    print(f"sampler_config_path: {sampler_config_path}", color.YELLOW)
+    print(f"sampler_type: {sampler_type}", color.YELLOW)
     print(f"seed: {seed}", color.YELLOW)
     print(f"upscale: {upscale}", color.YELLOW)
     print(f"skip_denoise_stage: {skip_denoise_stage}", color.YELLOW)
@@ -349,6 +381,10 @@ def process_supir(
     print(f"control_scale_start: {control_scale_start}", color.YELLOW)
     print(f"control_scale_end: {control_scale_end}", color.YELLOW)
     print(f"restoration_scale: {restoration_scale}", color.YELLOW)
+
+    print(f"sampler_tile_size: {sampler_tile_size}", color.YELLOW)
+    print(f"sampler_tile_stride: {sampler_tile_stride}", color.YELLOW)
+
     print(f"a_prompt: {a_prompt}", color.YELLOW)
     print(f"n_prompt: {n_prompt}", color.YELLOW)
 
@@ -358,47 +394,54 @@ def process_supir(
     # Use the global SUPIR_MODEL and SUPIR_SETTINGS variables - declared at top level.
     global SUPIR_MODEL, SUPIR_SETTINGS
 
-    # ONLY Reload SUPIR model if precision settings changed or not loaded yet
+    # ONLY Reload SUPIR model if settings critical to its initialization are changed or not loaded yet
     # print(f"SUPIR_MODEL is already 'loaded' if {SUPIR_MODEL is not None else 'not initialized'}", color.MAGENTA)
     if SUPIR_MODEL:
         status = "already loaded."
     else:
-        status = "not initialized - Loading."
+        status = "loading."
 
     print(f"SUPIR_MODEL is {status}", color.MAGENTA)
 
+
     if (SUPIR_MODEL is None or
         not SUPIR_SETTINGS or  # Check if the dictionary is empty
-        SUPIR_SETTINGS.get(SUPIR_CONFIG_PATH) != sampler_config_path or
+        SUPIR_SETTINGS.get(SUPIR_SAMPLER_TYPE) != sampler_type or
         SUPIR_SETTINGS.get(SUPIR_MODEL_TYPE) != supir_model_type or
         SUPIR_SETTINGS.get(SUPIR_HALF_PARAMS) != loading_half_params or
         SUPIR_SETTINGS.get(SUPIR_TILE_VAE) != use_tile_vae or
         SUPIR_SETTINGS.get(SUPIR_ENCODER_TILE_SIZE) != encoder_tile_size or
         SUPIR_SETTINGS.get(SUPIR_DECODER_TILE_SIZE) != decoder_tile_size or
         SUPIR_SETTINGS.get(SUPIR_AE_DTYPE) != ae_dtype or
-        SUPIR_SETTINGS.get(SUPIR_DIFF_DTYPE) != diff_dtype):
+        SUPIR_SETTINGS.get(SUPIR_DIFF_DTYPE) != diff_dtype or
+        SUPIR_SETTINGS.get(SUPIR_DIFF_SAMPLER_TILE_SIZE) != sampler_tile_size or
+        SUPIR_SETTINGS.get(SUPIR_DIFF_SAMPLER_TILE_STRIDE) != sampler_tile_stride):
 
         SUPIR_MODEL = load_supir_model(
-            sampler_config_path=sampler_config_path,
+            sampler_type=sampler_type,
             supir_model_type=supir_model_type,
             loading_half_params=loading_half_params,
             use_tile_vae=use_tile_vae,
             encoder_tile_size=encoder_tile_size,
             decoder_tile_size=decoder_tile_size,
             ae_dtype=ae_dtype,
-            diff_dtype=diff_dtype
+            diff_dtype=diff_dtype,
+            sampler_tile_size=sampler_tile_size,
+            sampler_tile_stride=sampler_tile_stride 
         )
 
         # Store current settings for future comparison
         SUPIR_SETTINGS = {
-            SUPIR_CONFIG_PATH: sampler_config_path,
+            SUPIR_SAMPLER_TYPE: sampler_type,
             SUPIR_MODEL_TYPE: supir_model_type,
             SUPIR_HALF_PARAMS: loading_half_params,
             SUPIR_TILE_VAE: use_tile_vae,
             SUPIR_ENCODER_TILE_SIZE: encoder_tile_size,
             SUPIR_DECODER_TILE_SIZE: decoder_tile_size,
             SUPIR_AE_DTYPE: ae_dtype,
-            SUPIR_DIFF_DTYPE: diff_dtype
+            SUPIR_DIFF_DTYPE: diff_dtype,
+            SUPIR_DIFF_SAMPLER_TILE_SIZE: sampler_tile_size,
+            SUPIR_DIFF_SAMPLER_TILE_STRIDE: sampler_tile_stride
         }
 
     # Convert to PIL if needed
@@ -519,10 +562,18 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                             margin: 0 auto !important;
                         }
                         /* Individual columns */
-                        .fixed-width-column {
+                        .fixed-width-column-600 {
                             width: 600px !important;
                             flex: none !important;
                         }
+                        .fixed-width-column-1200 {
+                            width: 1200px !important;
+                            flex: none !important;
+                        }                        
+                        .taller-row1 {
+                            min-height: 120px !important; /* Adjust as needed */
+                            align-items: center; /* Optional: vertically center */
+                        }                        
                         /* Custom color for the editable text box */
                         #text_box textarea {
                             /*  color: #2563eb !important;  text color */
@@ -549,7 +600,8 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                         /* Alternative approach for browsers that don't support scrollbar-gutter */
                         body {
                             padding-right: calc(100vw - 100%) !important; /* This adds padding equal to the scrollbar width */
-                        }                                                                                                      
+                        }       
+                                                                                                                       
                     """) as demo:   
         
         gr.Markdown("# Image Captioner : SmolVLM-Instruct")    
@@ -561,20 +613,20 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
             # ==============================================================================================
             # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
-            with gr.TabItem("Input Image / Caption Generator"):
+            with gr.TabItem("1. Input Image / Caption"):
                 gr.Markdown("Upload an image and generate a caption (optional)")
                 
                 with gr.Row():
                     # ================================================
                     # COL 1
-                    with gr.Column(elem_classes=["fixed-width-column"]):
+                    with gr.Column(elem_classes=["fixed-width-column-600"]):
                         input_image = gr.Image(type="pil", label="Input Image", height=640)
                                                 
                         submit_btn = gr.Button("Generate Caption", variant="primary")
                         
                     # ================================================
                     # COL 2                    
-                    with gr.Column(elem_classes=["fixed-width-column"]):
+                    with gr.Column(elem_classes=["fixed-width-column-600"]):
                         with gr.Accordion("Settings", open=True):
                             with gr.Row():
                                 caption_style = gr.Dropdown(
@@ -615,7 +667,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
             # ==============================================================================================
             # TAB 2 - SUPIR
             # ==============================================================================================
-            with gr.TabItem("SUPIR"):
+            with gr.TabItem("2. SUPIR"):
                 # gr.Markdown("Restore/Enhance/Upscale")
                 
                 # -------------------------------------------------
@@ -627,7 +679,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                     # COL 1
                     # -------------------------------------------------
                     # Left column content
-                    with gr.Column(elem_classes=["fixed-width-column"]):
+                    with gr.Column(elem_classes=["fixed-width-column-600"]):
 
                         with gr.Row():
                             # supir_sign renamed to supir_model
@@ -639,18 +691,19 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
 
                             # sampler type[RestoreEDMSampler, TiledRestoreEDMSampler] 
                             # internally returns the config_path to the correct config (yaml)
-                            sampler_config_path = gr.Dropdown(
-                                choices=[
-                                    ("RestoreEDMSampler (Higher VRAM)", 'options/SUPIR_v0.yaml'),
-                                    ("TiledRestoreEDMSampler (Lower VRAM)", 'options/SUPIR_v0_tiled.yaml')
-                                ],
-                                value=('options/SUPIR_v0_tiled.yaml'),
+                            # RestoreEDMSampler (Higher VRAM)
+                            # TiledRestoreEDMSampler (Lower VRAM)
+                            sampler_type = gr.Dropdown(
+                                choices=["RestoreEDMSampler", "TiledRestoreEDMSampler"],
+                                value=('TiledRestoreEDMSampler'),
                                 label="Sampler Type"
                             )
 
-                        with gr.Row():
+                        with gr.Group():
+                            with gr.Row():
                                 seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
-                                upscale = gr.Dropdown(choices=[1, 2, 3, 4], value=2, label="Upscale", interactive=True)      
+                                upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)      
+                            with gr.Row():
                                 skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
                         with gr.Group():
@@ -667,11 +720,13 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                     value="fp16", 
                                     label="Diffusion dType"
                                 )
+                        
 
-                        # Tile settings in collapsible group
+                        # Tile settings
                         with gr.Group() as tile_vae_settings:
                             with gr.Row():
                                 use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")
+                            with gr.Row():                                
                                 # The AE processes the input image in tiles of specified size instead of the full image at once
                                 encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
                                 # The AE reconstructs the final image by stitching together outputs from smaller tile segments
@@ -692,29 +747,43 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                     # -------------------------------------------------
                     # COL 2                    
                     # -------------------------------------------------
-                    with gr.Column(elem_classes=["fixed-width-column"]):
+                    with gr.Column(elem_classes=["fixed-width-column-600"]):
                                             
                         with gr.Group():
-                            # gr.Markdown("  Noise Settings")
+                            gr.Markdown("Steps, S-Churn, S-Noise")
                             with gr.Row():
                                 edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="Steps") # sampler steps
                                 s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="S-Churn") # stochastic churn
                                 s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="S-Noise") # stochastic noise                        
-                                
+
+                        
+                                                         
                         with gr.Group():
                             gr.Markdown("CFG Guidance")
                             with gr.Row():
                                 cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="CFG Scale Start")        
                                 cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=4.0, step=0.1, label="CFG Scale End")
-                            
+                        
+                        
+
                         with gr.Group():
                             gr.Markdown("Control Guidance")                            
                             with gr.Row():
                                 control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale Start")
                                 control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale End")
 
+                        with gr.Row():
                             restoration_scale = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Restoration Scale(-1=Off)")
-                                
+                        
+                        
+
+                        with gr.Group():
+                            gr.Markdown("Sampler Tiling (For TiledRestoreEDMSampler)")                            
+                            with gr.Row():
+                                sampler_tile_size = gr.Slider(minimum=128, maximum=512, value=128, step=32, label="Sampler Tile Size")
+                                sampler_tile_stride = gr.Slider(minimum=32, maximum=256, value=64, step=32, label="Sampler Tile Stride")
+
+
                 # additional prompt and standard neg. prompt
                 with gr.Accordion("Prompts", open=False):
                     with gr.Row():
@@ -735,6 +804,17 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                     
                         # Add another button
                         # export_btn = gr.Button("Export Results", variant="secondary")
+
+            # ==============================================================================================
+            # TAB 3 - RESULTS
+            # ==============================================================================================
+            with gr.TabItem("3. Results"):
+                with gr.Row():
+                    with gr.Column(elem_classes=["fixed-width-column-1200"]):
+                        output_image = gr.Image(
+                            label="Enhanced Image", 
+                            height=300
+                        )             
 
         # Choose the appropriate generate function based on the argument 'use_stream'
         # and assign to function reference 'generate_function'  
@@ -759,13 +839,8 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
             outputs=[image_caption]
         )
 
-        # process_btn.click(
-        #     fn=process_edited_caption,
-        #     inputs=[output_text]
-        # )
-        
         # ==============================================================================================
-        # Tab 2 event handlers
+        # Tab 2 Event Handlers
         # ==============================================================================================
         
         process_supir_btn.click(
@@ -774,7 +849,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                 input_image,
                 image_caption,
                 supir_model,
-                sampler_config_path,
+                sampler_type,
                 seed,
                 upscale,
                 skip_denoise_stage,
@@ -792,6 +867,8 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                 control_scale_start, 
                 control_scale_end, 
                 restoration_scale,
+                sampler_tile_size,
+                sampler_tile_stride,
                 a_prompt, 
                 n_prompt
             ],
