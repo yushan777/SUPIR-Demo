@@ -10,7 +10,6 @@ import glob
 from threading import Thread
 from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
-from gradio_imageslider import ImageSlider
 
 # from huggingface_hub import snapshot_download
 from smolvlm.verify_download_model import hash_file_partial, check_smolvlm_model_files, download_smolvlm_model_from_HF
@@ -488,7 +487,7 @@ def process_supir(
                                     skip_denoise_stage=skip_denoise_stage)
     
     # Convert result to PIL image
-    result_img = Tensor2PIL(samples[0], h0, w0)
+    enhanced_image = Tensor2PIL(samples[0], h0, w0)
 
     # --- Save the image before returning ---
     try:
@@ -513,7 +512,7 @@ def process_supir(
         next_index = max_index + 1
         # Construct the full save path within the output directory
         save_path = os.path.join(output_dir, f"gradio_{supir_model_type}_{next_index}.png")
-        result_img.save(save_path)
+        enhanced_image.save(save_path)
         print(f"Saved generated image to: {save_path}")
     except Exception as e:
         print(f"Error saving image: {e}")
@@ -523,7 +522,19 @@ def process_supir(
     SUPIR_Process_Time = end_time - start_time
     print(f"SUPIR Processing executed in {SUPIR_Process_Time:.2f} seconds.", color.GREEN)
 
-    return [input_image, result_img], "Processing complete! See results on Tab 3."
+    # prep for final comparison.  we need to make both images same size
+    # Get the dimensions of both images
+    img1_width, img1_height = input_image.size
+    img2_width, img2_height = enhanced_image.size
+
+    # Check if images have different dimensions
+    if img1_width != img2_width or img1_height != img2_height:
+        # Resize the first image to match the dimensions of the second image
+        # Using BICUBIC resampling for better quality when upscaling
+        input_image = input_image.resize((img2_width, img2_height), Image.BICUBIC)
+        print(f"Resized first image from {img1_width}x{img1_height} to {img2_width}x{img2_height}")
+
+    return [input_image, enhanced_image], "Processing complete! See results on Tab 3."
 
 
 
@@ -628,7 +639,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                                                                                                        
                     """) as demo:   
         
-        gr.Markdown("# SUPIR (With SmolVLM)")    
+        gr.Markdown("## SUPIR Enhancer/Detailer/Upscaler (kinda) - (With SmolVLM)")    
         # gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
         
 
@@ -644,14 +655,14 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                     # ================================================
                     # COL 1
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
-                        input_image = gr.Image(type="pil", label="Input Image", height=640)
+                        input_image = gr.Image(type="pil", label="Input Image", height=480)
                                                 
                         submit_btn = gr.Button("Generate Caption", variant="primary")
                         
                     # ================================================
                     # COL 2                    
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
-                        with gr.Accordion("Settings", open=True):
+                        with gr.Accordion("SmolVLM Settings", open=True):
                             with gr.Row():
                                 caption_style = gr.Dropdown(
                                     choices=CAPTION_STYLE_OPTIONS,
@@ -662,11 +673,6 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                             with gr.Row():
                                 max_tokens = gr.Slider(minimum=50, maximum=1024, value=MAX_NEW_TOKENS, step=1, label="Max New Tokens")
                                 rep_penalty = gr.Slider(minimum=1.0, maximum=2.0, value=REP_PENALTY, step=0.1, label="Repetition Penalty")
-
-                            gr.Markdown("""    
-                                        `Max New Tokens`: Controls the maximum length of the generated caption   
-                                        `Repetition Penalty`: Higher values discourage repetition in the text                                 
-                                        """)
                             
                             # Group the sampling-related controls together
                             with gr.Group():
@@ -675,16 +681,21 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                     temperature_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TEMP, step=0.1, label="Temperature")
                                     top_p_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TOP_P, step=0.1, label="Top P")
 
-                            gr.Markdown("""    
-                                        `Do Sample`: Enabled: uses Top P sampling for more diverse outputs. Disabled: use greedy mode (deterministic)  
-                                        `Temperature`: Higher values (>1.0) = output more random, lower values = more deterministic  
-                                        `Top P`: Higher values (0.8-0.95): More variability, more diverse outputs, Lower values (0.1-0.5): Less variability, more consistent outputs  
-                                        """)
+
                 
                 with gr.Row():
                     with gr.Column():
                         image_caption = gr.Textbox(label="Generated Caption", lines=5, interactive=True, elem_id="text_box", info="you can edit the caption here before proceeding")
                 
+
+                gr.Markdown("""    
+                            `Max New Tokens`: Controls the maximum length of the generated caption   
+                            `Repetition Penalty`: Higher values discourage repetition in the text                                 
+                            `Do Sample`: Enabled: uses Top P sampling for more diverse outputs. Disabled: use greedy mode (deterministic)  
+                            `Temperature`: Higher values (>1.0) = output more random, lower values = more deterministic  
+                            `Top P`: Higher values (0.8-0.95): More variability, more diverse outputs, Lower values (0.1-0.5): Less variability, more consistent outputs  
+                            """)                
+
                         # Add the Process button under the second column
                         # process_btn = gr.Button("Continue", variant="primary")
             
@@ -705,35 +716,26 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                     # Left column content
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
 
-                        with gr.Row():
-                            # supir_sign renamed to supir_model
-                            supir_model = gr.Dropdown(
-                                choices=["Q", "F"], 
-                                value="Q", 
-                                label="Model Type"
-                            )  
-
-                            # sampler type[RestoreEDMSampler, TiledRestoreEDMSampler] 
-                            # internally returns the config_path to the correct config (yaml)
-                            # RestoreEDMSampler (Higher VRAM)
-                            # TiledRestoreEDMSampler (Lower VRAM)
-                            sampler_type = gr.Dropdown(
-                                choices=["RestoreEDMSampler", "TiledRestoreEDMSampler"],
-                                value=('TiledRestoreEDMSampler'),
-                                label="Sampler Type"
-                            )
-
                         with gr.Group():
+                            loading_half_params = gr.Checkbox(value=True, label="Load Model fp16")
                             with gr.Row():
-                                seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
-                                upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)      
-                            with gr.Row():
-                                skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
+                                # supir_sign renamed to supir_model
+                                supir_model = gr.Dropdown(choices=["Q", "F"], value="Q", label="Model Type")  
+                                # load half - (For <= 24GB VRAM)
+                                
 
-                        with gr.Group():
+                                # sampler type[RestoreEDMSampler, TiledRestoreEDMSampler] 
+                                # internally returns the config_path to the correct config (yaml)
+                                # RestoreEDMSampler (Higher VRAM)
+                                # TiledRestoreEDMSampler (Lower VRAM)
+                                sampler_type = gr.Dropdown(
+                                    choices=["RestoreEDMSampler", "TiledRestoreEDMSampler"],
+                                    value=('TiledRestoreEDMSampler'),
+                                    label="Sampler Type"
+                                )
                             with gr.Row():
-                                loading_half_params = gr.Checkbox(value=True, label="Load Model in half precision (fp16) - if you have <= 24GB VRAM")
-                            with gr.Row():
+                                
+
                                 ae_dtype = gr.Dropdown(
                                     choices=["fp32", "bf16"], 
                                     value="bf16", 
@@ -744,6 +746,19 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                     value="fp16", 
                                     label="Diffusion dType"
                                 )
+
+                        with gr.Group():
+                            with gr.Row():
+                                seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
+                                upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)      
+                            with gr.Row():
+                                skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
+
+                        # with gr.Group():
+                        #     with gr.Row():
+                                
+                        #     with gr.Row():
+
                         
 
                         # Tile settings
@@ -798,7 +813,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
 
 
                 # additional prompt and standard neg. prompt
-                with gr.Accordion("Prompts", open=False):
+                with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
                     with gr.Row():
                         a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
                         n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
@@ -808,7 +823,41 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                         process_supir_btn = gr.Button("Process", variant="primary")
 
                         # status message box 
-                        status_message = gr.Textbox(label="", interactive=False)                    
+                        status_message = gr.Textbox(label="", interactive=False)         
+
+                gr.Markdown(
+                    """
+                        `Load Model fp16`: loads the SUPIR model weights in half precision (FP16). Reduces VRAM usage and increases speed at the cost of slight precision loss.  
+                        `Model Type`: 
+                         - `Q model (Quality)` Trained on diverse, heavy degradations, making it robust for real-world damage. However, it may overcorrect or hallucinate when used on lightly degraded images due to its bias toward severe restoration.
+                         - `F model (Fidelity)` Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks where subtle restoration is preferred over aggressive enhancement.  
+                        `Sampler Type`:  
+                         - `AE dType`:  
+                         - `Diffusion dType`:  
+                        `Seed`:  
+                        `Upscale`:  
+                        `Skip Denoise Stage`:  
+                        `Use VAE Tile`:  
+                         - `Encoder Tile Size`:  
+                         - `Dncoder Tile Size`:  
+                        `Steps`: 
+                        `S-Churn`: 
+                        `S-Noise`: 
+                        `CFG Guidance Scale`: 
+                         - `CFG Scale Start`:
+                         - `CFG Scale End`:
+                        `Control Guidance Scale`:  
+                         - `Control Scale Start`: 
+                         - `Control Scale End`: 
+                        `Control Guidance Scale`: 
+                        `Sampler Tile Size`: 
+                        `Sampler Tile Stride`: 
+                        `Additional Positive Prompt`:
+                        `Negative Prompt`:   
+                         
+                    """ 
+
+                )           
 
             
             # ==============================================================================================
@@ -818,18 +867,16 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                 with gr.Row():
                     with gr.Column(elem_classes=["fixed-width-column-1200"]):
         
-                        # Replace the single image with an image slider
-                        output_slider = ImageSlider(
-                            label="Before / After Comparison",
-                            height=800,
-                            width=1200
+                        # Output component - Native ImageSlider
+                        output_slider = gr.ImageSlider(
+                            type="pil", 
+                            label="Before / After (Slide to compare), Mouse Wheel to Zoom",
+                            height=900, # height of container
+                            max_height=900, # max height of image
+                            container=True,
+                            slider_position=50  # Default position at 50%
                         )
-                        
-                        # single image
-                        # output_image = gr.Image(
-                        #     label="SUPIR Enhanced Image", 
-                        #     height=800
-                        # )             
+                                   
 
         # Choose the appropriate generate function based on the argument 'use_stream'
         # and assign to function reference 'generate_function'  
@@ -860,6 +907,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
         
         process_supir_btn.click(
             fn=process_supir,
+            # The gradio Input components(s) whose values are passed to the function
             inputs=[
                 input_image,
                 image_caption,
@@ -886,8 +934,9 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                 sampler_tile_stride,
                 a_prompt, 
                 n_prompt
-            ],
-            outputs=[output_slider, status_message]
+            ],        
+            # The gradio component(s) where the function's return value(s) is displayed
+            outputs=[output_slider, status_message] 
         )
         
         def export_function(text):

@@ -123,7 +123,13 @@ python3 run_supir.py \
   Upsampling ratio for the input. Default: `1`
 
 * `--SUPIR_sign`
-  Model type. Options: `['F', 'Q']`. Default: `'Q'`
+  Model type. Options: `['F', 'Q']`
+  Default: `'Q'`
+  Q model (Quality) Trained on diverse, heavy degradations, making it robust for real-world damage. 
+  However, it may overcorrect or hallucinate when used on lightly degraded images due to its bias toward severe restoration.
+
+  F model (Fidelity) Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks where subtle restoration is preferred over aggressive enhancement.
+
 
 * `--skip_denoise_stage`
   Skips the VAE Denoiser Stage.  
@@ -212,7 +218,9 @@ python3 run_supir.py \
 ### Image Structure Guidance
 
 * `--restoration_scale`
-  Early-stage restoration strength .
+  Early-stage restoration strength. Works as an additional guidance mechanism beyond the control scale
+  Specifically targets fine details and textures rather than overall structure
+  When high, it will try to maintain the exact pixel-level details rather than just the general structure
   Default: `-1` (disabled). 
   Typical values: `1–6`
 
