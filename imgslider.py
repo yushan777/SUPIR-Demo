@@ -26,23 +26,26 @@ def update_slider_color(color):
     """Update the slider color and return the component with the new color."""
     return gr.ImageSlider(slider_color=color, type="pil")
 
+# =======================================================
 # Create the Gradio interface
-with gr.Blocks(title="Two-Image Comparison with Slider") as demo:
+with gr.Blocks(title="Image Comparison with Slider") as demo:
     gr.Markdown("# Two-Image Comparison")
     gr.Markdown("Upload two images to compare them side by side using the slider.")
     
     with gr.Row():
         with gr.Column(scale=1):
             # Input components for two separate images
-            image1 = gr.Image(type="pil", label="Upload First Image")
-            image2 = gr.Image(type="pil", label="Upload Second Image")
-            slider_color_picker = gr.ColorPicker(value="#1E88E5", label="Slider Color")
+            image1 = gr.Image(type="pil", label="Upload First Image", height=320)
+            image2 = gr.Image(type="pil", label="Upload Second Image", height=320)
             compare_button = gr.Button("Compare Images")
         
         with gr.Column(scale=2):
             # Output component - ImageSlider
-            output_slider = ImageSlider(type="pil", label="Image Comparison (Slide to compare)", 
-                                      slider_color="#1E88E5")
+            output_slider = ImageSlider(type="pil", 
+                                        label="Image Comparison (Slide to compare)", 
+                                        height=800,
+                                        position=0.5,
+                                      slider_color="blue")
     
     # Set up event handlers
     compare_button.click(
@@ -51,11 +54,6 @@ with gr.Blocks(title="Two-Image Comparison with Slider") as demo:
         outputs=output_slider
     )
     
-    slider_color_picker.change(
-        fn=update_slider_color,
-        inputs=[slider_color_picker],
-        outputs=output_slider
-    )
     
     # No examples section
     
