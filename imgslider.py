@@ -1,66 +1,53 @@
 import gradio as gr
 from gradio_imageslider import ImageSlider
-from PIL import Image, ImageFilter, ImageEnhance
+from PIL import Image
 
-def apply_filters(input_img, filter_type, intensity):
-    """Apply different filters to the input image based on the selected filter type."""
-    if input_img is None:
+def combine_images(image1, image2):
+    """Combine two images for comparison in the image slider.
+    If the images are different sizes, the first image will be resized to match the second."""
+    if image1 is None or image2 is None:
         return None
     
-    # Create a copy of the input image to avoid modifying the original
-    img = input_img.copy()
+    # Get the dimensions of both images
+    img1_width, img1_height = image1.size
+    img2_width, img2_height = image2.size
     
-    # Apply the selected filter with the specified intensity
-    if filter_type == "Blur":
-        filtered_img = img.filter(ImageFilter.GaussianBlur(radius=intensity))
-    elif filter_type == "Sharpen":
-        enhancer = ImageEnhance.Sharpness(img)
-        filtered_img = enhancer.enhance(intensity)
-    elif filter_type == "Brightness":
-        enhancer = ImageEnhance.Brightness(img)
-        filtered_img = enhancer.enhance(intensity)
-    elif filter_type == "Contrast":
-        enhancer = ImageEnhance.Contrast(img)
-        filtered_img = enhancer.enhance(intensity)
-    elif filter_type == "Saturation":
-        enhancer = ImageEnhance.Color(img)
-        filtered_img = enhancer.enhance(intensity)
-    else:
-        # Default to grayscale if none of the above
-        filtered_img = img.convert("L").convert("RGB")
+    # Check if images have different dimensions
+    if img1_width != img2_width or img1_height != img2_height:
+        # Resize the first image to match the dimensions of the second image
+        # Using LANCZOS resampling for better quality when upscaling
+        image1 = image1.resize((img2_width, img2_height), Image.LANCZOS)
+        print(f"Resized first image from {img1_width}x{img1_height} to {img2_width}x{img2_height}")
     
-    # Return a tuple of the original and filtered images
-    return (img, filtered_img)
+    # Return a tuple of the resized first image and the second image
+    return (image1, image2)
 
 def update_slider_color(color):
     """Update the slider color and return the component with the new color."""
     return gr.ImageSlider(slider_color=color, type="pil")
 
-# Define the available filter types
-filter_types = ["Blur", "Sharpen", "Brightness", "Contrast", "Saturation", "Grayscale"]
-
 # Create the Gradio interface
-with gr.Blocks(title="Image Filter Comparison with Slider") as demo:
-    gr.Markdown("# Image Filter Comparison")
-    gr.Markdown("Upload an image and apply filters to see the comparison using the slider.")
+with gr.Blocks(title="Two-Image Comparison with Slider") as demo:
+    gr.Markdown("# Two-Image Comparison")
+    gr.Markdown("Upload two images to compare them side by side using the slider.")
     
     with gr.Row():
         with gr.Column(scale=1):
-            # Input components
-            input_image = gr.Image(type="pil", label="Upload Image")
-            filter_dropdown = gr.Dropdown(choices=filter_types, value="Blur", label="Filter Type")
-            intensity_slider = gr.Slider(minimum=0.5, maximum=5.0, value=2.0, step=0.1, label="Filter Intensity")
-            slider_color_picker = gr.ColorPicker(value="#FF0000", label="Slider Color")
-            apply_button = gr.Button("Apply Filter")
+            # Input components for two separate images
+            image1 = gr.Image(type="pil", label="Upload First Image")
+            image2 = gr.Image(type="pil", label="Upload Second Image")
+            slider_color_picker = gr.ColorPicker(value="#1E88E5", label="Slider Color")
+            compare_button = gr.Button("Compare Images")
         
         with gr.Column(scale=2):
             # Output component - ImageSlider
-            output_slider = ImageSlider(type="pil", label="Comparison (Slide to compare)", slider_color="#FF0000")
+            output_slider = ImageSlider(type="pil", label="Image Comparison (Slide to compare)", 
+                                      slider_color="#1E88E5")
     
     # Set up event handlers
-    apply_button.click(
-        fn=apply_filters,
-        inputs=[input_image, filter_dropdown, intensity_slider],
+    compare_button.click(
+        fn=combine_images,
+        inputs=[image1, image2],
         outputs=output_slider
     )
     
@@ -70,25 +57,14 @@ with gr.Blocks(title="Image Filter Comparison with Slider") as demo:
         outputs=output_slider
     )
     
-    # Examples
-    example_images = [
-        ["https://source.unsplash.com/random/800x600/?nature"],
-        ["https://source.unsplash.com/random/800x600/?city"],
-        ["https://source.unsplash.com/random/800x600/?portrait"]
-    ]
-    gr.Examples(
-        examples=example_images,
-        inputs=input_image
-    )
+    # No examples section
     
     gr.Markdown("## How to use")
     gr.Markdown("""
-    1. Upload an image or choose one from the examples
-    2. Select a filter type from the dropdown
-    3. Adjust the filter intensity using the slider
-    4. Click 'Apply Filter' to see the comparison
-    5. Use the image slider to compare the original and filtered images
-    6. Optionally, change the slider color using the color picker
+    1. Upload two images you want to compare
+    2. Click 'Compare Images' to see them side by side
+    3. Use the image slider to compare the two images
+    4. Optionally, change the slider color using the color picker
     """)
 
 # Launch the app
