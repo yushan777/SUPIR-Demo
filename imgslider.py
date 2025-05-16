@@ -1,5 +1,4 @@
 import gradio as gr
-from gradio_imageslider import ImageSlider
 from PIL import Image
 
 def combine_images(image1, image2):
@@ -22,11 +21,6 @@ def combine_images(image1, image2):
     # Return a tuple of the resized first image and the second image
     return (image1, image2)
 
-def update_slider_color(color):
-    """Update the slider color and return the component with the new color."""
-    return gr.ImageSlider(slider_color=color, type="pil")
-
-# =======================================================
 # Create the Gradio interface
 with gr.Blocks(title="Image Comparison with Slider") as demo:
     gr.Markdown("# Two-Image Comparison")
@@ -40,12 +34,15 @@ with gr.Blocks(title="Image Comparison with Slider") as demo:
             compare_button = gr.Button("Compare Images")
         
         with gr.Column(scale=2):
-            # Output component - ImageSlider
-            output_slider = ImageSlider(type="pil", 
-                                        label="Image Comparison (Slide to compare)", 
-                                        height=800,
-                                        position=0.5,
-                                      slider_color="blue")
+            # Output component - Native ImageSlider
+            output_slider = gr.ImageSlider(
+                type="pil", 
+                label="Image Comparison (Slide to compare)", 
+                height=800,
+                max_height=800,
+                container=True,
+                slider_position=50  # Default position at 50%
+            )
     
     # Set up event handlers
     compare_button.click(
@@ -54,15 +51,30 @@ with gr.Blocks(title="Image Comparison with Slider") as demo:
         outputs=output_slider
     )
     
+    # # Slider position control
+    # with gr.Row():
+    #     slider_position = gr.Slider(
+    #         minimum=0, 
+    #         maximum=100, 
+    #         value=50, 
+    #         step=0.5, 
+    #         label="Slider Position"
+    #     )
     
-    # No examples section
+    # # Update slider position when the slider control changes
+    # slider_position.change(
+    #     fn=lambda pos: gr.ImageSlider(slider_position=pos),
+    #     inputs=slider_position,
+    #     outputs=output_slider,
+    #     show_progress="hidden"
+    # )
     
     gr.Markdown("## How to use")
     gr.Markdown("""
     1. Upload two images you want to compare
     2. Click 'Compare Images' to see them side by side
     3. Use the image slider to compare the two images
-    4. Optionally, change the slider color using the color picker
+    4. Adjust the slider position using the slider control below
     """)
 
 # Launch the app
