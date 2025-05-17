@@ -459,6 +459,9 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         super().__init__()
         assert layer in self.LAYERS
         
+        # print(f" >>>>>>>>>>>>>>>>>>>>> clip1_path = {clip1_path}", color.MAGENTA)
+
+
         # Load from local files if clip1_path is a safetensors file
         if clip1_path and clip1_path.endswith(('.safetensors', '.pt', '.bin')):
             print(f"Loading CLIP text model from file: {clip1_path}", color.BRIGHT_BLUE)
