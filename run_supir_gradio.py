@@ -5,6 +5,7 @@ from transformers import AutoProcessor, AutoModelForVision2Seq, AutoModelForImag
 import gradio as gr
 from Y7.colored_print import color, style
 import os
+import sys
 import time
 import glob
 from threading import Thread
@@ -12,7 +13,7 @@ from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 
 # from huggingface_hub import snapshot_download
-from smolvlm.verify_download_model import hash_file_partial, check_smolvlm_model_files, download_smolvlm_model_from_HF
+from smolvlm.verify_model import check_smolvlm_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -966,7 +967,7 @@ def main():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
-        print("CUDA cache cleared at startup")
+        print("CUDA cache cleared.")
         import gc
         gc.collect()
 
@@ -975,24 +976,47 @@ def main():
     parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
     parser.add_argument("--listen", action="store_true", help="Launch Gradio with server_name='0.0.0.0' to listen on all interfaces")
     parser.add_argument("--port", type=int, default=7860, help="Port to run the Gradio on (default: 7860)")
-    parser.add_argument("--smolvlm_model", 
-                        choices=["SmolVLM-Instruct", "SmolVLM-500M-Instruct", "SmolVLM-256M-Instruct"],
-                        default="SmolVLM-Instruct", 
-                        help="Select model (default: SmolVLM-Instruct)")
     args = parser.parse_args()
 
     # Set model path to global SMOLVLM_MODEL_PATH
     # required by generate_caption_streaming() and generate_caption_non_streaming()
     global SMOLVLM_MODEL_PATH
-    SMOLVLM_MODEL_PATH = f"models/{args.smolvlm_model}"
+    SMOLVLM_MODEL_PATH = f"models/SmolVLM-Instruct"
+    
     
     # Check SMOLVLM MODEL FILES ARE OKAY
     filesokay = check_smolvlm_model_files(SMOLVLM_MODEL_PATH)
     if not filesokay:
-        # IF NOTM THEN DOWNLOAD
-        download_smolvlm_model_from_HF(SMOLVLM_MODEL_PATH)
+        print(f"ERROR: Required model files not found at {SMOLVLM_MODEL_PATH}", color.MAGENTA)
+        print("Please download the model files manually and try again.", color.MAGENTA)
+        sys.exit(1)  # Exit with error code 1        
 
 
+    SUPIR_PATH = "models/SUPIR"
+    filesokay = check_supir_model_files(SUPIR_PATH)
+    if not filesokay:
+        print(f"ERROR: Required SUPIR files not found for at {SUPIR_PATH}", color.MAGENTA)
+        print("Please download the model files manually and try again.", color.MAGENTA)
+
+    CLIP1_PATH = "models/CLIP1"
+    filesokay = check_clip_model_file(CLIP1_PATH)
+    if not filesokay:
+        print(f"ERROR: Required CLIP1 file not found for at {CLIP1_PATH}", color.MAGENTA)
+        print("Please download the model files manually and try again.", color.MAGENTA)
+
+    CLIP2_PATH = "models/CLIP2"
+    filesokay = check_clip_model_file(CLIP2_PATH)
+    if not filesokay:
+        print(f"ERROR: Required CLIP2 file not found for at {CLIP2_PATH}", color.MAGENTA)
+        print("Please download the model files manually and try again.", color.MAGENTA)
+
+    # for sdxl we will just check for any safetensors file (since any can be used)
+    SDXL_PATH = "models/SDXL"
+    filesokay = check_for_any_sdxl_model(SDXL_PATH)
+    if not filesokay:
+        print(f"ERROR: No sdxl safetensors file not found for at {SDXL_PATH}", color.MAGENTA)
+        print("Please download your preferred sdxl model and try again.", color.MAGENTA)
+    
     # Attach to Gradio (if needed)
     create_launch_gradio(args.use_stream, args.listen, args.port)
 

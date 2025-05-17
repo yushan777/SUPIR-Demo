@@ -32,6 +32,7 @@ def create_model(config_path):
 
 
 def create_SUPIR_model(config_path, SUPIR_sign=None):
+    
     config = OmegaConf.load(config_path)
 
     # --- Inject CLIP paths from root config into embedder params ---

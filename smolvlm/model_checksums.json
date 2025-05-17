@@ -40,5 +40,17 @@
       {"name": "tokenizer.json", "hash": "7995f46b407a54ce"},
       {"name": "tokenizer_config.json", "hash": "f626bc19dde956c7"},
       {"name": "vocab.json", "hash": "e3790d332807f48a"}
+    ],
+    "SUPIR": [
+      {"name": "SUPIR-v0F_fp16.safetensors", "hash": "fb3ed5d013e8c827"},
+      {"name": "SUPIR-v0F_fp32.safetensors", "hash": "576db92563a27c38"},
+      {"name": "SUPIR-v0Q_fp16.safetensors", "hash": "126f3cf4c58bde26"},
+      {"name": "SUPIR-v0Q_fp32.safetensors", "hash": "66a3d36da9f0e594"}
+    ],
+    "CLIP1": [
+      {"name": "clip-vit-large-patch14.safetensors", "hash": "be8ffca3b4b77623"}
+    ],
+    "CLIP2": [
+      {"name": "CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors", "hash": "5b3127512debffe6"}
     ]
   }
