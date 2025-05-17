@@ -1,5 +1,3 @@
-
-util.create_SUPIR_model()
-
+Embed SUPIR settings into png metadata
 
 TEST with VAE dtype = FP32

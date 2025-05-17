@@ -32,6 +32,16 @@ from ...util import (
     expand_dims_like,
     instantiate_from_config,
 )
+
+from omegaconf import OmegaConf
+
+# ===========================================================================
+# Load the YAML configuration file
+config = OmegaConf.load("options/CLIP_paths.yaml")
+SDXL_CLIP1_PATH = config.get("SDXL_CLIP1_PATH", "./models/CLIP1/clip-vit-large-patch14.safetensors")
+SDXL_CLIP2_PATH = config.get("SDXL_CLIP2_PATH", "./models/CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors")
+
+
 class AbstractEmbModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -454,39 +464,34 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         layer="last",
         layer_idx=None,
         always_return_pooled=False,
-        clip1_path=None,
+        clip1_path=SDXL_CLIP1_PATH, # Use the loaded path
     ):
         super().__init__()
         assert layer in self.LAYERS
-        
-        # print(f" >>>>>>>>>>>>>>>>>>>>> clip1_path = {clip1_path}", color.MAGENTA)
-
 
         # Load from local files if clip1_path is a safetensors file
         if clip1_path and clip1_path.endswith(('.safetensors', '.pt', '.bin')):
             print(f"Loading CLIP text model from file: {clip1_path}", color.BRIGHT_BLUE)
-            
-            
 
             # Load configuration from local file
             from transformers import CLIPConfig
             config = CLIPConfig.from_json_file("configs/clip1/clip_vit_config.json")
-            
+
             # Load tokenizer from local directory
             from transformers import CLIPTokenizer
             self.tokenizer = CLIPTokenizer.from_pretrained("configs/clip1/tokenizer/")
-            
+
             # Create model with config
             from transformers import CLIPTextModel
             self.transformer = CLIPTextModel(config)
-            
+
             # Load weights
             if clip1_path.endswith('.safetensors'):
                 import safetensors.torch
                 state_dict = safetensors.torch.load_file(clip1_path)
             else:
                 state_dict = torch.load(clip1_path, map_location="cpu")
-            
+
             # Load weights with relaxed strict checking
             missing, unexpected = self.transformer.load_state_dict(state_dict, strict=False)
             if missing:
@@ -499,7 +504,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             model_path = clip1_path if clip1_path is not None else version
             self.tokenizer = CLIPTokenizer.from_pretrained(model_path)
             self.transformer = CLIPTextModel.from_pretrained(model_path)
-            
+
         self.device = device
         self.max_length = max_length
         if freeze:
@@ -563,12 +568,12 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         layer="last",
         always_return_pooled=False,
         legacy=True,
-        clip2_path=None, # Added parameter for path injection
+        clip2_path=SDXL_CLIP2_PATH, # Use the loaded path
     ):
         super().__init__()
         assert layer in self.LAYERS
         # Use provided path if available, otherwise use version
-        pretrained_path = clip2_path if clip2_path is not None else version
+        pretrained_path = clip2_path
         model, _, _ = open_clip.create_model_and_transforms(
             arch,
             device=torch.device("cpu"),

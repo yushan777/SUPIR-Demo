@@ -32,37 +32,38 @@ def create_model(config_path):
 
 
 def create_SUPIR_model(config_path, SUPIR_sign=None):
-    
+
+    # Creates a SUPIR model instance by blending SDXL and SUPIR capabilities
+    # 
+    # This function instantiates a model using the provided config, then loads weights in layers:
+    # 1. Base SDXL foundation weights (if specified in config)
+    # 2. General SUPIR enhancement weights (if specified in config)
+    # 3. Optional specialized SUPIR variant (F or Q) that selectively overrides weights
+    #    for specific performance characteristics
+    #
+    # Args:
+    #   config_path: Path to the YAML config file (options/SUPIR_v0_tiled.yaml or options/SUPIR_v0.yaml)
+    #   SUPIR_sign: Optional variant specifier ('F' or 'Q') to load specialized weights
+    #
+    # Returns:
+    #   The instantiated and weight-loaded SUPIR model
+
     config = OmegaConf.load(config_path)
 
-    # --- Inject CLIP paths from root config into embedder params ---
-    if hasattr(config, "CLIP1_PATH") or hasattr(config, "CLIP2_PATH"):
-        conditioner_params = config.model.params.conditioner_config.params
-        for embedder_config in conditioner_params.get("emb_models", []):
-            # Ensure params exists as a mutable OmegaConf object if not present
-            if "params" not in embedder_config:
-                 embedder_config.params = OmegaConf.create()
-            # Inject paths
-            if embedder_config.target.endswith("FrozenCLIPEmbedder") and hasattr(config, "CLIP1_PATH"):
-                embedder_config.params.clip1_path = config.CLIP1_PATH
-                # print(f"  Injected CLIP1_PATH into {embedder_config.target}")
-            elif embedder_config.target.endswith("FrozenOpenCLIPEmbedder2") and hasattr(config, "CLIP2_PATH"):
-                embedder_config.params.clip2_path = config.CLIP2_PATH
-                # print(f"  Injected CLIP2_PATH into {embedder_config.target}")
-
+    # instantiate model using the config loaded froom the yaml
     model = instantiate_from_config(config.model).cpu()
-    print(f'Loaded model config from {config_path}', color.BRIGHT_BLUE)
 
-    # --- Load checkpoints using paths from config, checking existence ---
+    print(f"Instantiated model using config from {config_path}", color.BRIGHT_BLUE)
+
+    # Load checkpoints using paths from config, checking existence
+    # first the SDXL model
     if hasattr(config, "SDXL_CKPT") and config.SDXL_CKPT is not None:
         print(f"Loading SDXL checkpoint: {config.SDXL_CKPT}", color.BRIGHT_BLUE)
         model.load_state_dict(load_state_dict(config.SDXL_CKPT), strict=False)
-    if hasattr(config, "SUPIR_CKPT") and config.SUPIR_CKPT is not None:
-        print(f"Loading SUPIR base checkpoint: {config.SUPIR_CKPT}", color.BRIGHT_BLUE)
-        model.load_state_dict(load_state_dict(config.SUPIR_CKPT), strict=False)
 
+    # load supir model according to Q of F sign
     if SUPIR_sign is not None:
-        assert SUPIR_sign in ['F', 'Q']
+        assert SUPIR_sign in ["F", "Q"]
         ckpt_key = f"SUPIR_CKPT_{SUPIR_sign}"
         if hasattr(config, ckpt_key) and getattr(config, ckpt_key) is not None:
             ckpt_path = getattr(config, ckpt_key)
@@ -73,11 +74,11 @@ def create_SUPIR_model(config_path, SUPIR_sign=None):
 
     return model
 
-def load_QF_ckpt(config_path):
-    config = OmegaConf.load(config_path)
-    ckpt_F = torch.load(config.SUPIR_CKPT_F, map_location='cpu')
-    ckpt_Q = torch.load(config.SUPIR_CKPT_Q, map_location='cpu')
-    return ckpt_Q, ckpt_F
+# def load_QF_ckpt(config_path):
+#     config = OmegaConf.load(config_path)
+#     ckpt_F = torch.load(config.SUPIR_CKPT_F, map_location='cpu')
+#     ckpt_Q = torch.load(config.SUPIR_CKPT_Q, map_location='cpu')
+#     return ckpt_Q, ckpt_F
 
 
 def PIL2Tensor(img, upscale=1, min_size=1024, fix_resize=None):
