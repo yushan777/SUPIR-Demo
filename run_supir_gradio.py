@@ -607,7 +607,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                         #text_box textarea {
                             /*  color: #2563eb !important;  text color */
                             font-family: 'monospace', monospace !important; 
-                            font-size: 12px !important; 
+                            font-size: 11px !important; 
                         }           
                         /* Make dropdown menus taller */
                         .gradio-dropdown .choices {
@@ -649,7 +649,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
             # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
             with gr.TabItem("1. Input Image / Caption"):
-                gr.Markdown("Upload an image and generate a caption (optional)")
+                gr.Markdown("Upload image and generate a caption or write your own (optional).")
                 
                 with gr.Row():
                     # ================================================
@@ -685,7 +685,12 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                 
                 with gr.Row():
                     with gr.Column():
-                        image_caption = gr.Textbox(label="Generated Caption", lines=5, interactive=True, elem_id="text_box", info="you can edit the caption here before proceeding")
+                        image_caption = gr.Textbox(label="Generated Caption", 
+                                                   lines=5, 
+                                                   interactive=True, 
+                                                   elem_id="text_box",
+                                                   placeholder="Can be left blank but captions nearly always produce better SUPIR results." \
+                                                   "You can also edit the caption after it has been generated.")                                              
                 
 
                 gr.Markdown("""    
@@ -812,52 +817,58 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                 sampler_tile_stride = gr.Slider(minimum=32, maximum=256, value=64, step=32, label="Sampler Tile Stride")
 
 
-                # additional prompt and standard neg. prompt
-                with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
-                    with gr.Row():
-                        a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
-                        n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
-
                 with gr.Row():
-                    with gr.Column():
-                        process_supir_btn = gr.Button("Process", variant="primary")
+                    with gr.Column(elem_classes=["fixed-width-column-1200"]):
+                        with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
+                            with gr.Row():
+                                a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
+                                n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
 
+                        process_supir_btn = gr.Button("Process", variant="primary")
                         # status message box 
-                        status_message = gr.Textbox(label="", interactive=False)         
+                        status_message = gr.Textbox(label="", interactive=False)   
+                         
+                # # additional prompt and standard neg. prompt
+                # with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
+                #     with gr.Row():
+                #         a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
+                #         n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
+
+                # with gr.Row():
+                #     with gr.Column():
+                #         process_supir_btn = gr.Button("Process", variant="primary")
+
+                #         # status message box 
+                #         status_message = gr.Textbox(label="", interactive=False)         
 
                 gr.Markdown(
                     """
-                        `Load Model fp16`: loads the SUPIR model weights in half precision (FP16). Reduces VRAM usage and increases speed at the cost of slight precision loss.  
-                        `Model Type`: 
-                         - `Q model (Quality)` Trained on diverse, heavy degradations, making it robust for real-world damage. However, it may overcorrect or hallucinate when used on lightly degraded images due to its bias toward severe restoration.
-                         - `F model (Fidelity)` Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks where subtle restoration is preferred over aggressive enhancement.  
-                        `Sampler Type`:  
-                         - `AE dType`:  
-                         - `Diffusion dType`:  
-                        `Seed`:  
-                        `Upscale`:  
-                        `Skip Denoise Stage`:  
-                        `Use VAE Tile`:  
-                         - `Encoder Tile Size`:  
-                         - `Dncoder Tile Size`:  
-                        `Steps`: 
-                        `S-Churn`: 
-                        `S-Noise`: 
-                        `CFG Guidance Scale`: 
-                         - `CFG Scale Start`:
-                         - `CFG Scale End`:
-                        `Control Guidance Scale`:  
-                         - `Control Scale Start`: 
-                         - `Control Scale End`: 
-                        `Control Guidance Scale`: 
-                        `Sampler Tile Size`: 
-                        `Sampler Tile Stride`: 
-                        `Additional Positive Prompt`:
-                        `Negative Prompt`:   
-                         
-                    """ 
-
-                )           
+                | **Parameter** | **Description** |
+                |---------------|-----------------|
+                | `Load Model fp16` | Loads the SUPIR model weights in half precision (FP16). Reduces VRAM usage and increases speed at the cost of slight precision loss. |
+                | `Model Type` | - `Q model (Quality)`: <br>Moderate - heavy degradations. Robust for real-world damage, but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
+                | `Sampler Type` | - `RestoreEDMSampler`: Uses more VRAM. <br>- `TiledRestoreEDMSampler`: Uses less VRAM. |
+                | `AE dType` | Autoencoder precision. |
+                | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `--loading_half_params` is already set. |
+                | `Seed` | Fixed or random seed. |
+                | `Upscale` | Upsampling ratio for the input. The higher the scale factor, the slower the process. |
+                | `Skip Denoise Stage` | Disables the VAE denoising step that softens low-quality images. Enable only if your input is already clean or high-resolution. |
+                | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
+                | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
+                | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
+                | `Steps` | Number of diffusion steps. Default: `50` |
+                | `S-Churn` | Adds random noise to encourage variation. Default: `5` <br>`0`: No noise (deterministic) <br>`1–5`: Mild/moderate <br>`6–10+`: Strong |
+                | `S-Noise` | Scales churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
+                | `CFG Guidance Scale` | - `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. |
+                | `Control Guidance Scale` | - `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
+                | `Restoration Scale` | Early-stage restoration strength. <br>Works as an additional guidance mechanism to the control scale. <br>Specifically targets fine details and textures rather than overall structure. <br>When high, it will try to maintain the exact pixel-level details rather than just the general structure. <br>Default: `-1` (disabled). Typical values: `1–6` |
+                | `Sampler Tile Size` | Tile size for when using `TiledRestoreEDMSampler` sampler. |
+                | `Sampler Tile Stride` | Tile stride for when using `TiledRestoreEDMSampler` sampler. Controls how much tiles overlap during sampling. <br>A **smaller** tile_stride means **more** overlap between tiles, which helps blend the edges and reduce visible seams, but increases computation. <br>A **larger** tile_stride means **less** overlap (or none), which is faster but may cause visible artifacts at the tile boundaries. <br>`Overlap = tile_size - tile_stride` <br>`Greater overlap ⇨ smaller stride` <br>`Less overlap ⇨ larger stride` <br>Example: `tile_size` = 128 and `tile_stride` = 64 → 64px overlap. |
+                | `Additional Positive Prompt` | Additional positive prompt (appended to input caption). The default is taken from SUPIR's own demo code. |
+                | `Negative Prompt` | Negative prompt used for all images. The default is taken from SUPIR's own demo code. |
+                    """
+                )
+     
 
             
             # ==============================================================================================

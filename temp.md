@@ -168,7 +168,7 @@ python3 run_supir.py \
   ```
 
 * `--n_prompt`
-  Negative prompt.
+  Fixed negative prompt.
   Default:
 
   ```

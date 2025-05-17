@@ -10,7 +10,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--img_path", type=str, required=True, help="Path to the input image file")
     parser.add_argument("--save_dir", type=str, default='output', help="Directory to save the output image")
-    parser.add_argument("--upscale", type=int, default=1)
+    parser.add_argument("--upscale", type=int, default=2)
     parser.add_argument("--SUPIR_sign", type=str, default='Q', choices=['F', 'Q'])
     parser.add_argument("--sampler_mode", type=str, default='TiledRestoreEDMSampler', choices=['TiledRestoreEDMSampler', 'RestoreEDMSampler'])
     parser.add_argument("--seed", type=int, default=1234567891)
@@ -18,9 +18,7 @@ def parse_arguments():
     parser.add_argument("--edm_steps", type=int, default=50)
     parser.add_argument("--restoration_scale", type=int, default=-1) #renamed from s_stage1
     parser.add_argument("--s_churn", type=int, default=5)
-    parser.add_argument("--s_noise", type=float, default=1.003)
-    parser.add_argument("--cfg_scale_end", type=float, default=4.0) #renamed from s_cfg
-    parser.add_argument("--control_scale_end", type=float, default=1.0) #renamed from s_stage2
+    parser.add_argument("--s_noise", type=float, default=1.003)    
     parser.add_argument("--num_samples", type=int, default=1)
     parser.add_argument("--img_caption", type=str, default='', help="Specific caption for the input image.")
     parser.add_argument("--a_prompt", type=str,
@@ -35,8 +33,9 @@ def parse_arguments():
                                 'deformed, lowres, over-smooth')
     parser.add_argument("--color_fix_type", type=str, default='Wavelet', choices=["None", "AdaIn", "Wavelet"])
     parser.add_argument("--cfg_scale_start", type=float, default=2.0) #renamed from spt_linear_CFG
+    parser.add_argument("--cfg_scale_end", type=float, default=4.0) #renamed from s_cfg
     parser.add_argument("--control_scale_start", type=float, default=0.9) #renamed from spt_linear_s_stage2
-
+    parser.add_argument("--control_scale_end", type=float, default=0.9) #renamed from s_stage2
     parser.add_argument("--loading_half_params", action='store_true', default=True) # load model weights in fp16
     parser.add_argument("--ae_dtype", type=str, default="bf16", choices=['fp32', 'bf16'])
     parser.add_argument("--diff_dtype", type=str, default="fp16", choices=['fp32', 'fp16', 'bf16'])
@@ -47,8 +46,8 @@ def parse_arguments():
 
     parser.add_argument("--skip_denoise_stage", action='store_true', default=False)
 
-    parser.add_argument("--tile_size", type=int, default=128, help="Tile size for TiledRestoreEDMSampler")
-    parser.add_argument("--tile_stride", type=int, default=64, help="Tile stride for TiledRestoreEDMSampler")
+    parser.add_argument("--sampler_tile_size", type=int, default=128, help="Tile size for TiledRestoreEDMSampler")
+    parser.add_argument("--sampler_tile_stride", type=int, default=64, help="Tile stride for TiledRestoreEDMSampler")
 
     return parser.parse_args()
 
@@ -80,8 +79,8 @@ def setup_model(args, device):
     # if using TiledRestoreEDMSampler
     if args.sampler_mode == "TiledRestoreEDMSampler":
         # set/override tile size and tile stride
-        model.sampler.tile_size = args.tile_size
-        model.sampler.tile_stride = args.tile_stride
+        model.sampler.tile_size = args.sampler_tile_size
+        model.sampler.tile_stride = args.sampler_tile_stride
     
     return model
 
