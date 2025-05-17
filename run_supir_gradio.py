@@ -13,7 +13,7 @@ from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 
 # from huggingface_hub import snapshot_download
-from smolvlm.verify_model import check_smolvlm_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
+from Y7.verify_model import check_smolvlm_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
