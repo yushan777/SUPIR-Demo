@@ -850,7 +850,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Model Type` | - `Q model (Quality)`: <br>Optimized for moderate - heavy degradations. High generalization, high image quality in most cases, <br>but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
                 | `Sampler Type` | - `RestoreEDMSampler`: Uses more VRAM. <br>- `TiledRestoreEDMSampler`: Uses less VRAM. |
                 | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
-                | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set. [`bf16`, `fp16`,`fp32`] |
+                | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set.<br>[`bf16`, `fp16`,`fp32`] |
                 | `Seed` | Fixed or random seed. |
                 | `Upscale` | Upscale factor for the original input image. The higher the scale factor, the slower the process. |
                 | `Skip Denoise Stage` | Disables the VAE denoising step that softens low-quality images. Enable only if your input is already clean or high-resolution. |
@@ -858,7 +858,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
                 | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
                 | `Steps` | Number of diffusion steps. Default: `50` |
-                | `S-Churn` | controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1–5`: Mild/moderate <br>`6–10+`: Strong |
+                | `S-Churn` | Controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1-5`: Mild/moderate <br>`6-10+`: Strong |
                 | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
                 | `CFG Guidance Scale` | - `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. |
                 | `Control Guidance Scale` | - `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
