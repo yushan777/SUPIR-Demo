@@ -640,7 +640,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                                                                                                        
                     """) as demo:   
         
-        gr.Markdown("## SUPIR Enhancer/Detailer/Upscaler")    
+        gr.Markdown("### SUPIR Enhancer / Detailer / Upscaler (With limits)")    
         # gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
         
 
@@ -847,7 +847,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | **Parameter** | **Description** |
                 |---------------|-----------------|
                 | `Load Model fp16` | Loads the SUPIR model weights in half precision (FP16). Reduces VRAM usage and increases speed at the cost of slight precision loss. |
-                | `Model Type` | - `Q model (Quality)`: <br>Optimized for moderate - heavy degradations. High generalization and high image quality in most cases, but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
+                | `Model Type` | - `Q model (Quality)`: <br>Optimized for moderate - heavy degradations. High generalization, high image quality in most cases, <br>but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
                 | `Sampler Type` | - `RestoreEDMSampler`: Uses more VRAM. <br>- `TiledRestoreEDMSampler`: Uses less VRAM. |
                 | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
                 | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set. [`bf16`, `fp16`,`fp32`] |
