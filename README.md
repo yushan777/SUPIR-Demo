@@ -10,49 +10,65 @@
 - Renamed arguments to make settings a bit more intuitive (more alignment with kijai's SUPIR ComfyUI custom nodes)
 - Added `--skip_denoise_stage` argument to skip the initial denoising stage that softens the input image to smooth out image or compression artefacts. You might want to do this if your image is already high quality. 
 - Refactor: Renamed symbol `upsacle` in original code to `upscale`
+- Moved CLIP paths to a yaml config file. 
 
 ---
 ## 🔧 Dependencies and Installation
 
-1. Clone repo
+## Clone repo
     ```bash
     git clone https://github.com/yushan777/SUPIR.git
     cd SUPIR
     ```
-## Vast.ai Install (will automatically download models)
+
+## Install Environment (local)
+
+    ```bash
+    # make executable
+    chmod +x install_linux_local.sh
+    # run installer
+    ./install_linux_local.sh
+    ```
+## Install Environment (Vast.ai)
     ```bash
     chmod +x install_vastai.sh
     ./install_vastai.sh
     ```
-
-
-## Manual Local Install
-1. Install dependent packages
-    ```bash
-        python3 -m venv venv
-        source venv/bin/activate
-        pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --extra-index-url https://download.pytorch.org/whl/cu126
-        # pip install torch==2.7.0+cu126 torchvision==0.22.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126
-        pip install -r requirements.txt
-    ```
     
-2. Download Models
-
+## Download Models
+    ```bash
+    # make executable
+    chmod +x download_models.sh
+    # run installer
+    ./download_models.sh
+    ```
 ---
+
+If you prefer to Download the models manually or in your own time here are the links:
 
 #### SUPIR Models
 
 Download and place the model files in the `models/SUPIR/` directory.
-
+I would download the FP16 versions because unless you have more than 24GB of VRAM, these will be the ones you will most likely be using. 
 **FP16 Versions**
-
 * [`SUPIR-v0Q (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
 * [`SUPIR-v0F (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)
 
 **FP32 Versions**
-
 * [`SUPIR-v0Q (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
 * [`SUPIR-v0F (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)
+
+#### CLIP Models
+* [CLIP Encoder-1](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors)  
+  Place in `models/CLIP1`
+* [CLIP Encoder-2](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors)  
+  Place in `models/CLIP2`
+
+#### SDXL Model
+* [Juggernaut-XL_v9_RunDiffusionPhoto_v2](https://huggingface.co/yushan777/SUPIR/resolve/main/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors)  
+  Place in `models/SDXL`
+  You can use your own preferred SDXL Model.  One that specialized in realism, photographic will work better. 
+
 
 There are two SUPIR model variants: v0Q and v0F. 
 
@@ -63,17 +79,10 @@ The v0Q model (Quality) is trained on a wide range of degradations, making it ro
 In contrast, the v0F model (Fidelity) is specifically trained on lighter degradation patterns. Its Stage1 encoder is tuned to better preserve fine details and structure, resulting in restorations that are more faithful to the input when the degradation is minimal. As a result, v0F is the preferred choice for high-fidelity restoration where subtle preservation is more critical than aggressive enhancement.
 
 
-#### Dependent Models
-* [CLIP Encoder-1](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors)  
-  Place in `models/CLIP1`
-* [CLIP Encoder-2](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors)  
-  Place in `models/CLIP2`
-* [Juggernaut-XL_v9_RunDiffusionPhoto_v2](https://huggingface.co/yushan777/SUPIR/resolve/main/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors)  
-  Place in `models/SDXL`
-
-4. Edit Custom Path for Checkpoints
+4. If necessary, edit Custom Path for Checkpoints.  Otherwise leave these alone.
     ```
-    * [options/SUPIR_v0.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. CLIP1, CLIP2
+    * [options/SUPIR_v0.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
+    * [options/SUPIR_v0_tiled.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
     ```
 ---
 
