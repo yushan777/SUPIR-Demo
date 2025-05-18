@@ -48,15 +48,17 @@ If you prefer to Download the models manually or in your own time here are the l
 
 #### SUPIR Models
 
-Download and place the model files in the `models/SUPIR/` directory.
-I would download the FP16 versions because unless you have more than 24GB of VRAM, these will be the ones you will most likely be using. 
+
+Unless you have more than 24GB of VRAM, you should download the FP16 variants
 **FP16 Versions**
 * [`SUPIR-v0Q (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
 * [`SUPIR-v0F (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)
+Download and place the model files in the `models/SUPIR/` directory.
 
 **FP32 Versions**
 * [`SUPIR-v0Q (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
 * [`SUPIR-v0F (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)
+Download and place the model files in the `models/SUPIR/` directory.
 
 #### CLIP Models
 * [CLIP Encoder-1](https://huggingface.co/yushan777/SUPIR/resolve/main/CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors)  
