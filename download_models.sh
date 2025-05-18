@@ -20,7 +20,7 @@ fi
 # echo "If not logged in already, uncomment and use the following line with your token:"
 # echo "# huggingface-cli login --token \$HF_TOKEN"
 
-REPO_NAME="yushan777/-Instruct"
+REPO_NAME="yushan777/SmolVLM-Instruct"
 
 # Download models
 # ====================================
