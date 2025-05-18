@@ -25,6 +25,7 @@ REPO_NAME="yushan777/SmolVLM-Instruct"
 # Download models
 # ====================================
 # smolvlm-instruct - full repo directly to models/SmolVLM-Instruct
+mkdir -p 'models/SmolVLM-Instruct'
 huggingface-cli download $REPO_NAME --local-dir 'models/SmolVLM-Instruct'
 
 # ====================================
