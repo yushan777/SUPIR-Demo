@@ -166,7 +166,7 @@ cython_debug/
 /output
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
-*.
+.*
 ._test_gradio.py
 *.DS_Store
 SUPIR/modules/._SUPIR_v0.py
