@@ -46,8 +46,11 @@ chmod +x download_models.sh
 
 If you prefer to Download the models manually or in your own time here are the links:
 
-#### SUPIR Models
+#### SmolVLM-Instruct (For captioning input image in the Gradio demo)
+* [`SmolVLM-Instruct`](https://huggingface.co/yushan777/SmolVLM-Instruct/tree/main)
+Place all files into `models/SmolVLM-Instruct`
 
+#### SUPIR Models
 
 Unless you have more than 24GB of VRAM, you should download the FP16 variants
 **FP16 Versions**
