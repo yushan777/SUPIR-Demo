@@ -23,25 +23,25 @@ cd SUPIR
 
 ## Install Environment (local)
 
-    ```
-    # make executable
-    chmod +x install_linux_local.sh
-    # run installer
-    ./install_linux_local.sh
-    ```
+```bash
+# make executable
+chmod +x install_linux_local.sh
+# run installer
+./install_linux_local.sh
+```
 ## Install Environment (Vast.ai)
-    ```
-    chmod +x install_vastai.sh
-    ./install_vastai.sh
-    ```
+```bash
+chmod +x install_vastai.sh
+./install_vastai.sh
+```
     
 ## Download Models
-    ```
-    # make executable
-    chmod +x download_models.sh
-    # run installer
-    ./download_models.sh
-    ```
+```bash
+# make executable
+chmod +x download_models.sh
+# run installer
+./download_models.sh
+```
 ---
 
 If you prefer to Download the models manually or in your own time here are the links:
