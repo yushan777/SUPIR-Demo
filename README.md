@@ -130,8 +130,9 @@ python3 run_supir.py \
 --control_scale_end=0.9 \
 --loading_half_params \
 --use_tile_vae
-
 ```
+
+### Arguments
 
 | **Argument** | **Description** |
 |--------------|-----------------|
