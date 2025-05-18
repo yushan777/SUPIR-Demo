@@ -24,26 +24,21 @@
 ```bash
 git clone https://github.com/yushan777/SUPIR.git
 cd SUPIR
+chmod +x *.sh # ignore this on Windows
 ```
 
 ## Install Environment (local Linux)
 
 ```bash
-# make executable
-chmod +x install_linux_local.sh
-# run installer
 ./install_linux_local.sh
 ```
 ## Install Environment (Vast.ai)
 ```bash
-chmod +x install_vastai.sh
 ./install_vastai.sh
 ```
     
 ## Download Models
 ```bash
-# make executable
-chmod +x download_models.sh
 # run installer
 ./download_models.sh
 ```
@@ -149,13 +144,13 @@ python3 run_supir.py \
 | `a_prompt` | Additional positive prompt (appended to input caption).<br>Default:<br>```Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.``` |
 | `n_prompt` | Negative prompt.<br>Default:<br>```painting, oil painting, illustration, drawing, art, sketch, cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth``` |
 | `edm_steps` | Number of diffusion steps. Default: `50` |
-| `s_churn` | Adds random noise to encourage variation. Default: `5`<br>`0`: No noise (deterministic)<br>`1–5`: Mild/moderate<br>`6–10+`: Strong |
-| `s_noise` | Scales churn noise strength. Default: `1.003`<br>Slightly < 1: More stable<br>Slightly > 1: More variation |
+| `s_churn` | controls how much extra randomness is added during the process. This helps the model explore more options and avoid getting stuck on a limited result. Default: `5`<br>`0`: No noise (deterministic)<br>`1–5`: Mild/moderate<br>`6–10+`: Strong |
+| `s_noise` | Scales s_churn noise strength. Default: `1.003`<br>Slightly < 1: More stable<br>Slightly > 1: More variation |
 | `cfg_scale_start` | Prompt guidance strength start.<br>Default: `2.0` |
 | `cfg_scale_end` | Prompt guidance strength end.<br>Default: `4`<br>`1.0`: Weak (ignores prompt)<br>`7.5`: Strong (follows prompt closely)<br>If `cfg_scale_start` and `cfg_scale_end` have the same value, no scaling occurs. When these values differ, linear scheduling is applied from start to end. They can also be reversed for creative strategies. |
 | `control_scale_start` | Structural guidance from input image, start strength. Default: `0.9` |
 | `control_scale_end` | Structural guidance from input image, end strength. Default: `0.9`<br>`0.0`: Disabled<br>`0.1–0.5`: Light<br>`0.6–1.0`: Balanced (default)<br>`1.1–1.5+`: Very strong<br>Same value = fixed. Different values = scheduled. |
-| `restoration_scale` | Early-stage restoration strength.<br>Works as an additional guidance mechanism beyond the control scale.<br>Targets fine details and textures.<br>Default: `-1` (disabled).<br>Typical values: `1–6` |
+| `restoration_scale` | Early-stage restoration strength. Controls how strongly the model pulls the structure of the output image back toward the original image. Only applies during the early stages of sampling when the noise level (sigma) is high.<br>Targets fine details and textures.<br>Default: `-1` (disabled).<br>Typical values: `1–6` |
 | `color_fix_type` | Color adjustment method. Default: `'Wavelet'`<br>Options: `['None', 'AdaIn', 'Wavelet']` |
 | `loading_half_params` | Loads the SUPIR model weights in half precision (FP16).<br>Default: `False`<br>Reduces VRAM usage and increases speed at the cost of slight precision loss. |
 | `diff_dtype` | Precision to use for the diffusion model only.<br>Allows overriding default precision independently, unless `loading_half_params` is set.<br>Default: `'fp16'`<br>Options: `['fp32', 'fp16', 'bf16']` |

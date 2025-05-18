@@ -847,22 +847,22 @@ def create_launch_gradio(listen_on_network, port=None):
                 | **Parameter** | **Description** |
                 |---------------|-----------------|
                 | `Load Model fp16` | Loads the SUPIR model weights in half precision (FP16). Reduces VRAM usage and increases speed at the cost of slight precision loss. |
-                | `Model Type` | - `Q model (Quality)`: <br>Moderate - heavy degradations. Robust for real-world damage, but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
+                | `Model Type` | - `Q model (Quality)`: <br>Optimized for moderate - heavy degradations. High generalization and high image quality in most cases, but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
                 | `Sampler Type` | - `RestoreEDMSampler`: Uses more VRAM. <br>- `TiledRestoreEDMSampler`: Uses less VRAM. |
-                | `AE dType` | Autoencoder precision. |
-                | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `--loading_half_params` is already set. |
+                | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
+                | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set. [`bf16`, `fp16`,`fp32`] |
                 | `Seed` | Fixed or random seed. |
-                | `Upscale` | Upsampling ratio for the input. The higher the scale factor, the slower the process. |
+                | `Upscale` | Upscale factor for the original input image. The higher the scale factor, the slower the process. |
                 | `Skip Denoise Stage` | Disables the VAE denoising step that softens low-quality images. Enable only if your input is already clean or high-resolution. |
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
                 | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
                 | `Steps` | Number of diffusion steps. Default: `50` |
-                | `S-Churn` | Adds random noise to encourage variation. Default: `5` <br>`0`: No noise (deterministic) <br>`1–5`: Mild/moderate <br>`6–10+`: Strong |
-                | `S-Noise` | Scales churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
+                | `S-Churn` | controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1–5`: Mild/moderate <br>`6–10+`: Strong |
+                | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
                 | `CFG Guidance Scale` | - `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. |
                 | `Control Guidance Scale` | - `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
-                | `Restoration Scale` | Early-stage restoration strength. <br>Works as an additional guidance mechanism to the control scale. <br>Specifically targets fine details and textures rather than overall structure. <br>When high, it will try to maintain the exact pixel-level details rather than just the general structure. <br>Default: `-1` (disabled). Typical values: `1–6` |
+                | `Restoration Scale` | Early-stage restoration strength. <br>Early-stage restoration strength. Controls how strongly the model pulls the structure of the output image back toward the original image. Only applies during the early stages of sampling when the noise level is high.<br>Default: `≤0` (disabled). Typical values: `>0 and ≤1.0` |
                 | `Sampler Tile Size` | Tile size for when using `TiledRestoreEDMSampler` sampler. |
                 | `Sampler Tile Stride` | Tile stride for when using `TiledRestoreEDMSampler` sampler. Controls how much tiles overlap during sampling. <br>A **smaller** tile_stride means **more** overlap between tiles, better blending, reduces seams, but increases computation. <br>A **larger** tile_stride means **less** overlap (or none), which is faster but may cause visible seams near tile boundaries. <br>`Overlap = tile_size - tile_stride` <br>`Greater overlap ⇨ smaller stride` <br>`Less overlap ⇨ larger stride` <br>Example: `tile_size` = 128 and `tile_stride` = 64 → 64px overlap. |
                 | `Additional Positive Prompt` | Additional positive prompt (appended to input caption). The default is taken from SUPIR's own demo code. |
@@ -980,7 +980,7 @@ def main():
     # Set model path to global SMOLVLM_MODEL_PATH
     # required by generate_caption_streaming() and generate_caption_non_streaming()
     global SMOLVLM_MODEL_PATH
-    SMOLVLM_MODEL_PATH = f"models/SmolVLM-Instruct"
+    SMOLVLM_MODEL_PATH = f"models/SmolVLM-256M-Instruct"
     
     
     # Check SMOLVLM MODEL FILES ARE OKAY
