@@ -496,23 +496,30 @@ def process_supir(
         output_dir = "output"
         os.makedirs(output_dir, exist_ok=True)
 
-        # Find existing gradio files in the output directory to determine the next index
-        existing_files = glob.glob(os.path.join(output_dir, "gradio_*.png"))
+        # Find existing gradio files that match the current model type
+        base_filename = f"gradio_{supir_model_type}"
+        existing_files = glob.glob(os.path.join(output_dir, f"{base_filename}_*.png"))
+        
+        # Find the highest index used
         max_index = -1
         for f in existing_files:
             try:
-                # Extract index from filename like "gradio_123.png"
-                index_str = f.replace("gradio_", "").replace(".png", "")
+                # Extract index from filename like "gradio_modeltype_0123.png"
+                filename = os.path.basename(f)
+                index_str = filename.replace(f"{base_filename}_", "").replace(".png", "")
                 index = int(index_str)
                 if index > max_index:
                     max_index = index
             except ValueError:
-                # Ignore files that don't match the pattern
+                # Ignore files that don't match the expected pattern
                 pass
-
+        
+        # Use the next available index, zero-padded to 4 digits
         next_index = max_index + 1
-        # Construct the full save path within the output directory
-        save_path = os.path.join(output_dir, f"gradio_{supir_model_type}_{next_index}.png")
+        padded_index = f"{next_index:04d}"  # This formats the number with leading zeros to 4 digits
+        
+        # Construct the full save path with the model type and padded index
+        save_path = os.path.join(output_dir, f"{base_filename}_{padded_index}.png")
         enhanced_image.save(save_path)
         print(f"Saved generated image to: {save_path}")
     except Exception as e:
@@ -596,8 +603,8 @@ def create_launch_gradio(listen_on_network, port=None):
                             width: 600px !important;
                             flex: none !important;
                         }
-                        .fixed-width-column-1200 {
-                            width: 1200px !important;
+                        .fixed-width-column-1216 {
+                            width: 1216px !important;
                             flex: none !important;
                         }                        
                         .taller-row1 {
@@ -807,7 +814,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                 control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale End")
 
                         with gr.Row():
-                            restoration_scale = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Restoration Scale(≤0 = Disabled)")
+                            restoration_scale = gr.Slider(minimum=0, maximum=4.0, value=0, step=0.5, label="Restoration Scale(≤0 = Disabled)", info="Still a mystery, keep disabled unless image is very damaged")
                         
                         
 
@@ -819,7 +826,7 @@ def create_launch_gradio(listen_on_network, port=None):
 
 
                 with gr.Row():
-                    with gr.Column(elem_classes=["fixed-width-column-1200"]):
+                    with gr.Column(elem_classes=["fixed-width-column-1216"]):
                         with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
                             with gr.Row():
                                 a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
@@ -860,9 +867,9 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Steps` | Number of diffusion steps. Default: `50` |
                 | `S-Churn` | Controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1-5`: Mild/moderate <br>`6-10+`: Strong |
                 | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
-                | `CFG Guidance Scale` | - `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. |
-                | `Control Guidance Scale` | - `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
-                | `Restoration Scale` | Early-stage restoration strength. <br>Early-stage restoration strength. Controls how strongly the model pulls the structure of the output image back toward the original image. Only applies during the early stages of sampling when the noise level is high.<br>Default: `≤0` (disabled). Typical values: `>0 and ≤1.0` |
+                | `CFG Guidance Scale` | Guides how much to adhere to the prompt and conditioning<br>- `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. |
+                | `Control Guidance Scale` | Guides how strongly the overall structure of the input image is preserved<br>- `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
+                | `Restoration Scale` | Early-stage restoration strength. <br>Controls how strongly the model pulls the structure of the output image back toward the original image. Only applies during the early stages of sampling when the noise level is high.<br>Default: `≤0` (disabled). |
                 | `Sampler Tile Size` | Tile size for when using `TiledRestoreEDMSampler` sampler. |
                 | `Sampler Tile Stride` | Tile stride for when using `TiledRestoreEDMSampler` sampler. Controls how much tiles overlap during sampling. <br>A **smaller** tile_stride means **more** overlap between tiles, better blending, reduces seams, but increases computation. <br>A **larger** tile_stride means **less** overlap (or none), which is faster but may cause visible seams near tile boundaries. <br>`Overlap = tile_size - tile_stride` <br>`Greater overlap ⇨ smaller stride` <br>`Less overlap ⇨ larger stride` <br>Example: `tile_size` = 128 and `tile_stride` = 64 → 64px overlap. |
                 | `Additional Positive Prompt` | Additional positive prompt (appended to input caption). The default is taken from SUPIR's own demo code. |
@@ -877,7 +884,7 @@ def create_launch_gradio(listen_on_network, port=None):
             # ==============================================================================================
             with gr.TabItem("3. Results"):
                 with gr.Row():
-                    with gr.Column(elem_classes=["fixed-width-column-1200"]):
+                    with gr.Column(elem_classes=["fixed-width-column-1216"]):
         
                         # Output component - Native ImageSlider
                         output_slider = gr.ImageSlider(
