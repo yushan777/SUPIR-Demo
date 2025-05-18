@@ -92,22 +92,26 @@ In contrast, the v0F model (Fidelity) is specifically trained on lighter degrada
     ```
 ---
 
-## ⚡ Quick Inference
-### Val Dataset
-RealPhoto60: [Baidu Netdisk](https://pan.baidu.com/s/1CJKsPGtyfs8QEVCQ97voBA?pwd=aocg), [Google Drive](https://drive.google.com/drive/folders/1yELzm5SvAi9e7kPcO_jPp2XkTs4vK6aR?usp=sharing)
 
-### Usage
+### Gradio Demo
+```bash
+source venv/bin/activate
+python3 run_supir_gradio.py
+
+# or you can start it with the bash script (contains the above two commands)
+chmod +x launch_gradio.sh
+./launch_gradio.sh
+```
+
+
+### CLI Usage
 
 ```bash
-# for gradio test
-python3 run_supir_gradio.py --listen
-
 # for cli test
-python3 run_supir.py [options]
 python3 run_supir.py --img_path 'input/bottle.png' --save_dir ./output --SUPIR_sign Q --upscale 2 --use_tile_vae --loading_half_params
 
 python3 run_supir.py \
---img_path 'input/woman-low-res.jpg' \
+--img_path 'input/woman-low-res-sq.jpg' \
 --save_dir ./output \
 --SUPIR_sign Q \
 --upscale 2 \

@@ -549,7 +549,7 @@ def process_edited_caption(additional_text):
 # GRADIO UI SHIT
 # ====================================================================
 # ====================================================================
-def create_launch_gradio(use_stream, listen_on_network, port=None):
+def create_launch_gradio(listen_on_network, port=None):
 
     # Create custom theme (unchanged from your original code)
     custom_theme = gr.themes.Base(
@@ -574,8 +574,8 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
         input_border_color="#e5e7eb",
     )
 
-    model_name = os.path.basename(SMOLVLM_MODEL_PATH)
-    mode = "Streaming" if use_stream else "Non-streaming"
+    # model_name = os.path.basename(SMOLVLM_MODEL_PATH)
+    # mode = "Streaming"
 
     # Create Gradio interface
     with gr.Blocks(title="Image Captioner", theme=custom_theme,  
@@ -640,7 +640,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
                                                                                                                        
                     """) as demo:   
         
-        gr.Markdown("## SUPIR Enhancer/Detailer/Upscaler (kinda) - (With SmolVLM)")    
+        gr.Markdown("## SUPIR Enhancer/Detailer/Upscaler")    
         # gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
         
 
@@ -649,7 +649,7 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
             # ==============================================================================================
             # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
-            with gr.TabItem("1. Input Image / Caption"):
+            with gr.TabItem("1. Input Image / SmolVLM Captioner"):
                 gr.Markdown("Upload image and generate a caption or write your own (optional).")
                 
                 with gr.Row():
@@ -892,15 +892,15 @@ def create_launch_gradio(use_stream, listen_on_network, port=None):
 
         # Choose the appropriate generate function based on the argument 'use_stream'
         # and assign to function reference 'generate_function'  
-        if use_stream:
-            generate_function = generate_caption_streaming 
-        else:
-            generate_function = generate_caption_non_streaming
+        # if use_stream:
+        # generate_function = generate_caption_streaming 
+        # else:
+        #     generate_function = generate_caption_non_streaming
 
         # ==============================================================================================
         # Tab 1 Event Handler(s)
         # ==============================================================================================        
-        submit_btn.click(fn=generate_function,
+        submit_btn.click(fn=generate_caption_streaming,
                         inputs=[
                             input_image,
                             caption_style,
@@ -973,7 +973,6 @@ def main():
 
     # Parse CLI arguments (can be passed manually as `argv` for testing)
     parser = argparse.ArgumentParser(description="Run SmolVLM with Gradio")
-    parser.add_argument("--use_stream", action="store_true", help="Use streaming mode for text generation")
     parser.add_argument("--listen", action="store_true", help="Launch Gradio with server_name='0.0.0.0' to listen on all interfaces")
     parser.add_argument("--port", type=int, default=7860, help="Port to run the Gradio on (default: 7860)")
     args = parser.parse_args()
@@ -1018,7 +1017,7 @@ def main():
         print("Please download your preferred sdxl model and try again.", color.MAGENTA)
     
     # Attach to Gradio (if needed)
-    create_launch_gradio(args.use_stream, args.listen, args.port)
+    create_launch_gradio(args.listen, args.port)
 
 # Launch the Gradio app
 if __name__ == "__main__":
