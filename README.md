@@ -16,10 +16,10 @@
 ## 🔧 Dependencies and Installation
 
 ## Clone repo
-    ```
-    git clone https://github.com/yushan777/SUPIR.git
-    cd SUPIR
-    ```
+
+git clone https://github.com/yushan777/SUPIR.git
+cd SUPIR
+
 
 ## Install Environment (local)
 
