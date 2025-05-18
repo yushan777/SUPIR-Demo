@@ -46,7 +46,8 @@ chmod +x download_models.sh
 
 If you prefer to Download the models manually or in your own time here are the links:
 
-#### SmolVLM-Instruct (For captioning input image in the Gradio demo)
+#### SmolVLM-Instruct 
+For captioning input image in the Gradio demo.
 * [`SmolVLM-Instruct`](https://huggingface.co/yushan777/SmolVLM-Instruct/tree/main)
 Place all files into `models/SmolVLM-Instruct`
 
