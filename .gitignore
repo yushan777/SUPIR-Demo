@@ -161,9 +161,11 @@ cython_debug/
 
 # macOS
 .DS_Store
+
 *.safetensors
 *.ckpt
 /output
+models/SmolVLM-256M-Instruct
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
 .*
