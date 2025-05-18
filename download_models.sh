@@ -34,8 +34,8 @@ echo "Downloading models from $REPO_NAME..."
 huggingface-cli download $REPO_NAME SUPIR/SUPIR-v0Q_fp16.safetensors --local-dir downloads
 huggingface-cli download $REPO_NAME SUPIR/SUPIR-v0F_fp16.safetensors --local-dir downloads
 huggingface-cli download $REPO_NAME SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors --local-dir downloads
-huggingface-cli download $REPO_NAME CLIP1/clip-vit-large-patch14/safetensors/clip-vit-large-patch14.safetensors --local-dir downloads
-huggingface-cli download $REPO_NAME CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k/safetensors/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors --local-dir downloads
+huggingface-cli download $REPO_NAME CLIP1/clip-vit-large-patch14.safetensors --local-dir downloads
+huggingface-cli download $REPO_NAME CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors --local-dir downloads
 
 # Move the models
 echo "Moving downloaded models to their respective directories..."
