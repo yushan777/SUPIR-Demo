@@ -16,27 +16,27 @@
 ## 🔧 Dependencies and Installation
 
 ## Clone repo
-    ```bash
+    ```
     git clone https://github.com/yushan777/SUPIR.git
     cd SUPIR
     ```
 
 ## Install Environment (local)
 
-    ```bash
+    ```
     # make executable
     chmod +x install_linux_local.sh
     # run installer
     ./install_linux_local.sh
     ```
 ## Install Environment (Vast.ai)
-    ```bash
+    ```
     chmod +x install_vastai.sh
     ./install_vastai.sh
     ```
     
 ## Download Models
-    ```bash
+    ```
     # make executable
     chmod +x download_models.sh
     # run installer
