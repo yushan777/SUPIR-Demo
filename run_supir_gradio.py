@@ -807,7 +807,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                 control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale End")
 
                         with gr.Row():
-                            restoration_scale = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Restoration Scale(-1=Off)")
+                            restoration_scale = gr.Slider(minimum=-1, maximum=10, value=-1, step=1, label="Restoration Scale(≤0 = Disabled)")
                         
                         
 
