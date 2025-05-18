@@ -130,8 +130,9 @@ python3 run_supir.py \
 --loading_half_params \
 --use_tile_vae
 
-```
+### Arguments
 
+```
 | **Argument** | **Description** |
 |--------------|-----------------|
 | `--img_path` | Path to the input image. **(required)** |
