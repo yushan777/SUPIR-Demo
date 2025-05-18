@@ -31,7 +31,7 @@ timm==1.0.15
 tokenizers==0.21.1
 tqdm==4.67.1
 transformers==4.51.3
-triton==3.3.0
+triton==3.2.0
 urllib3==2.4.0
 uvicorn==0.34.2
 wandb==0.19.10
