@@ -50,7 +50,7 @@ install_win_local.bat
 ./download_models.sh
 
 # Windows
-./download_models.bat
+download_models.bat
 ```
 
 ---
