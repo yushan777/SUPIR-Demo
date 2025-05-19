@@ -204,12 +204,14 @@ class SUPIRModel(DiffusionEngine):
         seed_everything(seed)
 
         # ==============================================================
-        # use VAE to denoise upscaled input image. 
-        # softens image to smooth out any compression artefacts so they don't become ehnanced as details.
         # first check if option to skip it has been set or not.
         # if not....
         if not skip_denoise_stage:          
             # denoise the image
+            # Apply intelligent artifact removal using specialized VAE denoise encoder
+            # This learned process identifies and removes compression artifacts and noise
+            # while preserving important image details, preventing the main model from 
+            # mistakenly enhancing these artifacts as legitimate features
             _z = self.encode_first_stage_with_denoise(img, use_sample=False)
             x_stage1 = self.decode_first_stage(_z)  # this is the decoded denoised image in pixel space.              
             z_stage1 = self.encode_first_stage(x_stage1)

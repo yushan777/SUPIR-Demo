@@ -12,4 +12,4 @@ REM Optional: Install newer PyTorch version (commented out)
 REM pip install torch==2.7.0+cu126 torchvision==0.22.0+cu126 torchaudio==2.7.0+cu126 --extra-index-url https://download.pytorch.org/whl/cu126
 
 REM Install other requirements
-pip install -r requirements.txt
+pip install -r requirements_win.txt

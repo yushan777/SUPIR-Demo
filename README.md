@@ -12,7 +12,7 @@
   - `s_cfg` -> `cfg_scale_end`
   - `spt_linear_s_stage2` -> `control_scale_start`
   - `s_stage2` -> `control_scale_end`
-- Added `--skip_denoise_stage` argument to skip the initial denoising stage that softens the input image to smooth out image or compression artefacts. You might want to do this if your image is already high quality. 
+- Added `--skip_denoise_stage` argument to bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened (before sampling stage) since you do not want artifacts to be considered detail to be enhanced. You might want to skip this step if your image is already high quality. 
 - Refactor: Renamed symbol `upsacle` in original code to `upscale`
 - Moved CLIP paths to a yaml config file. 
 - Exposed `sampler_tile_size` and `sampler_tile_stride` to make them overridable when using `TiledRestoreEDMSampler`
@@ -134,7 +134,7 @@ python3 run_supir.py \
 | `img_path` | Path to the input image. **(required)** |
 | `save_dir` | Directory to save the output. |
 | `SUPIR_sign` | Model type. Options: `['F', 'Q']`<br>Default: `'Q'`<br>Q model (Quality) Trained on diverse, heavy degradations, making it robust for real-world damage. However, it may overcorrect or hallucinate when used on lightly degraded images due to its bias toward severe restoration.<br>F model (Fidelity) Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks where subtle restoration is preferred over aggressive enhancement. |
-| `skip_denoise_stage` | Skips the VAE Denoiser Stage. Default: `'False'`<br>The denoise stage softens the input image to smooth out artefacts that is typical of low quality or low resolution images in order to prevent SUPIR from processing them as details. If your input image is already of high quality then you can enable this. |
+| `skip_denoise_stage` | Skips the VAE Denoiser Stage. Default: `'False'`<br> bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened (if you inspected it at this stage) since you do not want artifacts to be considered detail to be enhanced. You might want to skip this step if your image is already high quality. |
 | `sampler_mode` | Sampler choice. Options: `['TiledRestoreEDMSampler', 'RestoreEDMSampler']`<br>Default: `'TiledRestoreEDMSampler' (uses less VRAM)` |
 | `seed` | Random seed for reproducibility. Default: `1234` |
 | `upscale` | Upsampling ratio for the input.<br>The higher the scale factor, the slower the process.<br>Default: `2` |
