@@ -19,10 +19,10 @@ REM echo Please note: You'll need to be logged in to download these models.
 REM echo If not logged in already, uncomment and use the following line with your token:
 REM echo huggingface-cli login --token YOUR_HF_TOKEN
 
-set REPO_NAME=yushan777/SmolVLM-256M-Instruct
+set REPO_NAME=yushan777/SmolVLM-500M-Instruct
 
 REM Download models
-huggingface-cli download %REPO_NAME% --local-dir "models\SmolVLM-256M-Instruct"
+huggingface-cli download %REPO_NAME% --local-dir "models\SmolVLM-500M-Instruct"
 
 
 REM set REPO_NAME=yushan777/SUPIR

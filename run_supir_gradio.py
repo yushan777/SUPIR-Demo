@@ -30,9 +30,9 @@ TEMP = 0.4
 
 # Define caption style prompts
 STYLE_PROMPTS = {
-    "Brief and concise": "Caption this image with a short and concise description of the subject.",
-    "Moderately detailed": "Caption this image with a moderately detailed description of the subject and environment.",
-    "Highly detailed": "Caption this image with a highly detailed and lengthy description of the subject and environment."
+    "Brief and concise": "Generate a short and concise caption of this image, suitable for use as an image-generation prompt. Describe the subject, environment, lighting, mood, and style",
+    "Moderately detailed": "Generate a moderately detailed and descriptive caption of this image, suitable for use as an image-generation prompt. Describe the subject, environment, lighting, mood, and style",
+    "Highly detailed": "Generate a highly detailed and descriptive caption of this image, suitable for use as an image-generation prompt. Describe the subject, environment, lighting, mood, and style."
 }
 
 # path to smolvlm model (global)
@@ -67,6 +67,7 @@ default_negative_prompt = 'painting, oil painting, illustration, drawing, art, s
 
 # list of just the keys for gradio dropdown
 CAPTION_STYLE_OPTIONS = list(STYLE_PROMPTS.keys())
+
 
 # ====================================================================
 def get_device():
@@ -521,7 +522,11 @@ def process_supir(
         # Construct the full save path with the model type and padded index
         save_path = os.path.join(output_dir, f"{base_filename}_{padded_index}.png")
         enhanced_image.save(save_path)
-        print(f"Saved generated image to: {save_path}")
+        print(f"Saved SUPIR'd image to: {save_path}")
+
+
+
+
     except Exception as e:
         print(f"Error saving image: {e}")
     # --- End saving logic ---
@@ -550,6 +555,9 @@ def process_supir(
 # ====================================================================
 def process_edited_caption(additional_text):
     print(additional_text)
+
+
+
 
 # ====================================================================
 # ====================================================================
@@ -810,8 +818,8 @@ def create_launch_gradio(listen_on_network, port=None):
                         with gr.Group():
                             gr.Markdown("Control Guidance")                            
                             with gr.Row():
-                                control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale Start")
-                                control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.1, label="Control Scale End")
+                                control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.05, label="Control Scale Start")
+                                control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.05, label="Control Scale End")
 
                         with gr.Row():
                             restoration_scale = gr.Slider(minimum=0, maximum=4.0, value=0, step=0.5, label="Restoration Scale(≤0 = Disabled)", info="Still a mystery, keep disabled unless image is very damaged")
@@ -869,7 +877,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
                 | `CFG Guidance Scale` | Guides how much to adhere to the prompt and conditioning<br>- `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. |
                 | `Control Guidance Scale` | Guides how strongly the overall structure of the input image is preserved<br>- `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
-                | `Restoration Scale` | Early-stage restoration strength. <br>Controls how strongly the model pulls the structure of the output image back toward the original image. Only applies during the early stages of sampling when the noise level is high.<br>Default: `≤0` (disabled). |
+                | `Restoration Scale` | Early-stage restoration strength. <br>Controls how strongly the model pulls the structure of the output image back toward the original image. <br>Only applies during the early stages of sampling when the noise level is high.<br>Default: `≤0` (disabled). |
                 | `Sampler Tile Size` | Tile size for when using `TiledRestoreEDMSampler` sampler. |
                 | `Sampler Tile Stride` | Tile stride for when using `TiledRestoreEDMSampler` sampler. Controls how much tiles overlap during sampling. <br>A **smaller** tile_stride means **more** overlap between tiles, better blending, reduces seams, but increases computation. <br>A **larger** tile_stride means **less** overlap (or none), which is faster but may cause visible seams near tile boundaries. <br>`Overlap = tile_size - tile_stride` <br>`Greater overlap ⇨ smaller stride` <br>`Less overlap ⇨ larger stride` <br>Example: `tile_size` = 128 and `tile_stride` = 64 → 64px overlap. |
                 | `Additional Positive Prompt` | Additional positive prompt (appended to input caption). The default is taken from SUPIR's own demo code. |
@@ -893,9 +901,10 @@ def create_launch_gradio(listen_on_network, port=None):
                             height=900, # height of container
                             max_height=900, # max height of image
                             container=True,
+                            interactive=False,
                             slider_position=50  # Default position at 50%
                         )
-                                   
+
 
         # Choose the appropriate generate function based on the argument 'use_stream'
         # and assign to function reference 'generate_function'  
@@ -903,6 +912,7 @@ def create_launch_gradio(listen_on_network, port=None):
         # generate_function = generate_caption_streaming 
         # else:
         #     generate_function = generate_caption_non_streaming
+
 
         # ==============================================================================================
         # Tab 1 Event Handler(s)
@@ -958,8 +968,16 @@ def create_launch_gradio(listen_on_network, port=None):
             outputs=[output_slider, status_message] 
         )
         
-        def export_function(text):
-            return "Export functionality would save: " + text
+        # ==============================================================================================
+        # Tab 3 Event Handlers
+        # ==============================================================================================
+        
+
+
+
+
+        # def export_function(text):
+        #     return "Export functionality would save: " + text
             
 
 
@@ -987,7 +1005,7 @@ def main():
     # Set model path to global SMOLVLM_MODEL_PATH
     # required by generate_caption_streaming() and generate_caption_non_streaming()
     global SMOLVLM_MODEL_PATH
-    SMOLVLM_MODEL_PATH = f"models/SmolVLM-256M-Instruct"
+    SMOLVLM_MODEL_PATH = f"models/SmolVLM-500M-Instruct"
     
     
     # Check SMOLVLM MODEL FILES ARE OKAY

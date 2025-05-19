@@ -311,6 +311,9 @@ if __name__ == '__main__':
 
     SDXL_CKPT = '/opt/data/private/AIGC_pretrain/SDXL_cache/sd_xl_base_1.0_0.9vae.safetensors'
     SUPIR_CKPT = '/opt/data/private/AIGC_pretrain/SUPIR_cache/SUPIR-paper.ckpt'
+
+    print(f"SDXL_CKPT = {SDXL_CKPT}", color.RED)
+
     model.load_state_dict(load_state_dict(SDXL_CKPT), strict=False)
     model.load_state_dict(load_state_dict(SUPIR_CKPT), strict=False)
     model = model.cuda()
