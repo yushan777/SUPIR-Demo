@@ -17,6 +17,9 @@
 - Moved CLIP paths to a yaml config file. 
 - Exposed `sampler_tile_size` and `sampler_tile_stride` to make them overridable when using `TiledRestoreEDMSampler`
 
+
+### Tested on Linux Mint, WSL, and Windows 11.  It seems to run faster under Linux. 
+
 ---
 ## 🔧 Dependencies and Installation
 
@@ -24,23 +27,32 @@
 ```bash
 git clone https://github.com/yushan777/SUPIR.git
 cd SUPIR
-chmod +x *.sh # ignore this on Windows
+chmod +x *.sh
 ```
-
 ## Install Environment (local Linux)
 
 ```bash
 ./install_linux_local.sh
 ```
-## Install Environment (Vast.ai)
+
+## Install Environment (Windows)
+```cmd
+install_win_local.bat
+```
+
+## Install Environment (Vast.ai Linux)
 ```bash
 ./install_vastai.sh
 ```
-    
-## Download Models
+
+## Download Models (Linux)
 ```bash
-# run installer
 ./download_models.sh
+```
+
+## Download Models (Windows)
+```cmd
+./download_models.bat
 ```
 ---
 
