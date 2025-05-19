@@ -27,33 +27,32 @@
 ```bash
 git clone https://github.com/yushan777/SUPIR.git
 cd SUPIR
+
+# For Linux only
 chmod +x *.sh
 ```
-### Install Environment (Linux)
-
+### Install Environment 
 ```bash
+# Linux
 ./install_linux_local.sh
-```
 
-### Install Environment (Windows)
-```cmd
+# Linux (Vast.ai)
+./install_vastai.sh
+
+# Windows
 install_win_local.bat
 ```
 
-### Install Environment (Vast.ai Linux)
-```bash
-./install_vastai.sh
-```
+### Download Models 
 
-### Download Models (Linux)
 ```bash
+# Linux
 ./download_models.sh
-```
 
-### Download Models (Windows)
-```cmd
+# Windows
 ./download_models.bat
 ```
+
 ---
 
 If you prefer to Download the models manually or in your own time here are the links:
