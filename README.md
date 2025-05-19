@@ -66,11 +66,13 @@ Place all files into `models/SmolVLM-256M-Instruct`
 
 Unless you have more than 24GB of VRAM, you should download the FP16 variants
 **FP16 Versions**
+
 * [`SUPIR-v0Q (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp16.safetensors)
 * [`SUPIR-v0F (FP16)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp16.safetensors)  
 Download and place the model files in the `models/SUPIR/` directory.
 
 **FP32 Versions**
+
 * [`SUPIR-v0Q (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0Q_fp32.safetensors)
 * [`SUPIR-v0F (FP32)`](https://huggingface.co/yushan777/SUPIR/resolve/main/SUPIR/SUPIR-v0F_fp32.safetensors)  
 Download and place the model files in the `models/SUPIR/` directory.
@@ -84,7 +86,7 @@ Download and place the model files in the `models/SUPIR/` directory.
 #### SDXL Model
 * [Juggernaut-XL_v9_RunDiffusionPhoto_v2](https://huggingface.co/yushan777/SUPIR/resolve/main/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors)  
   Place in `models/SDXL`  
-  You can use your own preferred SDXL Model.  One that specialized in realism, photographic will work better. 
+  You can use your own preferred SDXL Model.  One that specialises in realism, photographic will work better. 
 
 
 There are two SUPIR model variants: v0Q and v0F. 
