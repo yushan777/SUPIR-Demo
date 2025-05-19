@@ -20,7 +20,7 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 # ================================================
 # DEFAULT PARAM VALUESS
-MAX_NEW_TOKENS = 512
+MAX_NEW_TOKENS = 256
 REP_PENALTY = 1.2
 
 # TOP P SAMPLING VALUES
