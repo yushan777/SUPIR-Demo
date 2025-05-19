@@ -58,10 +58,10 @@ install_win_local.bat
 
 If you prefer to Download the models manually or in your own time here are the links:
 
-#### SmolVLM-Instruct 
+#### SmolVLM-256M-Instruct 
 For captioning input image in the Gradio demo.
-* [`SmolVLM-Instruct`](https://huggingface.co/yushan777/SmolVLM-Instruct/tree/main)
-Place all files into `models/SmolVLM-Instruct`
+* [`SmolVLM-256M-Instruct`](https://huggingface.co/yushan777/SmolVLM-256M-Instruct/tree/main)
+Place all files into `models/SmolVLM-256M-Instruct`
 
 #### SUPIR Models
 
