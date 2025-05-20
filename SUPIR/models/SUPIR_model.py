@@ -10,7 +10,12 @@ from torch.nn.functional import interpolate
 from SUPIR.utils.tilevae import VAEHook
 from Y7.colored_print import color, style
 from pathlib import Path
-import inspect 
+import inspect
+from time import time
+import gc
+import torch
+import SUPIR.utils.devices as devices
+
 
 """
 
@@ -140,10 +145,11 @@ class SUPIRModel(DiffusionEngine):
         x = self.encode_first_stage_with_denoise(x, use_sample=False, is_stage1=is_stage1)
         return self.decode_first_stage(x)
 
-    # ========================================================================================
+    # ================================================================
+    
     @torch.no_grad()
-    def batchify_sample(self, img, prompt, 
-                        p_p='default', 
+    def batchify_sample(self, img, prompt,
+                        p_p='default',
                         n_p='default', 
                         num_steps=50, 
                         restoration_scale=-1, 
