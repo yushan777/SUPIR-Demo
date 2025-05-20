@@ -11,8 +11,8 @@ pip install -q hf_transfer
 
 # Base directory for all models
 BASE_DIR="models"
-DOWNLOAD_TEMP="downloads"
-mkdir -p "$BASE_DIR" "$DOWNLOAD_TEMP"
+DOWNLOADS_DIR="downloads"
+mkdir -p "$BASE_DIR" "$DOWNLOADS_DIR"
 
 
 # ===========================================
@@ -32,10 +32,10 @@ download_model() {
         echo "File already exists: $target_file"
     else
         echo "Downloading: $file_path to $target_dir"
-        huggingface-cli download "$repo" "$file_path" --local-dir "$DOWNLOAD_TEMP"
+        huggingface-cli download "$repo" "$file_path" --local-dir "$DOWNLOADS_DIR"
         # Move from temp download location to final location
         mkdir -p "$(dirname "$target_dir/$filename")"
-        mv "$DOWNLOAD_TEMP/$file_path" "$target_dir/$filename"
+        mv "$DOWNLOADS_DIR/$file_path" "$target_dir/$filename"
     fi
 }
 
@@ -73,8 +73,8 @@ download_model "$REPO_NAME" "CLIP1/clip-vit-large-patch14.safetensors" "$BASE_DI
 download_model "$REPO_NAME" "CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors" "$BASE_DIR/CLIP2"
 
 # Clean up temp directory if it's empty
-if [ -z "$(ls -A "$DOWNLOAD_TEMP" 2>/dev/null)" ]; then
-    rmdir "$DOWNLOAD_TEMP"
+if [ -z "$(ls -A "$DOWNLOADS_DIR" 2>/dev/null)" ]; then
+    rmdir "$DOWNLOADS_DIR"
 fi
 
 echo "All models checked/downloaded successfully!"
