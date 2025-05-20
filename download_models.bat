@@ -13,53 +13,6 @@ set DOWNLOADS_DIR=downloads_temp
 if not exist "%BASE_DIR%" mkdir "%BASE_DIR%"
 if not exist "%DOWNLOADS_DIR%" mkdir "%DOWNLOADS_DIR%"
 
-goto :main
-
-@REM ============================================================
-:download_model
-    set repo=%~1
-    set file_path=%~2
-    set target_dir=%~3
-    
-    for %%F in ("%file_path%") do set filename=%%~nxF
-    set target_file=%target_dir%\%filename%
-    
-    :: Create target directory if it doesn't exist
-    if not exist "%target_dir%" mkdir "%target_dir%"
-    
-    if exist "%target_file%" (
-        echo File already exists: %target_file%
-    ) else (
-        echo Downloading: %file_path% to %target_dir%
-        huggingface-cli download "%repo%" "%file_path%" --local-dir "%DOWNLOADS_DIR%"
-        
-        :: Create all parent directories for the target file
-        for %%F in ("%target_dir%\%filename%") do if not exist "%%~dpF" mkdir "%%~dpF"
-        
-        :: Debug output to see what's happening
-        echo Source: %DOWNLOADS_DIR%\%file_path%
-        echo Target: %target_dir%\%filename%
-        
-        :: Check if source file exists
-        if exist "%DOWNLOADS_DIR%\%file_path%" (
-            move "%DOWNLOADS_DIR%\%file_path%" "%target_dir%\%filename%"
-        ) else (
-            echo WARNING: Source file does not exist: %DOWNLOADS_DIR%\%file_path%
-            
-            :: Try to find the file in a different location
-            for /r "%DOWNLOADS_DIR%" %%G in (*%filename%) do (
-                echo Found file: %%G
-                move "%%G" "%target_dir%\%filename%"
-                goto :found_file
-            )
-            echo ERROR: Could not find downloaded file %filename%
-            :found_file
-        )
-    )
-    goto :eof
-
-@REM ============================================================
-:main
 :: Ask user about enabling high-speed transfers
 set /p enable=Enable high-speed transfers? Better for fast connections (y/n): 
 
@@ -88,11 +41,111 @@ if not errorlevel 1 (
 :: SUPIR models - individual files
 set REPO_NAME=yushan777/SUPIR
 echo Checking SUPIR models...
-call :download_model "%REPO_NAME%" "SUPIR/SUPIR-v0Q_fp16.safetensors" "%BASE_DIR%\SUPIR"
-call :download_model "%REPO_NAME%" "SUPIR/SUPIR-v0F_fp16.safetensors" "%BASE_DIR%\SUPIR"
-call :download_model "%REPO_NAME%" "SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors" "%BASE_DIR%\SDXL"
-call :download_model "%REPO_NAME%" "CLIP1/clip-vit-large-patch14.safetensors" "%BASE_DIR%\CLIP1"
-call :download_model "%REPO_NAME%" "CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors" "%BASE_DIR%\CLIP2"
+
+:: Download SUPIR-v0Q_fp16.safetensors
+set FILE_PATH=SUPIR/SUPIR-v0Q_fp16.safetensors
+set TARGET_DIR=%BASE_DIR%\SUPIR
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
+if exist "%TARGET_DIR%\%FILENAME%" (
+    echo File already exists: %TARGET_DIR%\%FILENAME%
+) else (
+    echo Downloading: %FILE_PATH% to %TARGET_DIR%
+    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
+    echo Attempting to move file...
+    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
+    if not exist "%TARGET_DIR%\%FILENAME%" (
+        echo Searching for file...
+        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+            echo Found: %%G
+            move "%%G" "%TARGET_DIR%\%FILENAME%"
+        )
+    )
+)
+
+:: Download SUPIR-v0F_fp16.safetensors
+set FILE_PATH=SUPIR/SUPIR-v0F_fp16.safetensors
+set TARGET_DIR=%BASE_DIR%\SUPIR
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
+if exist "%TARGET_DIR%\%FILENAME%" (
+    echo File already exists: %TARGET_DIR%\%FILENAME%
+) else (
+    echo Downloading: %FILE_PATH% to %TARGET_DIR%
+    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
+    echo Attempting to move file...
+    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
+    if not exist "%TARGET_DIR%\%FILENAME%" (
+        echo Searching for file...
+        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+            echo Found: %%G
+            move "%%G" "%TARGET_DIR%\%FILENAME%"
+        )
+    )
+)
+
+:: Download juggernautXL_v9Rundiffusionphoto2.safetensors
+set FILE_PATH=SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors
+set TARGET_DIR=%BASE_DIR%\SDXL
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
+if exist "%TARGET_DIR%\%FILENAME%" (
+    echo File already exists: %TARGET_DIR%\%FILENAME%
+) else (
+    echo Downloading: %FILE_PATH% to %TARGET_DIR%
+    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
+    echo Attempting to move file...
+    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
+    if not exist "%TARGET_DIR%\%FILENAME%" (
+        echo Searching for file...
+        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+            echo Found: %%G
+            move "%%G" "%TARGET_DIR%\%FILENAME%"
+        )
+    )
+)
+
+:: Download clip-vit-large-patch14.safetensors
+set FILE_PATH=CLIP1/clip-vit-large-patch14.safetensors
+set TARGET_DIR=%BASE_DIR%\CLIP1
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
+if exist "%TARGET_DIR%\%FILENAME%" (
+    echo File already exists: %TARGET_DIR%\%FILENAME%
+) else (
+    echo Downloading: %FILE_PATH% to %TARGET_DIR%
+    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
+    echo Attempting to move file...
+    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
+    if not exist "%TARGET_DIR%\%FILENAME%" (
+        echo Searching for file...
+        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+            echo Found: %%G
+            move "%%G" "%TARGET_DIR%\%FILENAME%"
+        )
+    )
+)
+
+:: Download CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors
+set FILE_PATH=CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors
+set TARGET_DIR=%BASE_DIR%\CLIP2
+if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
+if exist "%TARGET_DIR%\%FILENAME%" (
+    echo File already exists: %TARGET_DIR%\%FILENAME%
+) else (
+    echo Downloading: %FILE_PATH% to %TARGET_DIR%
+    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
+    echo Attempting to move file...
+    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
+    if not exist "%TARGET_DIR%\%FILENAME%" (
+        echo Searching for file...
+        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+            echo Found: %%G
+            move "%%G" "%TARGET_DIR%\%FILENAME%"
+        )
+    )
+)
 
 :: Clean up temp directory if it's empty
 dir /a-d "%DOWNLOADS_DIR%\*.*" >nul 2>&1
