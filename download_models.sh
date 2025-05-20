@@ -54,14 +54,41 @@ fi
 REPO_NAME="yushan777/SmolVLM-500M-Instruct"
 TARGET_DIR="$BASE_DIR/SmolVLM-500M-Instruct"
 
-# Check if entire SmolVLM directory exists and has files
-if [ -d "$TARGET_DIR" ] && [ "$(ls -A "$TARGET_DIR" 2>/dev/null)" ]; then
-    echo "✓ SmolVLM-500M-Instruct model already exists in $TARGET_DIR"
+# Required files for SmolVLM
+REQUIRED_FILES=(
+  "added_tokens.json"
+  "chat_template.json"
+  "config.json"
+  "generation_config.json"
+  "merges.txt"
+  "model.safetensors"
+  "preprocessor_config.json"
+  "processor_config.json"
+  "special_tokens_map.json"
+  "tokenizer.json"
+  "tokenizer_config.json"
+  "vocab.json"
+)
+
+# Check if all required SmolVLM files exist
+all_files_exist=true
+for file in "${REQUIRED_FILES[@]}"; do
+  if [ ! -f "$TARGET_DIR/$file" ]; then
+    all_files_exist=false
+    echo "Missing required file: $file"
+    break
+  fi
+done
+
+if [ "$all_files_exist" = true ]; then
+    echo "✓ SmolVLM-500M-Instruct model already exists with all required files in $TARGET_DIR"
 else
     echo "↓ Downloading complete SmolVLM-500M-Instruct repository..."
     mkdir -p "$TARGET_DIR"
     huggingface-cli download $REPO_NAME --local-dir "$TARGET_DIR"
 fi
+
+# =====================================================================
 
 # SUPIR models - individual files
 REPO_NAME="yushan777/SUPIR"
