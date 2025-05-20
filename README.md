@@ -1,6 +1,7 @@
 # A Customized Version of the Original [SUPIR](https://github.com/Fanghua-Yu/SUPIR) Project
 # 🚧 Work in Progress
 
+
 - Removed the heavy LLaVA implementation. 
 - Added safetensors support. 
 - Updated dependencies. 
@@ -16,7 +17,7 @@
 - Refactor: Renamed symbol `upsacle` in original code to `upscale`
 - Moved CLIP paths to a yaml config file. 
 - Exposed `sampler_tile_size` and `sampler_tile_stride` to make them overridable when using `TiledRestoreEDMSampler`
-
+- SUPIR Settings saved into PNGInfo metadata
 
 ## Tested on Linux Mint, WSL, and Windows 11.  It seems to run faster under Linux. 
 

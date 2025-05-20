@@ -1,6 +1,6 @@
 import argparse
 import torch
-from PIL import Image
+from PIL import Image, PngImagePlugin
 from transformers import AutoProcessor, AutoModelForVision2Seq, AutoModelForImageTextToText
 import gradio as gr
 from Y7.colored_print import color, style
@@ -377,7 +377,7 @@ def process_supir(
         import gc
         gc.collect()
             
-    print("\n")
+    print("SUPIR Settings\n")
     print(f"input_image: {input_image}", color.YELLOW)
     print(f"image_caption: {image_caption}", color.YELLOW)
     print(f"supir_model_type: {supir_model_type}", color.YELLOW)
@@ -399,10 +399,8 @@ def process_supir(
     print(f"control_scale_start: {control_scale_start}", color.YELLOW)
     print(f"control_scale_end: {control_scale_end}", color.YELLOW)
     print(f"restoration_scale: {restoration_scale}", color.YELLOW)
-
     print(f"sampler_tile_size: {sampler_tile_size}", color.YELLOW)
     print(f"sampler_tile_stride: {sampler_tile_stride}", color.YELLOW)
-
     print(f"a_prompt: {a_prompt}", color.YELLOW)
     print(f"n_prompt: {n_prompt}", color.YELLOW)
 
@@ -491,6 +489,35 @@ def process_supir(
     # Convert result to PIL image
     enhanced_image = Tensor2PIL(samples[0], h0, w0)
 
+
+    # settings string for embedding into png
+    supir_settings = ""
+    supir_settings += f"input_image: {input_image}\n"
+    supir_settings += f"image_caption: {image_caption}\n"
+    supir_settings += f"supir_model_type: {supir_model_type}\n"
+    supir_settings += f"sampler_type: {sampler_type}\n"
+    supir_settings += f"seed: {seed}\n"
+    supir_settings += f"upscale: {upscale}\n"
+    supir_settings += f"skip_denoise_stage: {skip_denoise_stage}\n"
+    supir_settings += f"loading_half_params: {loading_half_params}\n"
+    supir_settings += f"ae_dtype: {ae_dtype}\n"
+    supir_settings += f"diff_dtype: {diff_dtype}\n"
+    supir_settings += f"use_tile_vae: {use_tile_vae}\n"
+    supir_settings += f"encoder_tile_size: {encoder_tile_size}\n"
+    supir_settings += f"decoder_tile_size: {decoder_tile_size}\n"
+    supir_settings += f"edm_steps: {edm_steps}\n"
+    supir_settings += f"s_churn: {s_churn}\n"
+    supir_settings += f"s_noise: {s_noise}\n"
+    supir_settings += f"cfg_scale_start: {cfg_scale_start}\n"
+    supir_settings += f"cfg_scale_end: {cfg_scale_end}\n"
+    supir_settings += f"control_scale_start: {control_scale_start}\n"
+    supir_settings += f"control_scale_end: {control_scale_end}\n"
+    supir_settings += f"restoration_scale: {restoration_scale}\n"
+    supir_settings += f"sampler_tile_size: {sampler_tile_size}\n"
+    supir_settings += f"sampler_tile_stride: {sampler_tile_stride}\n"
+    supir_settings += f"a_prompt: {a_prompt}\n"
+    supir_settings += f"n_prompt: {n_prompt}"
+
     # --- Save the image before returning ---
     try:
         # Ensure the output directory exists
@@ -520,9 +547,17 @@ def process_supir(
         padded_index = f"{next_index:04d}"  # This formats the number with leading zeros to 4 digits
         
         # Construct the full save path with the model type and padded index
-        save_path = os.path.join(output_dir, f"{base_filename}_{padded_index}.png")
-        enhanced_image.save(save_path)
-        print(f"Saved SUPIR'd image to: {save_path}")
+        png_save_path = os.path.join(output_dir, f"{base_filename}_{padded_index}.png")
+
+        # embed the supir settings into tEXt chunks 
+        # Embed the contents of the files into 
+        info = PngImagePlugin.PngInfo()
+        info.add_text("SUPIR", supir_settings)
+
+        # Save the modified PNG with the tEXt chunks embedded
+        enhanced_image.save(png_save_path, "PNG", pnginfo=info)
+
+        print(f"Saved SUPIR'd image to: {png_save_path}")
 
 
 
@@ -547,8 +582,10 @@ def process_supir(
         input_image = input_image.resize((img2_width, img2_height), Image.BICUBIC)
         print(f"Resized first image from {img1_width}x{img1_height} to {img2_width}x{img2_height}")
 
-    return [input_image, enhanced_image], "Processing complete! See results on Tab 3."
-
+    
+    # return [input_image, enhanced_image], "Processing complete! See results on Tab 3."
+    # returning the path to the png instead of 'enhanced_image' save image ensures that the download button will download that file instead of a webp
+    return [input_image, png_save_path], "Processing complete! See results on Tab 3."
 
 
     
@@ -867,7 +904,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
                 | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set.<br>[`bf16`, `fp16`,`fp32`] |
                 | `Seed` | Fixed or random seed. |
-                | `Upscale` | Upscale factor for the original input image. The higher the scale factor, the slower the process. |
+                | `Upscale` | Upscale factor for the original input image.<br>Minimum image size is 1024, so if input image is 512, it will be first pre-upscaled to 1024 by the smaller dimension before the main upscale factor is applied.<br>The higher the scale factor, the slower the process. |
                 | `Skip Denoise Stage` | Disables the VAE denoising step that softens low-quality images. Enable only if your input is already clean or high-resolution. |
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
