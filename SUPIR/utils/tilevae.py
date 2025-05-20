@@ -719,14 +719,15 @@ def perfcount(fn):
             vram = torch.cuda.max_memory_allocated(devices.device) / 2**20
             torch.cuda.reset_peak_memory_stats(devices.device)
             print(
-                f'[Tiled VAE]: Done in {time() - ts:.3f}s, max VRAM alloc {vram:.3f} MB')
+                # f'[Tiled VAE]: Done in {time() - ts:.3f}s, max VRAM alloc {vram:.3f} MB')
+                f'[Tiled VAE]: Done in {time() - ts:.3f}s')
         else:
             print(f'[Tiled VAE]: Done in {time() - ts:.3f}s')
 
         return ret
     return wrapper
 
-# copy end :)
+
 
 
 class GroupNormParam:
@@ -949,7 +950,7 @@ class VAEHook:
 
         raise IndexError('Should not reach here')
 
-    @perfcount
+    # @perfcount
     @torch.no_grad()
     def vae_tile_forward(self, z):
         """

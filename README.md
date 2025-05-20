@@ -151,7 +151,7 @@ python3 run_supir.py \
 | `skip_denoise_stage` | Skips the VAE Denoiser Stage. Default: `'False'`<br> bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened (if you inspected it at this stage) since you do not want artifacts to be considered detail to be enhanced. You might want to skip this step if your image is already high quality and using the F model. |
 | `sampler_mode` | Sampler choice. Options: `['TiledRestoreEDMSampler', 'RestoreEDMSampler']`<br>Default: `'TiledRestoreEDMSampler' (uses less VRAM)` |
 | `seed` | Random seed for reproducibility. Default: `1234` |
-| `upscale` | Upsampling ratio for the input.<br>The higher the scale factor, the slower the process.<br>Default: `2` |
+| `upscale` | Upscale factor for the original input image. The higher the scale factor, the slower the process.<br>Default: `2` |
 | `min_size` | Minimum output resolution. Default: `1024` |
 | `num_samples` | Number of images to generate per input. Default: `1` |
 | `img_caption` | Specific caption for the input image.<br>Default: `''`<br>This caption is combined with `a_prompt`. |

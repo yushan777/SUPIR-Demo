@@ -394,7 +394,7 @@ def process_supir(
     LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale, min_size=1024)
     LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
 
-    print(f"image size = {LQ_img.size()}", color.ORANGE)
+    print(f"h,w = {h0}, {w0}", color.ORANGE)
     
     # Run diffusion process
     samples = SUPIR_MODEL.batchify_sample(LQ_img, image_caption, 
@@ -413,10 +413,6 @@ def process_supir(
                                     color_fix_type="Wavelet",
                                     skip_denoise_stage=skip_denoise_stage)
     
-    # Convert result to PIL image
-    enhanced_image = Tensor2PIL(samples[0], h0, w0)
-
-
     # settings string for embedding into png
     supir_settings = ""
     supir_settings += f"input_image: {input_image}\n"
@@ -444,6 +440,9 @@ def process_supir(
     supir_settings += f"sampler_tile_stride: {sampler_tile_stride}\n"
     supir_settings += f"a_prompt: {a_prompt}\n"
     supir_settings += f"n_prompt: {n_prompt}"
+
+    # Convert result to PIL image
+    enhanced_image = Tensor2PIL(samples[0], h0, w0)
 
     # --- Save the image before returning ---
     try:
@@ -509,9 +508,9 @@ def process_supir(
         input_image = input_image.resize((img2_width, img2_height), Image.BICUBIC)
         print(f"Resized first image from {img1_width}x{img1_height} to {img2_width}x{img2_height}")
 
-    
-    # return [input_image, enhanced_image], "Processing complete! See results on Tab 3."
     # returning the path to the png instead of 'enhanced_image' save image ensures that the download button will download that file instead of a webp
+    # return [input_image, enhanced_image], "Processing complete! See results on Tab 3."
+    
     return [input_image, png_save_path], "Processing complete! See results on Tab 3."
 
 
@@ -734,8 +733,11 @@ def create_launch_gradio(listen_on_network, port=None):
 
                         with gr.Group():
                             with gr.Row():
+                                # SEED
                                 seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
-                                upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)      
+                                # UPSCALE FACTOR
+                                # upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)  
+                                upscale = gr.Slider(minimum=1.0, maximum=10.0, value=2.0, step=0.5, label="Upscale", interactive=True)    
                             with gr.Row():
                                 skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
@@ -831,7 +833,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
                 | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set.<br>[`bf16`, `fp16`,`fp32`] |
                 | `Seed` | Fixed or random seed. |
-                | `Upscale` | Upscale factor for the original input image.<br>Minimum image size is 1024, so if input image is 512, it will be first pre-upscaled to 1024 by the smaller dimension before the main upscale factor is applied.<br>The higher the scale factor, the slower the process. |
+                | `Upscale` | Upscale factor for the original input image. The higher the scale factor, the slower the process.<br>Default: `2` |
                 | `Skip Denoise Stage` | Disables the VAE denoising step that softens low-quality images. Enable only if your input is already clean or high-resolution. |
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |

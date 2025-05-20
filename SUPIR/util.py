@@ -74,39 +74,66 @@ def create_SUPIR_model(config_path, SUPIR_sign=None):
 
     return model
 
-# def load_QF_ckpt(config_path):
-#     config = OmegaConf.load(config_path)
-#     ckpt_F = torch.load(config.SUPIR_CKPT_F, map_location='cpu')
-#     ckpt_Q = torch.load(config.SUPIR_CKPT_Q, map_location='cpu')
-#     return ckpt_Q, ckpt_F
-
-
 def PIL2Tensor(img, upscale=1, min_size=1024, fix_resize=None):
     '''
     PIL.Image -> Tensor[C, H, W], RGB, [-1, 1]
+
+    # Converts a PIL image to a normalized PyTorch tensor (C, H, W) in [-1, 1] range.
+    # Optionally upscales the image, ensures a minimum size (for sdxl processing), and rounds dimensions to multiples of 64.
+    # Returns the tensor (x) and original post-upscale dimensions (before final resizing).
+    # Input image size: 256x256, upscale: 2, min_size: 1024
+    # x.shape  = (3, 1024, 1024)
+    # h0 = 512
+    # w0 = 512
     '''
-    # size
+    # Get the orig width and height 
     w, h = img.size
+    
+    # Apply upscale factor 
     w *= upscale
     h *= upscale
+    
+    # Store the dimensions after upscale as w0, h0 (rounded)
     w0, h0 = round(w), round(h)
+    
+    # If the smallest dimension is less than min_size, scale up both dimensions
+    # to make the smallest dimension equal to min_size
     if min(w, h) < min_size:
-        _upscale = min_size / min(w, h)
-        w *= _upscale
-        h *= _upscale
+        _upscale = min_size / min(w, h)  # Calculate the scaling factor needed
+        w *= _upscale  # Scale the width
+        h *= _upscale  # Scale the height
+        # Note: w0 and h0 are NOT updated here, so they retain their original values
+    
+    # If fix_resize is provided, scale the image to make the smallest dimension
+    # equal to fix_resize value
     if fix_resize is not None:
-        _upscale = fix_resize / min(w, h)
-        w *= _upscale
-        h *= _upscale
-        w0, h0 = round(w), round(h)
+        _upscale = fix_resize / min(w, h)  # Calculate scaling factor for fixed resize
+        w *= _upscale  # Scale the width
+        h *= _upscale  # Scale the height
+        w0, h0 = round(w), round(h)  # Update w0, h0 ONLY in this case
+    
+    # Round width and height to nearest multiple of 64 
+    # (important for many neural network architectures)
     w = int(np.round(w / 64.0)) * 64
     h = int(np.round(h / 64.0)) * 64
+    
+    # Resize the image to the calculated dimensions using bicubic interp
     x = img.resize((w, h), Image.BICUBIC)
+    
+    # Convert PIL image to numpy array, ensure pixel values are integers 
+    # between 0-255, and set data type to uint8
     x = np.array(x).round().clip(0, 255).astype(np.uint8)
+    
+    # Normalize pixel values from [0, 255] to [-1, 1] range
+    # (common normalization for neural network inputs)
     x = x / 255 * 2 - 1
+    
+    # Convert numpy array to PyTorch tensor and rearrange dimensions
+    # from (H, W, C) to (C, H, W) format as needed by PyTorch
     x = torch.tensor(x, dtype=torch.float32).permute(2, 0, 1)
+    
+    # Return the tensor and the original dimensions (which may or may not have been updated)
     return x, h0, w0
-
 
 def Tensor2PIL(x, h0, w0):
     '''
