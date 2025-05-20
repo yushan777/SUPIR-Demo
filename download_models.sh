@@ -90,6 +90,29 @@ fi
 
 # =====================================================================
 
+# download if needed
+download_model() {
+    local repo="$1"
+    local file_path="$2"
+    local target_dir="$3"
+    
+    local filename=$(basename "$file_path")
+    local target_file="$target_dir/$filename"
+    
+    # Create target directory if it doesn't exist
+    mkdir -p "$target_dir"
+    
+    if [ -f "$target_file" ]; then
+        echo "File already exists: $target_file"
+    else
+        echo "Downloading: $file_path to $target_dir"
+        huggingface-cli download "$repo" "$file_path" --local-dir "$DOWNLOADS_DIR"
+        # Move from temp download location to final location
+        mkdir -p "$(dirname "$target_dir/$filename")"
+        mv "$DOWNLOADS_DIR/$file_path" "$target_dir/$filename"
+    fi
+}
+
 # SUPIR models - individual files
 REPO_NAME="yushan777/SUPIR"
 echo "Checking SUPIR models..."
