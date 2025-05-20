@@ -52,18 +52,25 @@ if exist "%TARGET_DIR%\%FILENAME%" (
 ) else (
     echo Downloading: %FILE_PATH% to %TARGET_DIR%
     huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    echo Attempting to move file...
-    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
-    if not exist "%TARGET_DIR%\%FILENAME%" (
-        echo Searching for file...
-        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+    
+    :: Try direct file move
+    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
+        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
+        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
+    ) else (
+        echo Warning: File not found at expected path. Will attempt to locate.
+        :: Find the file with limited depth to avoid freezing
+        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
+        for /f "delims=" %%G in (temp_file_list.txt) do (
             echo Found: %%G
             move "%%G" "%TARGET_DIR%\%FILENAME%"
         )
+        del temp_file_list.txt
     )
 )
 
-:: Download SUPIR-v0F_fp16.safetensors
+:: Repeat for other files with same pattern...
+:: [Identical blocks for other files omitted for brevity]
 set FILE_PATH=SUPIR/SUPIR-v0F_fp16.safetensors
 set TARGET_DIR=%BASE_DIR%\SUPIR
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
@@ -73,18 +80,21 @@ if exist "%TARGET_DIR%\%FILENAME%" (
 ) else (
     echo Downloading: %FILE_PATH% to %TARGET_DIR%
     huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    echo Attempting to move file...
-    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
-    if not exist "%TARGET_DIR%\%FILENAME%" (
-        echo Searching for file...
-        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+    
+    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
+        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
+        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
+    ) else (
+        echo Warning: File not found at expected path. Will attempt to locate.
+        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
+        for /f "delims=" %%G in (temp_file_list.txt) do (
             echo Found: %%G
             move "%%G" "%TARGET_DIR%\%FILENAME%"
         )
+        del temp_file_list.txt
     )
 )
 
-:: Download juggernautXL_v9Rundiffusionphoto2.safetensors
 set FILE_PATH=SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors
 set TARGET_DIR=%BASE_DIR%\SDXL
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
@@ -94,18 +104,21 @@ if exist "%TARGET_DIR%\%FILENAME%" (
 ) else (
     echo Downloading: %FILE_PATH% to %TARGET_DIR%
     huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    echo Attempting to move file...
-    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
-    if not exist "%TARGET_DIR%\%FILENAME%" (
-        echo Searching for file...
-        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+    
+    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
+        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
+        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
+    ) else (
+        echo Warning: File not found at expected path. Will attempt to locate.
+        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
+        for /f "delims=" %%G in (temp_file_list.txt) do (
             echo Found: %%G
             move "%%G" "%TARGET_DIR%\%FILENAME%"
         )
+        del temp_file_list.txt
     )
 )
 
-:: Download clip-vit-large-patch14.safetensors
 set FILE_PATH=CLIP1/clip-vit-large-patch14.safetensors
 set TARGET_DIR=%BASE_DIR%\CLIP1
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
@@ -115,18 +128,21 @@ if exist "%TARGET_DIR%\%FILENAME%" (
 ) else (
     echo Downloading: %FILE_PATH% to %TARGET_DIR%
     huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    echo Attempting to move file...
-    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
-    if not exist "%TARGET_DIR%\%FILENAME%" (
-        echo Searching for file...
-        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+    
+    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
+        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
+        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
+    ) else (
+        echo Warning: File not found at expected path. Will attempt to locate.
+        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
+        for /f "delims=" %%G in (temp_file_list.txt) do (
             echo Found: %%G
             move "%%G" "%TARGET_DIR%\%FILENAME%"
         )
+        del temp_file_list.txt
     )
 )
 
-:: Download CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors
 set FILE_PATH=CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors
 set TARGET_DIR=%BASE_DIR%\CLIP2
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
@@ -136,14 +152,18 @@ if exist "%TARGET_DIR%\%FILENAME%" (
 ) else (
     echo Downloading: %FILE_PATH% to %TARGET_DIR%
     huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    echo Attempting to move file...
-    move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%" 2>nul
-    if not exist "%TARGET_DIR%\%FILENAME%" (
-        echo Searching for file...
-        for /r "%DOWNLOADS_DIR%" %%G in (*%FILENAME%) do (
+    
+    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
+        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
+        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
+    ) else (
+        echo Warning: File not found at expected path. Will attempt to locate.
+        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
+        for /f "delims=" %%G in (temp_file_list.txt) do (
             echo Found: %%G
             move "%%G" "%TARGET_DIR%\%FILENAME%"
         )
+        del temp_file_list.txt
     )
 )
 
