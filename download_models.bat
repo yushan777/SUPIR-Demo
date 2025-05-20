@@ -1,45 +1,83 @@
 @echo off
-REM Install Hugging Face CLI and related packages
-pip install -U "huggingface_hub[cli]"
-pip install "huggingface_hub[hf_transfer]"
-pip install hf_transfer
+setlocal enabledelayedexpansion
 
-REM Ask user about enabling high-speed transfers
-set /p enable_high_speed=Do you want to enable high-speed transfers? For connections higher than 1Gbps (y/n): 
-if /I "%enable_high_speed%"=="y" (
+:: Set up error handling
+echo Installing/updating required packages...
+pip install -q -U "huggingface_hub[cli]"
+pip install -q huggingface_hub[hf_transfer]
+pip install -q hf_transfer
+
+:: Base directory for all models
+set BASE_DIR=models
+set DOWNLOAD_TEMP=downloads_temp
+if not exist "%BASE_DIR%" mkdir "%BASE_DIR%"
+if not exist "%DOWNLOAD_TEMP%" mkdir "%DOWNLOAD_TEMP%"
+
+goto :main
+
+@REM ============================================================
+:download_model
+    set repo=%~1
+    set file_path=%~2
+    set target_dir=%~3
+    
+    for %%F in ("%file_path%") do set filename=%%~nxF
+    set target_file=%target_dir%\%filename%
+    
+    :: Create target directory if it doesn't exist
+    if not exist "%target_dir%" mkdir "%target_dir%"
+    
+    if exist "%target_file%" (
+        echo File already exists: %target_file%
+    ) else (
+        echo Downloading: %file_path% to %target_dir%
+        huggingface-cli download "%repo%" "%file_path%" --local-dir "%DOWNLOAD_TEMP%"
+        :: Move from temp download location to final location
+        for %%F in ("%target_dir%\%filename%") do if not exist "%%~dpF" mkdir "%%~dpF"
+        move "%DOWNLOAD_TEMP%\%file_path%" "%target_dir%\%filename%"
+    )
+    goto :eof
+
+@REM ============================================================
+:main
+:: Ask user about enabling high-speed transfers
+set /p enable=Enable high-speed transfers? Better for fast connections (y/n): 
+
+if /i "%enable%"=="y" (
     echo Enabling high-speed transfers...
-    setx HF_HUB_ENABLE_HF_TRANSFER 1
+    set HF_HUB_ENABLE_HF_TRANSFER=1
     echo High-speed transfers enabled!
 ) else (
     echo Using standard transfer speeds.
 )
 
-REM Optional login
-REM echo Please note: You'll need to be logged in to download these models.
-REM echo If not logged in already, uncomment and use the following line with your token:
-REM echo huggingface-cli login --token YOUR_HF_TOKEN
-
+:: SmolVLM model
 set REPO_NAME=yushan777/SmolVLM-500M-Instruct
+set TARGET_DIR=%BASE_DIR%\SmolVLM-500M-Instruct
 
-REM Download models
-huggingface-cli download %REPO_NAME% --local-dir "models\SmolVLM-500M-Instruct"
+:: Check if entire SmolVLM directory exists and has files
+dir /a-d "%TARGET_DIR%\*.*" >nul 2>&1
+if not errorlevel 1 (
+    echo ✓ SmolVLM-500M-Instruct model already exists in %TARGET_DIR%
+) else (
+    echo ↓ Downloading complete SmolVLM-500M-Instruct repository...
+    if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
+    huggingface-cli download %REPO_NAME% --local-dir "%TARGET_DIR%"
+)
 
+:: SUPIR models - individual files
+set REPO_NAME=yushan777/SUPIR
+echo Checking SUPIR models...
+call :download_model "%REPO_NAME%" "SUPIR/SUPIR-v0Q_fp16.safetensors" "%BASE_DIR%\SUPIR"
+call :download_model "%REPO_NAME%" "SUPIR/SUPIR-v0F_fp16.safetensors" "%BASE_DIR%\SUPIR"
+call :download_model "%REPO_NAME%" "SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors" "%BASE_DIR%\SDXL"
+call :download_model "%REPO_NAME%" "CLIP1/clip-vit-large-patch14.safetensors" "%BASE_DIR%\CLIP1"
+call :download_model "%REPO_NAME%" "CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors" "%BASE_DIR%\CLIP2"
 
-REM set REPO_NAME=yushan777/SUPIR
-echo Downloading models from %REPO_NAME%...
-huggingface-cli download %REPO_NAME% SUPIR/SUPIR-v0Q_fp16.safetensors --local-dir downloads
-huggingface-cli download %REPO_NAME% SUPIR/SUPIR-v0F_fp16.safetensors --local-dir downloads
-huggingface-cli download %REPO_NAME% SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors --local-dir downloads
-huggingface-cli download %REPO_NAME% CLIP1/clip-vit-large-patch14.safetensors --local-dir downloads
-huggingface-cli download %REPO_NAME% CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors --local-dir downloads
+:: Clean up temp directory if it's empty
+dir /a-d "%DOWNLOAD_TEMP%\*.*" >nul 2>&1
+if errorlevel 1 (
+    rmdir "%DOWNLOAD_TEMP%" 2>nul
+)
 
-
-REM Move files to appropriate directories
-echo Moving downloaded models to their respective directories...
-move downloads\SUPIR\SUPIR-v0Q_fp16.safetensors models\SUPIR\
-move downloads\SUPIR\SUPIR-v0F_fp16.safetensors models\SUPIR\
-move downloads\SDXL\juggernautXL_v9Rundiffusionphoto2.safetensors models\SDXL\
-move downloads\CLIP1\clip-vit-large-patch14.safetensors models\CLIP1\
-move downloads\CLIP2\CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors models\CLIP2\
-
-echo All models downloaded and moved successfully!
+echo All models checked/downloaded successfully!
