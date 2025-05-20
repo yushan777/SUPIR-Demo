@@ -11,7 +11,7 @@ pip install -q hf_transfer
 
 # Base directory for all models
 BASE_DIR="models"
-DOWNLOAD_TEMP="downloads_temp"
+DOWNLOAD_TEMP="downloads"
 mkdir -p "$BASE_DIR" "$DOWNLOAD_TEMP"
 
 

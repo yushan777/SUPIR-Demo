@@ -9,9 +9,9 @@ pip install -q hf_transfer
 
 :: Base directory for all models
 set BASE_DIR=models
-set DOWNLOAD_TEMP=downloads_temp
+set DOWNLOADS_DIR=downloads_temp
 if not exist "%BASE_DIR%" mkdir "%BASE_DIR%"
-if not exist "%DOWNLOAD_TEMP%" mkdir "%DOWNLOAD_TEMP%"
+if not exist "%DOWNLOADS_DIR%" mkdir "%DOWNLOADS_DIR%"
 
 goto :main
 
@@ -31,10 +31,30 @@ goto :main
         echo File already exists: %target_file%
     ) else (
         echo Downloading: %file_path% to %target_dir%
-        huggingface-cli download "%repo%" "%file_path%" --local-dir "%DOWNLOAD_TEMP%"
-        :: Move from temp download location to final location
+        huggingface-cli download "%repo%" "%file_path%" --local-dir "%DOWNLOADS_DIR%"
+        
+        :: Create all parent directories for the target file
         for %%F in ("%target_dir%\%filename%") do if not exist "%%~dpF" mkdir "%%~dpF"
-        move "%DOWNLOAD_TEMP%\%file_path%" "%target_dir%\%filename%"
+        
+        :: Debug output to see what's happening
+        echo Source: %DOWNLOADS_DIR%\%file_path%
+        echo Target: %target_dir%\%filename%
+        
+        :: Check if source file exists
+        if exist "%DOWNLOADS_DIR%\%file_path%" (
+            move "%DOWNLOADS_DIR%\%file_path%" "%target_dir%\%filename%"
+        ) else (
+            echo WARNING: Source file does not exist: %DOWNLOADS_DIR%\%file_path%
+            
+            :: Try to find the file in a different location
+            for /r "%DOWNLOADS_DIR%" %%G in (*%filename%) do (
+                echo Found file: %%G
+                move "%%G" "%target_dir%\%filename%"
+                goto :found_file
+            )
+            echo ERROR: Could not find downloaded file %filename%
+            :found_file
+        )
     )
     goto :eof
 
@@ -75,9 +95,9 @@ call :download_model "%REPO_NAME%" "CLIP1/clip-vit-large-patch14.safetensors" "%
 call :download_model "%REPO_NAME%" "CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors" "%BASE_DIR%\CLIP2"
 
 :: Clean up temp directory if it's empty
-dir /a-d "%DOWNLOAD_TEMP%\*.*" >nul 2>&1
+dir /a-d "%DOWNLOADS_DIR%\*.*" >nul 2>&1
 if errorlevel 1 (
-    rmdir "%DOWNLOAD_TEMP%" 2>nul
+    rmdir "%DOWNLOADS_DIR%" 2>nul
 )
 
 echo All models checked/downloaded successfully!
