@@ -25,7 +25,7 @@ REM Download models
 huggingface-cli download %REPO_NAME% --local-dir "models\SmolVLM-500M-Instruct"
 
 
-REM set REPO_NAME=yushan777/SUPIR
+set REPO_NAME=yushan777/SUPIR
 echo Downloading models from %REPO_NAME%...
 huggingface-cli download %REPO_NAME% SUPIR/SUPIR-v0Q_fp16.safetensors --local-dir downloads
 huggingface-cli download %REPO_NAME% SUPIR/SUPIR-v0F_fp16.safetensors --local-dir downloads
