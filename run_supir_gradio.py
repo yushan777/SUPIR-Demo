@@ -256,84 +256,6 @@ def generate_caption_streaming(
         print(f"Generated caption: '{generated_text_so_far.strip()}'", color.GREEN)
     print(f"Execution_time = {execution_time:.2f} seconds.", color.BRIGHT_BLUE)
 
-# ====================================================================
-def generate_caption_non_streaming(
-    image,
-    caption_style,
-    max_new_tokens=MAX_NEW_TOKENS,
-    repetition_penalty=REP_PENALTY,
-    do_sample=DO_SAMPLING,
-    temperature=TEMP,
-    top_p=TOP_P
-):
-    """Non-streaming version of caption generation"""
-    # Check if image is provided, if not, quit and show msg
-    if image is None:
-        msg = "Please upload an image first to generate a caption."
-        yield msg
-        return
-    
-    start_time = time.time()
-        
-    # load the smolvlm model. 
-    processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
-    print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
-
-    prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
-
-    # construct multi-modal input msg
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image"},
-                {"type": "text", "text": prompt_text}
-            ]
-        },
-    ]
-
-    # Prepare inputs
-    prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
-    inputs = processor(text=prompt, images=[image], return_tensors="pt")
-    inputs = inputs.to(DEVICE)
-
-    # Generate args
-    generation_kwargs = {
-        "max_new_tokens": max_new_tokens,
-        "repetition_penalty": repetition_penalty,
-        "do_sample": do_sample,
-    }
-    # only include temp and top p if do sample
-    if do_sample:
-        generation_kwargs["temperature"] = temperature
-        generation_kwargs["top_p"] = top_p
-
-    generated_ids = model.generate(
-        **inputs,
-        **generation_kwargs
-    )
-
-    generated_texts = processor.batch_decode(
-        generated_ids,
-        skip_special_tokens=True,
-    )
-
-    # Get only the assistant's response
-    full_output = generated_texts[0]
-    
-    if "Assistant:" in full_output:
-        response_only = full_output.split("Assistant: ")[-1].strip()
-    else:
-        response_only = full_output.strip()
-    
-    end_time = time.time()
-    execution_time = end_time - start_time
-    
-    print(f"Generated caption: '{response_only}'", color.GREEN)
-    print(f"Execution_time = {execution_time:.2f} seconds.", color.BRIGHT_BLUE)
-    
-    return response_only
-
 # process SUPIR on the image
 def process_supir(
             input_image,
@@ -464,11 +386,16 @@ def process_supir(
     if not isinstance(input_image, Image.Image):
         input_image = Image.fromarray(input_image)
     
-    # Process input image by upscaling it to the min
+    # Process input image by upscaling it to the min_size
+    # min_size of 1024 is to make it work nicely with sdxl
+    # after sampling if the input image was less than 1024 and upscale was 1, it will be resized back to its original size
+
     device = get_device()
     LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale, min_size=1024)
     LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
 
+    print(f"image size = {LQ_img.size()}", color.ORANGE)
+    
     # Run diffusion process
     samples = SUPIR_MODEL.batchify_sample(LQ_img, image_caption, 
                                     num_steps=edm_steps, 
