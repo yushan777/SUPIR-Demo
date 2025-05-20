@@ -1,176 +1,45 @@
 @echo off
-setlocal enabledelayedexpansion
+REM Install Hugging Face CLI and related packages
+pip install -U "huggingface_hub[cli]"
+pip install "huggingface_hub[hf_transfer]"
+pip install hf_transfer
 
-:: Set up error handling
-echo Installing/updating required packages...
-pip install -q -U "huggingface_hub[cli]"
-pip install -q huggingface_hub[hf_transfer]
-pip install -q hf_transfer
-
-:: Base directory for all models
-set BASE_DIR=models
-set DOWNLOADS_DIR=downloads_temp
-if not exist "%BASE_DIR%" mkdir "%BASE_DIR%"
-if not exist "%DOWNLOADS_DIR%" mkdir "%DOWNLOADS_DIR%"
-
-:: Ask user about enabling high-speed transfers
-set /p enable=Enable high-speed transfers? Better for fast connections (y/n): 
-
-if /i "%enable%"=="y" (
+REM Ask user about enabling high-speed transfers
+set /p enable_high_speed=Do you want to enable high-speed transfers? For connections higher than 1Gbps (y/n): 
+if /I "%enable_high_speed%"=="y" (
     echo Enabling high-speed transfers...
-    set HF_HUB_ENABLE_HF_TRANSFER=1
+    setx HF_HUB_ENABLE_HF_TRANSFER 1
     echo High-speed transfers enabled!
 ) else (
     echo Using standard transfer speeds.
 )
 
-:: SmolVLM model
+REM Optional login
+REM echo Please note: You'll need to be logged in to download these models.
+REM echo If not logged in already, uncomment and use the following line with your token:
+REM echo huggingface-cli login --token YOUR_HF_TOKEN
+
 set REPO_NAME=yushan777/SmolVLM-500M-Instruct
-set TARGET_DIR=%BASE_DIR%\SmolVLM-500M-Instruct
 
-:: Check if entire SmolVLM directory exists and has files
-dir /a-d "%TARGET_DIR%\*.*" >nul 2>&1
-if not errorlevel 1 (
-    echo ✓ SmolVLM-500M-Instruct model already exists in %TARGET_DIR%
-) else (
-    echo ↓ Downloading complete SmolVLM-500M-Instruct repository...
-    if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-    huggingface-cli download %REPO_NAME% --local-dir "%TARGET_DIR%"
-)
+REM Download models
+huggingface-cli download %REPO_NAME% --local-dir "models\SmolVLM-500M-Instruct"
 
-:: SUPIR models - individual files
-set REPO_NAME=yushan777/SUPIR
-echo Checking SUPIR models...
 
-:: Download SUPIR-v0Q_fp16.safetensors
-set FILE_PATH=SUPIR/SUPIR-v0Q_fp16.safetensors
-set TARGET_DIR=%BASE_DIR%\SUPIR
-if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
-if exist "%TARGET_DIR%\%FILENAME%" (
-    echo File already exists: %TARGET_DIR%\%FILENAME%
-) else (
-    echo Downloading: %FILE_PATH% to %TARGET_DIR%
-    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    
-    :: Try direct file move
-    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
-        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
-        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
-    ) else (
-        echo Warning: File not found at expected path. Will attempt to locate.
-        :: Find the file with limited depth to avoid freezing
-        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
-        for /f "delims=" %%G in (temp_file_list.txt) do (
-            echo Found: %%G
-            move "%%G" "%TARGET_DIR%\%FILENAME%"
-        )
-        del temp_file_list.txt
-    )
-)
+REM set REPO_NAME=yushan777/SUPIR
+echo Downloading models from %REPO_NAME%...
+huggingface-cli download %REPO_NAME% SUPIR/SUPIR-v0Q_fp16.safetensors --local-dir downloads
+huggingface-cli download %REPO_NAME% SUPIR/SUPIR-v0F_fp16.safetensors --local-dir downloads
+huggingface-cli download %REPO_NAME% SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors --local-dir downloads
+huggingface-cli download %REPO_NAME% CLIP1/clip-vit-large-patch14.safetensors --local-dir downloads
+huggingface-cli download %REPO_NAME% CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors --local-dir downloads
 
-:: Repeat for other files with same pattern...
-:: [Identical blocks for other files omitted for brevity]
-set FILE_PATH=SUPIR/SUPIR-v0F_fp16.safetensors
-set TARGET_DIR=%BASE_DIR%\SUPIR
-if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
-if exist "%TARGET_DIR%\%FILENAME%" (
-    echo File already exists: %TARGET_DIR%\%FILENAME%
-) else (
-    echo Downloading: %FILE_PATH% to %TARGET_DIR%
-    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    
-    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
-        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
-        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
-    ) else (
-        echo Warning: File not found at expected path. Will attempt to locate.
-        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
-        for /f "delims=" %%G in (temp_file_list.txt) do (
-            echo Found: %%G
-            move "%%G" "%TARGET_DIR%\%FILENAME%"
-        )
-        del temp_file_list.txt
-    )
-)
 
-set FILE_PATH=SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors
-set TARGET_DIR=%BASE_DIR%\SDXL
-if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
-if exist "%TARGET_DIR%\%FILENAME%" (
-    echo File already exists: %TARGET_DIR%\%FILENAME%
-) else (
-    echo Downloading: %FILE_PATH% to %TARGET_DIR%
-    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    
-    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
-        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
-        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
-    ) else (
-        echo Warning: File not found at expected path. Will attempt to locate.
-        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
-        for /f "delims=" %%G in (temp_file_list.txt) do (
-            echo Found: %%G
-            move "%%G" "%TARGET_DIR%\%FILENAME%"
-        )
-        del temp_file_list.txt
-    )
-)
+REM Move files to appropriate directories
+echo Moving downloaded models to their respective directories...
+move downloads\SUPIR\SUPIR-v0Q_fp16.safetensors models\SUPIR\
+move downloads\SUPIR\SUPIR-v0F_fp16.safetensors models\SUPIR\
+move downloads\SDXL\juggernautXL_v9Rundiffusionphoto2.safetensors models\SDXL\
+move downloads\CLIP1\clip-vit-large-patch14.safetensors models\CLIP1\
+move downloads\CLIP2\CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors models\CLIP2\
 
-set FILE_PATH=CLIP1/clip-vit-large-patch14.safetensors
-set TARGET_DIR=%BASE_DIR%\CLIP1
-if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
-if exist "%TARGET_DIR%\%FILENAME%" (
-    echo File already exists: %TARGET_DIR%\%FILENAME%
-) else (
-    echo Downloading: %FILE_PATH% to %TARGET_DIR%
-    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    
-    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
-        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
-        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
-    ) else (
-        echo Warning: File not found at expected path. Will attempt to locate.
-        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
-        for /f "delims=" %%G in (temp_file_list.txt) do (
-            echo Found: %%G
-            move "%%G" "%TARGET_DIR%\%FILENAME%"
-        )
-        del temp_file_list.txt
-    )
-)
-
-set FILE_PATH=CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors
-set TARGET_DIR=%BASE_DIR%\CLIP2
-if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
-for %%F in ("%FILE_PATH%") do set FILENAME=%%~nxF
-if exist "%TARGET_DIR%\%FILENAME%" (
-    echo File already exists: %TARGET_DIR%\%FILENAME%
-) else (
-    echo Downloading: %FILE_PATH% to %TARGET_DIR%
-    huggingface-cli download "%REPO_NAME%" "%FILE_PATH%" --local-dir "%DOWNLOADS_DIR%"
-    
-    if exist "%DOWNLOADS_DIR%\%FILE_PATH%" (
-        echo Moving %DOWNLOADS_DIR%\%FILE_PATH% to %TARGET_DIR%\%FILENAME%
-        move "%DOWNLOADS_DIR%\%FILE_PATH%" "%TARGET_DIR%\%FILENAME%"
-    ) else (
-        echo Warning: File not found at expected path. Will attempt to locate.
-        dir /s /b "%DOWNLOADS_DIR%\*%FILENAME%" | findstr /i "%FILENAME%" > temp_file_list.txt
-        for /f "delims=" %%G in (temp_file_list.txt) do (
-            echo Found: %%G
-            move "%%G" "%TARGET_DIR%\%FILENAME%"
-        )
-        del temp_file_list.txt
-    )
-)
-
-:: Clean up temp directory if it's empty
-dir /a-d "%DOWNLOADS_DIR%\*.*" >nul 2>&1
-if errorlevel 1 (
-    rmdir "%DOWNLOADS_DIR%" 2>nul
-)
-
-echo All models checked/downloaded successfully!
+echo All models downloaded and moved successfully!
