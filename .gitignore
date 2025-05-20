@@ -165,9 +165,9 @@ cython_debug/
 *.safetensors
 *.ckpt
 /output
-models/SmolVLM-256M-Instruct
-models/SmolVLM-500M-Instruct
-models/SmolVLM-Instruct
+models/SmolVLM-256M-Instruct/*
+models/SmolVLM-500M-Instruct/*
+models/SmolVLM-Instruct/*
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
 .*
