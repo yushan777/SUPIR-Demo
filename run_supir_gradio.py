@@ -415,7 +415,7 @@ def process_supir(
     
     # settings string for embedding into png
     supir_settings = ""
-    supir_settings += f"input_image: {input_image}\n"
+    # supir_settings += f"input_image: {input_image}\n"
     supir_settings += f"image_caption: {image_caption}\n"
     supir_settings += f"supir_model_type: {supir_model_type}\n"
     supir_settings += f"sampler_type: {sampler_type}\n"
