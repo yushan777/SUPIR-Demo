@@ -1,3 +1,1 @@
-Embed SUPIR settings into png metadata
-
 TEST with VAE dtype = FP32
