@@ -1,1 +1,0 @@
-each image was upscaled directly from a 512x512 image
