@@ -55,6 +55,7 @@ download_models.bat
 ```
 
 ---
+<details> <summary>Click to expand</summary>
 
 If you prefer to Download the models manually or in your own time here are the links:
 
@@ -104,6 +105,7 @@ In contrast, the v0F model (Fidelity) is specifically trained on lighter degrada
     * [options/SUPIR_v0.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
     * [options/SUPIR_v0_tiled.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
     ```
+</details>
 ---
 
 
