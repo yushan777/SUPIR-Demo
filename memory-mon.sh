@@ -16,9 +16,9 @@ while true; do
         max_vram=0
         max_ram=0
         # Move cursor to data row and show reset message
-        printf "\033[2A\r%-50s\n" "Max values reset!"
+        printf "\033[2A\r%-60s\n" "Max values reset!"
         sleep 1
-        printf "\033[1A\r%-50s\r" ""
+        printf "\033[1A\r%-60s\r" ""
     fi
     
     # Query current VRAM usage and total
