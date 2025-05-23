@@ -834,7 +834,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set.<br>[`bf16`, `fp16`,`fp32`] |
                 | `Seed` | Fixed or random seed. |
                 | `Upscale` | Upscale factor for the original input image. The higher the scale factor, the slower the process.<br>Default: `2` |
-                | `Skip Denoise Stage` | Disables the VAE denoising step that softens low-quality images. Enable only if your input is already clean or high-resolution. |
+                | `Skip Denoise Stage` | Skips the VAE Denoiser Stage. Default: `'False'`<br>Bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. <br>This usually ends up with the input image slightly softened (if you inspected it at this stage) <br>This is to avoid SUPIR treating artifacts as detail to be enhanced. <br>Without this step you will likely end up with a very over-sharpened, noisy and unnatural look. <br>You may wish to skip this step if you want do do your own pre-processing.|
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
                 | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
