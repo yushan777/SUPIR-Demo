@@ -107,6 +107,7 @@ In contrast, the v0F model (Fidelity) is specifically trained on lighter degrada
     * [options/SUPIR_v0_tiled.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
     ```
 </details>
+
 ---
 
 
@@ -121,7 +122,7 @@ chmod +x launch_gradio.sh
 ```
 
 
-### CLI Usage
+### CLI Demo
 
 ```bash
 # for cli test
