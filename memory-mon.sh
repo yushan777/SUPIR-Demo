@@ -15,10 +15,11 @@ while true; do
     if [[ $key == "r" || $key == "R" ]]; then
         max_vram=0
         max_ram=0
-        # Move cursor to data row and show reset message
-        printf "\033[2A\r%-60s\n" "Max values reset!"
+        # Show reset message on new line, then clear it
+        printf "\nMax values reset!"
         sleep 1
-        printf "\033[1A\r%-60s\r" ""
+        printf "\r%-60s\r" ""
+        printf "\033[1A"  # Move back up to data row position
     fi
     
     # Query current VRAM usage and total
