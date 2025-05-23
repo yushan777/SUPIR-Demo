@@ -55,6 +55,7 @@ download_models.bat
 ```
 
 ---
+## Manually Downloading The Models
 <details> <summary>Click to expand</summary>
 
 If you prefer to Download the models manually or in your own time here are the links:
