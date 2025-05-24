@@ -263,7 +263,8 @@ def process_supir(
             supir_model_type,  
             sampler_type,
             seed, 
-            upscale,
+            upscale_by,
+            use_upscale_to,
             upscale_to_width,
             upscale_to_height,
             skip_denoise_stage,
@@ -292,7 +293,6 @@ def process_supir(
         # Return a tuple with None for the image and an error message
         return None, "Please upload an image first in Tab 1."
         
-    
     # Clear CUDA cache and garbage collect at startup
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -307,7 +307,7 @@ def process_supir(
     print(f"supir_model_type: {supir_model_type}", color.YELLOW)
     print(f"sampler_type: {sampler_type}", color.YELLOW)
     print(f"seed: {seed}", color.YELLOW)
-    print(f"upscale: {upscale}", color.YELLOW)
+    print(f"upscale: {upscale_by}", color.YELLOW)
     print(f"skip_denoise_stage: {skip_denoise_stage}", color.YELLOW)
     print(f"loading_half_params: {loading_half_params}", color.YELLOW)
     print(f"ae_dtype: {ae_dtype}", color.YELLOW)
@@ -388,15 +388,30 @@ def process_supir(
     if not isinstance(input_image, Image.Image):
         input_image = Image.fromarray(input_image)
     
+
+    device = get_device()
+
     # Process input image by upscaling it to the min_size
     # min_size of 1024 is to make it work nicely with sdxl
     # after sampling if the input image was less than 1024 and upscale was 1, it will be resized back to its original size
 
-    device = get_device()
-    LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale, min_size=1024)
+    print(f"use_upscale_to = {use_upscale_to}", color.ORANGE)
+
+    if use_upscale_to:
+        print(f"using upscale to W/H", color.ORANGE)
+        resized_image = input_image.resize((upscale_to_width, upscale_to_height), Image.BICUBIC)
+        print(f"resized_image = {resized_image.size}", color.ORANGE)
+
+        LQ_img, h0, w0 = PIL2Tensor(resized_image, upscale=1, min_size=1024)
+    else:
+        print(f"using upscale by", color.ORANGE)
+        LQ_img, h0, w0 = PIL2Tensor(input_image, upscale=upscale_by, min_size=1024)
+
+    print(f"LQ_img shape: {LQ_img.shape}", color.MAGENTA)
+
     LQ_img = LQ_img.unsqueeze(0).to(device)[:, :3, :, :]
 
-    print(f"h,w = {h0}, {w0}", color.ORANGE)
+    # print(f"h,w = {h0}, {w0}", color.ORANGE)
     
     # Run diffusion process
     samples = SUPIR_MODEL.batchify_sample(LQ_img, image_caption, 
@@ -422,7 +437,7 @@ def process_supir(
     supir_settings += f"supir_model_type: {supir_model_type}\n"
     supir_settings += f"sampler_type: {sampler_type}\n"
     supir_settings += f"seed: {seed}\n"
-    supir_settings += f"upscale: {upscale}\n"
+    supir_settings += f"upscale: {upscale_by}\n"
     supir_settings += f"skip_denoise_stage: {skip_denoise_stage}\n"
     supir_settings += f"loading_half_params: {loading_half_params}\n"
     supir_settings += f"ae_dtype: {ae_dtype}\n"
@@ -734,17 +749,21 @@ def create_launch_gradio(listen_on_network, port=None):
                                 )
 
                         with gr.Group():
+                            with gr.Row():                                
+                                use_upscale_to = gr.Checkbox(value=False, label="Use Upscale to...")
+                            with gr.Row():
+                                upscale_to_width = gr.Number(label="Upscale to width",value=1024,step=64,minimum=1024,maximum=8192, interactive=True)
+                                upscale_to_height = gr.Number(label="Upscale to height",value=1024,step=64,minimum=1024,maximum=8192, interactive=True)                                  
+                                # UPSCALE FACTOR                                            
+                                upscale_by = gr.Slider(minimum=1.0, maximum=10.0, value=2.0, step=0.25, label="Upscale by", interactive=True, scale=2)                                  
+                                
+                            # with gr.Row():
+                                # skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
+
+                        with gr.Group():
                             with gr.Row():
                                 # SEED
                                 seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
-                            with gr.Row():
-                                # UPSCALE FACTOR
-                                # upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)  
-                                upscale = gr.Slider(minimum=1.0, maximum=10.0, value=2.0, step=0.5, label="Upscale by", interactive=True)    
-                                upscale_to_width = gr.Number(label="Upscale To Width (px)",value=None,step=64,minimum=256,maximum=8192)
-                                upscale_to_height = gr.Number(label="Upscale To Height (px)",value=None,step=64,minimum=256,maximum=8192)
-                                
-                            with gr.Row():
                                 skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
                         # with gr.Group():
@@ -794,9 +813,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                 control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.05, label="Control Scale End")
 
                         with gr.Row():
-                            restoration_scale = gr.Slider(minimum=0, maximum=4.0, value=0, step=0.5, label="Restoration Scale(≤0 = Disabled)", info="Still a mystery, keep disabled unless image is very damaged")
-                        
-                        
+                            restoration_scale = gr.Slider(minimum=0, maximum=4.0, value=0, step=0.5, label="Restoration Scale(≤0 = Disabled)", info="Still a mystery, keep disabled unless image is very damaged")                                    
 
                         with gr.Group():
                             gr.Markdown("Sampler Tiling (For TiledRestoreEDMSampler)")                            
@@ -804,6 +821,12 @@ def create_launch_gradio(listen_on_network, port=None):
                                 sampler_tile_size = gr.Slider(minimum=128, maximum=512, value=128, step=32, label="Sampler Tile Size")
                                 sampler_tile_stride = gr.Slider(minimum=32, maximum=256, value=64, step=32, label="Sampler Tile Stride")
 
+                        with gr.Group():
+                            pass
+                        with gr.Group():
+                            pass
+                        with gr.Group():
+                            pass                        
 
                 with gr.Row():
                     with gr.Column(elem_classes=["fixed-width-column-1216"]):
@@ -839,7 +862,11 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
                 | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set.<br>[`bf16`, `fp16`,`fp32`] |
                 | `Seed` | Fixed or random seed. |
-                | `Upscale` | Upscale factor for the original input image. <br>Default: `2` <br>Upscaling of the input image is performed before the denoising and sampling stage. <br>Both dimensions are multiplied by the upscale value. If the smaller of the dimensions is still < 1024px, the image is further enlarged to minimum of<br>1024px (aspect ratio maintained). This is just to give SDXL a comfortable working resolution.  **Note** that dimensions are snapped to the nearest multiple <br>of 64. The sweet spot seems to be between 1.5x and 2.5x (1024x1024) or 3x and 5x (512x512). Beyond that, the quality begins to collapse. <br>The higher the scale factor, the slower the process. |
+                | `Use Upscale to..`| If on, use `Update to width` and `Update to height` values for upscaling. If off, then `Upscale by` factor will be used. 
+                | `Upscale to width`| Upscale input image width to specified dimension if `Use Upscale to..` is on. <br>Minimum: 1024 |
+                | `Upscale to height`| Upscale input image height to specified dimension if `Use Upscale to..` is on. <br>Minimum: 1024 |
+                | `Upscale by` | Upscale factor for the input image. <br>Default: `2` <br>Upscaling of the input image is performed before the denoising and sampling stage. <br>Both dimensions are multiplied by the upscale value. If the smaller of the dimensions is still < 1024px, the image is further enlarged to minimum of<br>1024px (aspect ratio maintained).  |
+                | *** | **Notes about Upscaling**: <br>The reason for the minimum of 1024 is to give SDXL a comfortable working resolution.  **Note** that dimensions are snapped to the nearest multiple <br>of 64. The sweet spot seems to be between 2x and 4x (1024x1024) or 4x and 8x (512x512). Beyond that, the quality begins to collapse. <br>The higher the scale factor, the slower the process.| 
                 | `Skip Denoise Stage` | Skips the VAE Denoiser Stage. Default: `'False'`<br> Bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened <br>(if you inspected it at this stage). This is to avoid SUPIR treating low-res/compression artifacts as detail to be enhanced. <br>You may wish to skip this step if <br> - 1) You want do do your own pre-processing OR <br> - 2) Your input image is clean and free of low-res/compression artifacts or other degradations <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Can sometimes make closeups of skin textures a bit unnatural.|
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
@@ -915,7 +942,8 @@ def create_launch_gradio(listen_on_network, port=None):
                 supir_model,
                 sampler_type,
                 seed,
-                upscale,
+                upscale_by,
+                use_upscale_to,
                 upscale_to_width,
                 upscale_to_height,
                 skip_denoise_stage,
