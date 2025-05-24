@@ -735,9 +735,13 @@ def create_launch_gradio(listen_on_network, port=None):
                             with gr.Row():
                                 # SEED
                                 seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
+                            with gr.Row():
                                 # UPSCALE FACTOR
                                 # upscale = gr.Dropdown(choices=[1, 2, 3, 4, 5, 6], value=2, label="Upscale", interactive=True)  
-                                upscale = gr.Slider(minimum=1.0, maximum=10.0, value=2.0, step=0.5, label="Upscale", interactive=True)    
+                                upscale = gr.Slider(minimum=1.0, maximum=10.0, value=2.0, step=0.5, label="Upscale by", interactive=True)    
+                                upscale_to_width = gr.Number(label="Upscale To Width (px)",value=None,step=64,minimum=256,maximum=8192)
+                                upscale_to_height = gr.Number(label="Upscale To Height (px)",value=None,step=64,minimum=256,maximum=8192)
+                                
                             with gr.Row():
                                 skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
