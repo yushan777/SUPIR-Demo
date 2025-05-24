@@ -537,7 +537,12 @@ def process_edited_caption(additional_text):
     print(additional_text)
 
 
-
+# for when image is added/removed in the gradio UI
+def get_image_dimensions(img: Image.Image):
+    if img is None:
+        return ""
+    width, height = img.size
+    return f"Dimensions: {width} × {height}"
 
 # ====================================================================
 # ====================================================================
@@ -651,13 +656,16 @@ def create_launch_gradio(listen_on_network, port=None):
                     # ================================================
                     # COL 1
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
-                        input_image = gr.Image(type="pil", label="Input Image", height=480)
-                                                
+                        input_image = gr.Image(type="pil", label="Input Image", height=480)                        
+
                         submit_btn = gr.Button("Generate Caption", variant="primary")
                         
                     # ================================================
                     # COL 2                    
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
+                        # image dimensions info text box
+                        image_dims = gr.Textbox(label="Input Image Dimensions", interactive=False)
+
                         with gr.Accordion("SmolVLM Settings", open=True):
                             with gr.Row():
                                 caption_style = gr.Dropdown(
@@ -928,6 +936,8 @@ def create_launch_gradio(listen_on_network, port=None):
                         ],
             outputs=[image_caption]
         )
+
+        input_image.change(fn=get_image_dimensions, inputs=input_image, outputs=image_dims)
 
         # ==============================================================================================
         # Tab 2 Event Handlers
