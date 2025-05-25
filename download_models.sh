@@ -117,10 +117,15 @@ download_model() {
 REPO_NAME="yushan777/SUPIR"
 echo "Checking SUPIR models..."
 download_model "$REPO_NAME" "SUPIR/SUPIR-v0Q_fp16.safetensors" "$BASE_DIR/SUPIR"
+sleep 0.25
 download_model "$REPO_NAME" "SUPIR/SUPIR-v0F_fp16.safetensors" "$BASE_DIR/SUPIR"
+sleep 0.25
 download_model "$REPO_NAME" "SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors" "$BASE_DIR/SDXL"
+sleep 0.25
 download_model "$REPO_NAME" "CLIP1/clip-vit-large-patch14.safetensors" "$BASE_DIR/CLIP1"
+sleep 0.25
 download_model "$REPO_NAME" "CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors" "$BASE_DIR/CLIP2"
+sleep 0.25
 
 # Clean up temp directory if it's empty
 if [ -z "$(ls -A "$DOWNLOADS_DIR" 2>/dev/null)" ]; then

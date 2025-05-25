@@ -67,7 +67,7 @@ class SUPIRModel(DiffusionEngine):
     # SUPIR VAE - ENCODE
     @torch.no_grad()    
     def encode_first_stage(self, x):
-        print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - ENCODE)", color.ORANGE)
+        # print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - ENCODE)", color.ORANGE)
         
 
         # first_stage_model is actually the SUPIR VAE component
@@ -79,7 +79,7 @@ class SUPIRModel(DiffusionEngine):
     # SUPIR VAE - ENCODE
     @torch.no_grad()
     def encode_first_stage_with_denoise(self, x, use_sample=True, is_stage1=False):
-        print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - ENCODE WITH DENOISE: is_stage1={is_stage1})", color.ORANGE)
+        # print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - ENCODE WITH DENOISE)", color.ORANGE)
 
         # first_stage_model is actually the SUPIR VAE component
         with torch.autocast("cuda", dtype=self.ae_dtype):
@@ -99,7 +99,7 @@ class SUPIRModel(DiffusionEngine):
     # SUPIR VAE - DECODE
     @torch.no_grad()
     def decode_first_stage(self, z):
-        print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - DECODE)", color.ORANGE)
+        # print(f"Current function: {inspect.currentframe().f_code.co_name}() (SUPIR VAE - DECODE)", color.ORANGE)
         
 
         z = 1.0 / self.scale_factor * z
@@ -219,13 +219,16 @@ class SUPIRModel(DiffusionEngine):
             # while preserving important image details, preventing the main model from 
             # mistakenly enhancing these artifacts as legitimate features
             _z = self.encode_first_stage_with_denoise(img, use_sample=False)
-            x_stage1 = self.decode_first_stage(_z)  # this is the decoded denoised image in pixel space.              
+            # this is the decoded denoised image in pixel space. required for colorfixing 
+            # later on and also to used to encode image in latent space            
+            x_stage1 = self.decode_first_stage(_z)  
             z_stage1 = self.encode_first_stage(x_stage1)
         else:
             print(f"Skipping Stage 1 Denoise.", color.ORANGE)
-            _z = self.encode_first_stage(img)
-            x_stage1 = self.decode_first_stage(_z)
-            z_stage1 = self.encode_first_stage(img)
+            # img in latent space
+            _z = self.encode_first_stage(img)            
+            x_stage1 = self.decode_first_stage(_z) # this is the decoded image in pixel space. required for colorfixing 
+            z_stage1 = self.encode_first_stage(img) # this is the imput to the sampling process
 
         # !>>> Pass the string prompt directly to prepare_condition
         c, uc = self.prepare_condition(_z, prompt, p_p, n_p)
@@ -241,6 +244,7 @@ class SUPIRModel(DiffusionEngine):
         _samples = self.sampler(denoiser, noised_z, cond=c, uc=uc, x_center=z_stage1, control_scale=control_scale_end, control_scale_start=control_scale_start)
         
         samples = self.decode_first_stage(_samples)
+
         if color_fix_type == 'Wavelet':
             samples = wavelet_reconstruction(samples, x_stage1)
         elif color_fix_type == 'AdaIn':
