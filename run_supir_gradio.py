@@ -640,7 +640,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                                                                                                        
                     """) as demo:   
         
-        gr.Markdown("### SUPIR Enhancer / Detailer / Upscaler (With limits)")    
+        gr.Markdown("### SUPIR Restorer / Detailer / Upscaler")    
         # gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
         
 
