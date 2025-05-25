@@ -26,8 +26,8 @@
 
 ### Clone repo
 ```bash
-git clone https://github.com/yushan777/SUPIR.git
-cd SUPIR
+git clone https://github.com/yushan777/SUPIR-Demo.git
+cd SUPIR-Demo
 
 # For Linux only
 chmod +x *.sh
