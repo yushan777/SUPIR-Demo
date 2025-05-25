@@ -431,8 +431,8 @@ def process_supir(
                                     skip_denoise_stage=skip_denoise_stage)
     
     # settings string for embedding into png
-    supir_settings = ""
-    # supir_settings += f"input_image: {input_image}\n"
+    supir_settings = "\n"
+    supir_settings += f"input_image_resolution: {input_image.width}x{input_image.height}\n"
     supir_settings += f"image_caption: {image_caption}\n"
     supir_settings += f"supir_model_type: {supir_model_type}\n"
     supir_settings += f"sampler_type: {sampler_type}\n"
@@ -495,7 +495,7 @@ def process_supir(
         # embed the supir settings into tEXt chunks 
         # Embed the contents of the files into 
         info = PngImagePlugin.PngInfo()
-        info.add_text("SUPIR", supir_settings)
+        info.add_text("SUPIR:", supir_settings)
 
         # Save the modified PNG with the tEXt chunks embedded
         enhanced_image.save(png_save_path, "PNG", pnginfo=info)
