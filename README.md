@@ -45,6 +45,7 @@ install_win_local.bat
 ```
 
 ### Download Models 
+You can download the models at the same time while the venv is being installed (in a separate terminal)
 
 ```bash
 # Linux
