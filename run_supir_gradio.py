@@ -799,7 +799,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                 encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
                                 # The AE reconstructs the final image by stitching together outputs from smaller tile segments
                                 decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
-                                num_of_workers = gr.Slider(minimum=1, maximum=12, value=4, step=1, label="Number of workers")
+                                num_of_workers = gr.Slider(minimum=1, maximum=8, value=2, step=1, label="Number of workers")
                             
                                 
                                                     
