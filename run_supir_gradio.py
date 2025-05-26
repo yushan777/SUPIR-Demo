@@ -11,6 +11,9 @@ import glob
 from threading import Thread
 from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
+import gc
+import ctypes
+import platform
 
 # from huggingface_hub import snapshot_download
 from Y7.verify_model import check_smolvlm_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
@@ -296,14 +299,32 @@ def process_supir(
         # Return a tuple with None for the image and an error message
         return None, "Please upload an image first in Tab 1."
         
-    # Clear CUDA cache and garbage collect at startup
+    # ============================================================
+    # Clear GPU memory (VRAM) if CUDA is available
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
-        print("CUDA cache cleared at startup")
-        import gc
-        gc.collect()
-            
+        print("✅ CUDA cache cleared")
+
+    # Trigger Python's garbage collector
+    collected = gc.collect()
+    print(f"✅ Python garbage collection complete ({collected} objects collected)")
+
+    # Try to release malloc'd memory to the OS (Linux only)
+    if platform.system() == "Linux":
+        try:
+            libc = ctypes.CDLL("libc.so.6")
+            result = libc.malloc_trim(0)
+            if result == 1:
+                print("✅ Unused system memory returned to OS (via malloc_trim)")
+            else:
+                print("ℹ️ malloc_trim executed, but nothing was returned to the OS")
+        except Exception as e:
+            print(f"❌ malloc_trim failed: {e}")
+    else:
+        print("ℹ️ malloc_trim skipped (not supported on this OS)")
+    #  ============================================================
+             
     print("SUPIR Settings\n")
     print(f"input_image: {input_image}", color.YELLOW)
     print(f"image_caption: {image_caption}", color.YELLOW)
