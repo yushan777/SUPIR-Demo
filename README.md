@@ -1,6 +1,4 @@
-# A Customized Version of the Original [SUPIR](https://github.com/Fanghua-Yu/SUPIR) Project
-# 🚧 Work in Progress
-
+## A Customized Version of the Original [SUPIR](https://github.com/Fanghua-Yu/SUPIR) Project
 
 - Removed the heavy LLaVA implementation. 
 - Added safetensors support. 
