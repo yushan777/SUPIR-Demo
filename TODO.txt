@@ -1,3 +1,73 @@
 TEST with VAE dtype = FP32
 
 
+Tiled VAE]: input_size: torch.Size([1, 3, 2560, 2560]), tile_size: 512, padding: 32
+[Tiled VAE]: split to 5x5 = 25 tiles. Optimal tile size 512x512, original tile size 512x512
+[Tiled VAE]: Using PyTorch SDPA-based attention
+[Tiled VAE]: Executing Encoder Task Queue (Parallel x4, dtype: torch.bfloat16): 100%|████████████████████████████████████████████████████████████████| 2275/2275 [00:08<00:00, 276.69it/s]
+[Tiled VAE]: input_size: torch.Size([1, 4, 320, 320]), tile_size: 64, padding: 11
+[Tiled VAE]: split to 5x5 = 25 tiles. Optimal tile size 64x64, original tile size 64x64
+[Tiled VAE]: Using PyTorch SDPA-based attention
+[('conv_in', Conv2d(4, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))), ('store_res', <function resblock2task.<locals>.<lambda> at 0x7f24b5016e80>), ('pre_norm', GroupNorm(32, 512, eps=1e-06, affine=True)), ('silu', <function inplace_nonlinearity at 0x7f24b4f66840>), ('conv1', Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))), ('pre_norm', GroupNorm(32, 512, eps=1e-06, affine=True)), ('silu', <function inplace_nonlinearity at 0x7f24b4f66840>), ('conv2', Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))), ['add_res', None], ('store_res', <function attn2task.<locals>.<lambda> at 0x7f24b717f920>), ('pre_norm', GroupNorm(32, 512, eps=1e-06, affine=True)), ('attn', <function attn2task.<locals>.<lambda> at 0x7f24b717f9c0>), ['add_res', None]]
+[Tiled VAE]: Executing Decoder Task Queue (Parallel x4, dtype: torch.bfloat16):  88%|████████████████████████████████████████████████████████▋       | 2721/3075 [00:16<00:02, 160.11it/s][Tiled VAE Worker Error for tile 23]: CUDA out of memory. Tried to allocate 172.00 MiB. GPU 0 has a total capacity of 15.58 GiB of which 131.00 MiB is free. Including non-PyTorch memory, this process has 15.44 GiB memory in use. Of the allocated memory 13.37 GiB is allocated by PyTorch, and 1.74 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+[Tiled VAE] Error processing tile 23. Aborting parallel run for safety.
+[Tiled VAE]: Executing Decoder Task Queue (Parallel x4, dtype: torch.bfloat16):  89%|█████████████████████████████████████████████████████████       | 2742/3075 [00:16<00:02, 164.25it/s]
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.11/site-packages/gradio/queueing.py", line 625, in process_events
+    response = await route_utils.call_process_api(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/gradio/route_utils.py", line 322, in call_process_api
+    output = await app.get_blocks().process_api(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/gradio/blocks.py", line 2146, in process_api
+    result = await self.call_function(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/gradio/blocks.py", line 1664, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/anyio/to_thread.py", line 56, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 2470, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 967, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/gradio/utils.py", line 884, in wrapper
+    response = f(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^
+  File "/workspace/SUPIR-Demo/run_supir_gradio.py", line 420, in process_supir
+    samples = SUPIR_MODEL.batchify_sample(LQ_img, image_caption,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/SUPIR-Demo/SUPIR/models/SUPIR_model.py", line 224, in batchify_sample
+    x_stage1 = self.decode_first_stage(_z)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/SUPIR-Demo/SUPIR/models/SUPIR_model.py", line 107, in decode_first_stage
+    out = self.first_stage_model.decode(z)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/SUPIR-Demo/sgm/models/autoencoder.py", line 315, in decode
+    dec = self.decoder(z, **decoder_kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1739, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1750, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/SUPIR-Demo/SUPIR/utils/tilevae.py", line 839, in __call__
+    return self.vae_tile_forward(x)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/conda/lib/python3.11/site-packages/torch/utils/_contextlib.py", line 116, in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/SUPIR-Demo/SUPIR/utils/tilevae.py", line 1321, in vae_tile_forward
+    if tiles_gpu_state[i] is not None:
+       ~~~~~~~~~~~~~~~^^^
+IndexError: list index out of range
