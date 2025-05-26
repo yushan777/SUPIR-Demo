@@ -1319,8 +1319,9 @@ class VAEHook:
         # Ensure all GPU tensors in tiles_gpu_state are cleared if not moved to result
         for i in range(num_tiles):
             if tiles_gpu_state[i] is not None:
-                del tiles_gpu_state[i]
-                tiles_gpu_state[i] = None
+                tensor_obj = tiles_gpu_state[i] # Store the tensor object
+                tiles_gpu_state[i] = None       # Remove reference from the list
+                del tensor_obj                  # Explicitly delete the tensor object
         
         devices.torch_gc() # Clean up GPU memory
 
