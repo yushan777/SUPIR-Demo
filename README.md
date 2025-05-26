@@ -18,6 +18,7 @@
 - Moved CLIP paths to a yaml config file. 
 - Exposed `sampler_tile_size` and `sampler_tile_stride` to make them overridable when using `TiledRestoreEDMSampler`
 - SUPIR Settings saved into PNGInfo metadata
+- Parallel processing for Tiled VAE encoding/decoding
 
 ## Tested on Linux Mint, WSL, and Windows 11.  It seems to run faster under Linux. 
 
