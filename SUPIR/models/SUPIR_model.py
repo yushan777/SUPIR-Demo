@@ -255,7 +255,9 @@ class SUPIRModel(DiffusionEngine):
             samples = adaptive_instance_normalization(samples, x_stage1)
         return samples
 
+    # ==========================================================================================
     def init_tile_vae(self, encoder_tile_size=512, decoder_tile_size=256, num_parallel_workers=1):
+
         print(f"Current function: {inspect.currentframe().f_code.co_name}() with num_parallel_workers={num_parallel_workers}", color.ORANGE)
         self.first_stage_model.denoise_encoder.original_forward = self.first_stage_model.denoise_encoder.forward
         self.first_stage_model.encoder.original_forward = self.first_stage_model.encoder.forward

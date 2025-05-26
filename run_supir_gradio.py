@@ -56,6 +56,7 @@ SUPIR_HALF_PARAMS = 'loading_half_params'
 SUPIR_TILE_VAE = 'use_tile_vae'
 SUPIR_ENCODER_TILE_SIZE = 'encoder_tile_size'
 SUPIR_DECODER_TILE_SIZE = 'decoder_tile_size'
+SUPIR_TILE_VAE_WORKERS = 'tile_vae_num_of_workers'
 SUPIR_AE_DTYPE = 'ae_dtype'
 SUPIR_DIFF_DTYPE = 'diff_dtype'
 SUPIR_DIFF_SAMPLER_TILE_SIZE = 'sampler_tile_size'
@@ -317,6 +318,7 @@ def process_supir(
     print(f"use_tile_vae: {use_tile_vae}", color.YELLOW)
     print(f"encoder_tile_size: {encoder_tile_size}", color.YELLOW)
     print(f"decoder_tile_size: {decoder_tile_size}", color.YELLOW)
+    print(f"num_of_workers: {num_of_workers}", color.YELLOW)
     print(f"edm_steps: {edm_steps}", color.YELLOW)
     print(f"s_churn: {s_churn}", color.YELLOW)
     print(f"s_noise: {s_noise}", color.YELLOW)
@@ -354,6 +356,7 @@ def process_supir(
         SUPIR_SETTINGS.get(SUPIR_TILE_VAE) != use_tile_vae or
         SUPIR_SETTINGS.get(SUPIR_ENCODER_TILE_SIZE) != encoder_tile_size or
         SUPIR_SETTINGS.get(SUPIR_DECODER_TILE_SIZE) != decoder_tile_size or
+        SUPIR_SETTINGS.get(SUPIR_TILE_VAE_WORKERS) != num_of_workers or
         SUPIR_SETTINGS.get(SUPIR_AE_DTYPE) != ae_dtype or
         SUPIR_SETTINGS.get(SUPIR_DIFF_DTYPE) != diff_dtype or
         SUPIR_SETTINGS.get(SUPIR_DIFF_SAMPLER_TILE_SIZE) != sampler_tile_size or
@@ -381,6 +384,7 @@ def process_supir(
             SUPIR_TILE_VAE: use_tile_vae,
             SUPIR_ENCODER_TILE_SIZE: encoder_tile_size,
             SUPIR_DECODER_TILE_SIZE: decoder_tile_size,
+            SUPIR_TILE_VAE_WORKERS: num_of_workers,
             SUPIR_AE_DTYPE: ae_dtype,
             SUPIR_DIFF_DTYPE: diff_dtype,
             SUPIR_DIFF_SAMPLER_TILE_SIZE: sampler_tile_size,

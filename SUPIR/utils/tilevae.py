@@ -1195,7 +1195,7 @@ class VAEHook:
         # Parallel execution logic starts here
         # Use self.ae_dtype for the parallel execution if available, otherwise fallback to z.dtype
         parallel_ae_dtype = self.ae_dtype if hasattr(self, 'ae_dtype') else dtype
-        pbar = tqdm(total=num_tiles * len(single_task_queue), desc=f"[Tiled VAE]: Executing {'Decoder' if is_decoder else 'Encoder'} Task Queue (Parallel x{self.num_parallel_workers}, dtype: {parallel_ae_dtype}): ")
+        pbar = tqdm(total=num_tiles * len(single_task_queue), desc=f"[Tiled VAE]: Executing {'Decoder' if is_decoder else 'Encoder'} Task Queue (Parallel x{self.num_parallel_workers}): ")
         
         # Store tiles that are currently on GPU, managed by workers
         # For simplicity, we'll re-fetch from `tiles` (CPU) for each segment submission,
