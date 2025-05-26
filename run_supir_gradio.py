@@ -453,6 +453,7 @@ def process_supir(
     supir_settings += f"use_tile_vae: {use_tile_vae}\n"
     supir_settings += f"encoder_tile_size: {encoder_tile_size}\n"
     supir_settings += f"decoder_tile_size: {decoder_tile_size}\n"
+    supir_settings += f"num_of_workers: {num_of_workers}\n"    
     supir_settings += f"edm_steps: {edm_steps}\n"
     supir_settings += f"s_churn: {s_churn}\n"
     supir_settings += f"s_noise: {s_noise}\n"
