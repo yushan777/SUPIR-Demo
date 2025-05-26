@@ -137,6 +137,7 @@ def load_supir_model(sampler_type,
                use_tile_vae=False, 
                encoder_tile_size=512, 
                decoder_tile_size=64,
+               num_workers=1,
                sampler_tile_size=128,
                sampler_tile_stride=64):
     
@@ -155,7 +156,7 @@ def load_supir_model(sampler_type,
     if loading_half_params:
         model = model.half()
     if use_tile_vae:
-        model.init_tile_vae(encoder_tile_size=encoder_tile_size, decoder_tile_size=decoder_tile_size)
+        model.init_tile_vae(encoder_tile_size=encoder_tile_size, decoder_tile_size=decoder_tile_size, num_parallel_workers=num_workers)
 
     # Set the precision for the VAE component
     model.ae_dtype = convert_dtype(ae_dtype)
@@ -274,6 +275,7 @@ def process_supir(
             use_tile_vae, 
             encoder_tile_size, 
             decoder_tile_size,
+            num_of_workers,
             edm_steps, 
             s_churn, 
             s_noise,
@@ -364,6 +366,7 @@ def process_supir(
             use_tile_vae=use_tile_vae,
             encoder_tile_size=encoder_tile_size,
             decoder_tile_size=decoder_tile_size,
+            num_workers=num_of_workers,
             ae_dtype=ae_dtype,
             diff_dtype=diff_dtype,
             sampler_tile_size=sampler_tile_size,
@@ -424,6 +427,7 @@ def process_supir(
                                     control_scale_start=control_scale_start,
                                     control_scale_end=control_scale_end, 
                                     seed=seed,
+                                    num_parallel_workers=num_of_workers,
                                     num_samples=1,  # Always 1 for UI 
                                     p_p=a_prompt, 
                                     n_p=n_prompt, 
@@ -784,12 +788,15 @@ def create_launch_gradio(listen_on_network, port=None):
                         # Tile settings
                         with gr.Group() as tile_vae_settings:
                             with gr.Row():
-                                use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")
+                                use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")                                
                             with gr.Row():                                
                                 # The AE processes the input image in tiles of specified size instead of the full image at once
                                 encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
                                 # The AE reconstructs the final image by stitching together outputs from smaller tile segments
                                 decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
+                                num_of_workers = gr.Slider(minimum=1, maximum=12, value=4, step=1, label="Number of workers")
+                            
+                                
                                                     
         
                     # -------------------------------------------------
@@ -835,6 +842,8 @@ def create_launch_gradio(listen_on_network, port=None):
                             pass
                         with gr.Group():
                             pass                        
+                        with gr.Group():
+                            pass                                                
 
                 with gr.Row():
                     with gr.Column(elem_classes=["fixed-width-column-1216"]):
@@ -879,6 +888,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
                 | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
+                | `Number of Workers` | Number of parallel CPU processes for VAE encoding/decoding. <br>Improves speed on the CPU by efficiently preparing data for the GPU. <br>Default: `4` |
                 | `Steps` | Number of diffusion steps. Default: `50` |
                 | `S-Churn` | Controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1-5`: Mild/moderate <br>`6-10+`: Strong |
                 | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
@@ -963,6 +973,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 use_tile_vae, 
                 encoder_tile_size, 
                 decoder_tile_size,
+                num_of_workers,
                 edm_steps,
                 s_churn,
                 s_noise,

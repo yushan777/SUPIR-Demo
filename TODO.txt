@@ -1,3 +1,3 @@
-Add `Upscale to` in addition to existing `Upscale by` - to allow specific sizes
-
 TEST with VAE dtype = FP32
+
+

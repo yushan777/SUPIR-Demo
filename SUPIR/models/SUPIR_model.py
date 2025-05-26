@@ -234,8 +234,12 @@ class SUPIRModel(DiffusionEngine):
         c, uc = self.prepare_condition(_z, prompt, p_p, n_p)
 
 
+        # Make a copy of kwargs to avoid modifying the original dict if it's used elsewhere
+        # and remove 'num_parallel_workers' if it exists, doing nothing if it's not present.
+        denoiser_call_kwargs = kwargs.copy()
+        denoiser_call_kwargs.pop('num_parallel_workers', None) 
         denoiser = lambda input, sigma, c, control_scale: self.denoiser(
-            self.model, input, sigma, c, control_scale, **kwargs
+            self.model, input, sigma, c, control_scale, **denoiser_call_kwargs
         )
 
         noised_z = torch.randn_like(_z).to(_z.device)
@@ -251,20 +255,20 @@ class SUPIRModel(DiffusionEngine):
             samples = adaptive_instance_normalization(samples, x_stage1)
         return samples
 
-    def init_tile_vae(self, encoder_tile_size=512, decoder_tile_size=256):
-        print(f"Current function: {inspect.currentframe().f_code.co_name}()", color.ORANGE)
+    def init_tile_vae(self, encoder_tile_size=512, decoder_tile_size=256, num_parallel_workers=1):
+        print(f"Current function: {inspect.currentframe().f_code.co_name}() with num_parallel_workers={num_parallel_workers}", color.ORANGE)
         self.first_stage_model.denoise_encoder.original_forward = self.first_stage_model.denoise_encoder.forward
         self.first_stage_model.encoder.original_forward = self.first_stage_model.encoder.forward
         self.first_stage_model.decoder.original_forward = self.first_stage_model.decoder.forward
         self.first_stage_model.denoise_encoder.forward = VAEHook(
             self.first_stage_model.denoise_encoder, encoder_tile_size, is_decoder=False, fast_decoder=False,
-            fast_encoder=False, color_fix=False, to_gpu=True)
+            fast_encoder=False, color_fix=False, to_gpu=True, num_parallel_workers=num_parallel_workers, ae_dtype=self.ae_dtype)
         self.first_stage_model.encoder.forward = VAEHook(
             self.first_stage_model.encoder, encoder_tile_size, is_decoder=False, fast_decoder=False,
-            fast_encoder=False, color_fix=False, to_gpu=True)
+            fast_encoder=False, color_fix=False, to_gpu=True, num_parallel_workers=num_parallel_workers, ae_dtype=self.ae_dtype)
         self.first_stage_model.decoder.forward = VAEHook(
             self.first_stage_model.decoder, decoder_tile_size, is_decoder=True, fast_decoder=False,
-            fast_encoder=False, color_fix=False, to_gpu=True)
+            fast_encoder=False, color_fix=False, to_gpu=True, num_parallel_workers=num_parallel_workers, ae_dtype=self.ae_dtype)
 
     # ========================================================================================
     #  prepare the conditioning inputs that guide the diffusion model during inference

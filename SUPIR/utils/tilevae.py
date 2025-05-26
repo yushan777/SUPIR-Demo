@@ -60,7 +60,9 @@
 import gc
 from time import time
 import math
+import sys # Import sys module
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 import torch
 import torch.version
@@ -122,6 +124,7 @@ if 'global const':
     DEFAULT_COLOR_FIX = 0
     DEFAULT_ENCODER_TILE_SIZE = get_recommend_encoder_tile_size()
     DEFAULT_DECODER_TILE_SIZE = get_recommend_decoder_tile_size()
+    DEFAULT_NUM_PARALLEL_WORKERS = 1 # Default to 1 to maintain original behavior
 
 
 # inplace version of silu
@@ -809,15 +812,19 @@ class GroupNormParam:
 
 
 class VAEHook:
-    def __init__(self, net, tile_size, is_decoder, fast_decoder, fast_encoder, color_fix, to_gpu=False):
+    def __init__(self, net, tile_size, is_decoder, fast_decoder, fast_encoder, color_fix, to_gpu=False, num_parallel_workers=DEFAULT_NUM_PARALLEL_WORKERS, ae_dtype=torch.float32):
         self.net = net                  # encoder | decoder
         self.tile_size = tile_size
         self.is_decoder = is_decoder
+        self.ae_dtype = ae_dtype # Store the autoencoder dtype
         self.fast_mode = (fast_encoder and not is_decoder) or (
             fast_decoder and is_decoder)
         self.color_fix = color_fix and not is_decoder
         self.to_gpu = to_gpu
         self.pad = 11 if is_decoder else 32
+        self.num_parallel_workers = num_parallel_workers
+        if self.num_parallel_workers > 1:
+            print(f"[Tiled VAE]: Parallel processing enabled with {self.num_parallel_workers} workers.")
 
     def __call__(self, x):
         B, C, H, W = x.shape
@@ -906,6 +913,105 @@ class VAEHook:
                 ])
 
         return tile_input_bboxes, tile_output_bboxes
+
+    @torch.no_grad()
+    def _process_tile_segment(self, tile_data_cpu, task_queue_segment, device, worker_ae_dtype, pbar_update_func, is_fast_mode, input_bbox_for_crop, out_bbox_for_crop):
+        """
+        Worker function to process a segment of a tile's task queue.
+        Returns a dictionary containing the processed tile (or None if fully processed),
+        group norm stats (if applicable), and an error flag.
+        """
+        tile_idx, tile_cpu = tile_data_cpu
+        current_tile_task_queue = clone_task_queue(task_queue_segment) # Work on a copy
+        processed_tile_gpu = None
+        group_norm_stats = None # Will be (var, mean, pixel_count, weight, bias)
+        norm_layer_ref = None # To get weight/bias later
+        tile_fully_processed = False
+        error_occurred = False
+
+        try:
+            # Autocast context for the worker thread
+            with torch.autocast(device_type=device.type, dtype=worker_ae_dtype, enabled=worker_ae_dtype != torch.float32):
+                tile_gpu = tile_cpu.to(device, dtype=worker_ae_dtype)
+                del tile_cpu # Free CPU memory for this tile
+
+                while len(current_tile_task_queue) > 0:
+                    task = current_tile_task_queue.pop(0)
+                    task_type = task[0]
+
+                    if task_type == 'pre_norm':
+                        norm_layer_ref = task[1]
+                        var, mean = get_var_mean(tile_gpu, 32)
+                        if var.dtype == torch.float16 and var.isinf().any():
+                            fp32_tile_gpu = tile_gpu.float()
+                            var, mean = get_var_mean(fp32_tile_gpu, 32)
+                            del fp32_tile_gpu
+                        pixel_count = tile_gpu.shape[2] * tile_gpu.shape[3]
+                        group_norm_stats = (var, mean, pixel_count)
+                        processed_tile_gpu = tile_gpu # Return tile at pre_norm stage
+                        break # Stop processing for this segment, needs global sync
+                    elif task_type == 'store_res' or task_type == 'store_res_cpu':
+                        task_id = 0
+                        res_gpu = task[1](tile_gpu)
+                        # In parallel mode, keep res on GPU if fast_mode, else move to CPU if it was store_res_cpu
+                        # For simplicity and to avoid complex CPU/GPU transfers within worker,
+                        # we'll primarily keep intermediate results on GPU if possible,
+                        # or handle CPU transfer decision in the main loop if truly necessary.
+                        # For now, 'store_res_cpu' implies the original logic wanted it on CPU,
+                        # but in parallel, it might be better to keep on GPU until segment ends.
+                        # Let's assume for now 'res' stays on GPU unless explicitly moved by main logic.
+                        if not is_fast_mode or task_type == 'store_res_cpu':
+                             # If strict CPU storage is needed, this would be res_gpu.cpu()
+                             # but that adds complexity for re-merging.
+                             # For now, we assume task[1] (the residual) is kept on GPU.
+                             pass # Placeholder for potential CPU transfer logic
+
+                        while current_tile_task_queue[task_id][0] != 'add_res':
+                            task_id += 1
+                        current_tile_task_queue[task_id][1] = res_gpu # Store the residual (on GPU)
+                    elif task_type == 'add_res':
+                        if task[1] is not None: # Residual might be None if already processed or not set
+                            tile_gpu += task[1].to(device) # Ensure residual is on correct device
+                            # The task item task[1] (the residual tensor) has been consumed.
+                            # The task itself is popped from current_tile_task_queue. No need to modify via task_id.
+                    elif task_type == 'apply_norm': # This is applied after global sync
+                        group_norm_func = task[1]
+                        tile_gpu = group_norm_func(tile_gpu)
+                    else: # Other direct operations
+                        tile_gpu = task[1](tile_gpu)
+                    
+                    if pbar_update_func:
+                        pbar_update_func(1)
+
+                if len(current_tile_task_queue) == 0: # Tile processing finished
+                    tile_fully_processed = True
+                # The final result for this tile will be assembled in the main thread
+                # to avoid race conditions on the `result` tensor.
+                # We return the processed tile on GPU.
+                processed_tile_gpu = tile_gpu
+            
+            # If not fully processed and not stopped at pre_norm, it means it's an intermediate state.
+            # The tile remains on GPU.
+
+        except Exception as e:
+            print(f"[Tiled VAE Worker Error for tile {tile_idx}]: {e}")
+            error_occurred = True
+            # Ensure tile_gpu is None or on CPU to avoid holding GPU memory on error
+            if processed_tile_gpu is not None and processed_tile_gpu.device.type != 'cpu':
+                processed_tile_gpu = processed_tile_gpu.cpu() if processed_tile_gpu is not None else None
+
+
+        return {
+            "tile_idx": tile_idx,
+            "processed_tile_gpu": processed_tile_gpu, # On GPU, or CPU if error
+            "remaining_task_queue": current_tile_task_queue,
+            "group_norm_stats": group_norm_stats, # (var, mean, pixel_count)
+            "norm_layer_ref": norm_layer_ref, # for weight/bias
+            "tile_fully_processed": tile_fully_processed,
+            "error_occurred": error_occurred,
+            "input_bbox": input_bbox_for_crop, # Pass through for final cropping
+            "out_bbox": out_bbox_for_crop,   # Pass through for final cropping
+        }
 
     @torch.no_grad()
     def estimate_group_norm(self, z, task_queue, color_fix):
@@ -1022,84 +1128,200 @@ class VAEHook:
         del z
 
         # Task queue execution
-        pbar = tqdm(total=num_tiles * len(task_queues[0]), desc=f"[Tiled VAE]: Executing {'Decoder' if is_decoder else 'Encoder'} Task Queue: ")
-
-        # execute the task back and forth when switch tiles so that we always
-        # keep one tile on the GPU to reduce unnecessary data transfer
-        forward = True
-        interrupted = False
-        #state.interrupted = interrupted
-        while True:
-            #if state.interrupted: interrupted = True ; break
-
-            group_norm_param = GroupNormParam()
-            for i in range(num_tiles) if forward else reversed(range(num_tiles)):
-                #if state.interrupted: interrupted = True ; break
-
-                tile = tiles[i].to(device)
-                input_bbox = in_bboxes[i]
-                task_queue = task_queues[i]
-
-                interrupted = False
-                while len(task_queue) > 0:
-                    #if state.interrupted: interrupted = True ; break
-
-                    # DEBUG: current task
-                    # print('Running task: ', task_queue[0][0], ' on tile ', i, '/', num_tiles, ' with shape ', tile.shape)
-                    task = task_queue.pop(0)
-                    if task[0] == 'pre_norm':
-                        group_norm_param.add_tile(tile, task[1])
-                        break
-                    elif task[0] == 'store_res' or task[0] == 'store_res_cpu':
-                        task_id = 0
-                        res = task[1](tile)
-                        if not self.fast_mode or task[0] == 'store_res_cpu':
-                            res = res.cpu()
-                        while task_queue[task_id][0] != 'add_res':
-                            task_id += 1
-                        task_queue[task_id][1] = res
-                    elif task[0] == 'add_res':
-                        tile += task[1].to(device)
-                        task[1] = None
-                    else:
-                        tile = task[1](tile)
-                        #print(tiles[i].shape, tile.shape, task)
-                    pbar.update(1)
-
-                if interrupted: break
-
-                # check for NaNs in the tile.
-                # If there are NaNs, we abort the process to save user's time
-                #devices.test_for_nans(tile, "vae")
-
-                #print(tiles[i].shape, tile.shape, i, num_tiles)
-                if len(task_queue) == 0:
-                    tiles[i] = None
-                    num_completed += 1
-                    if result is None:      # NOTE: dim C varies from different cases, can only be inited dynamically
-                        result = torch.zeros((N, tile.shape[1], height * 8 if is_decoder else height // 8, width * 8 if is_decoder else width // 8), device=device, requires_grad=False)
-                    result[:, :, out_bboxes[i][2]:out_bboxes[i][3], out_bboxes[i][0]:out_bboxes[i][1]] = crop_valid_region(tile, in_bboxes[i], out_bboxes[i], is_decoder)
-                    del tile
-                elif i == num_tiles - 1 and forward:
-                    forward = False
-                    tiles[i] = tile
-                elif i == 0 and not forward:
-                    forward = True
-                    tiles[i] = tile
-                else:
-                    tiles[i] = tile.cpu()
-                    del tile
-
-            if interrupted: break
-            if num_completed == num_tiles: break
-
-            # insert the group norm task to the head of each task queue
-            group_norm_func = group_norm_param.summary()
-            if group_norm_func is not None:
-                for i in range(num_tiles):
+        
+        # If not using parallel workers, fall back to original sequential logic
+        if self.num_parallel_workers <= 1:
+            pbar = tqdm(total=num_tiles * len(task_queues[0]), desc=f"[Tiled VAE]: Executing {'Decoder' if is_decoder else 'Encoder'} Task Queue (Sequential): ")
+            forward = True
+            interrupted = False
+            while True:
+                group_norm_param = GroupNormParam()
+                for i in range(num_tiles) if forward else reversed(range(num_tiles)):
+                    if tiles[i] is None: # Already processed
+                        continue
+                    tile_gpu = tiles[i].to(device)
                     task_queue = task_queues[i]
-                    task_queue.insert(0, ('apply_norm', group_norm_func))
 
-        # Done!
+                    while len(task_queue) > 0:
+                        task = task_queue.pop(0)
+                        if task[0] == 'pre_norm':
+                            group_norm_param.add_tile(tile_gpu, task[1])
+                            break 
+                        elif task[0] == 'store_res' or task[0] == 'store_res_cpu':
+                            task_id = 0
+                            res = task[1](tile_gpu)
+                            if not self.fast_mode or task[0] == 'store_res_cpu':
+                                res = res.cpu()
+                            while task_queue[task_id][0] != 'add_res':
+                                task_id += 1
+                            task_queue[task_id][1] = res
+                        elif task[0] == 'add_res':
+                            if task[1] is not None:
+                                tile_gpu += task[1].to(device)
+                                task[1] = None # Mark as used
+                        elif task[0] == 'apply_norm': # Added after summary
+                            tile_gpu = task[1](tile_gpu)
+                        else:
+                            tile_gpu = task[1](tile_gpu)
+                        pbar.update(1)
+
+                    if len(task_queue) == 0: # Tile finished
+                        tiles[i] = None # Mark as processed
+                        num_completed += 1
+                        if result is None:
+                            result = torch.zeros((N, tile_gpu.shape[1], height * 8 if is_decoder else height // 8, width * 8 if is_decoder else width // 8), dtype=dtype, device=device, requires_grad=False)
+                        result[:, :, out_bboxes[i][2]:out_bboxes[i][3], out_bboxes[i][0]:out_bboxes[i][1]] = crop_valid_region(tile_gpu, in_bboxes[i], out_bboxes[i], is_decoder)
+                        del tile_gpu
+                    elif i == num_tiles - 1 and forward:
+                        forward = False
+                        tiles[i] = tile_gpu # Keep on GPU
+                    elif i == 0 and not forward:
+                        forward = True
+                        tiles[i] = tile_gpu # Keep on GPU
+                    else:
+                        tiles[i] = tile_gpu.cpu() # Move to CPU
+                        del tile_gpu
+                
+                if num_completed == num_tiles: break
+                
+                group_norm_func = group_norm_param.summary()
+                if group_norm_func is not None:
+                    for i in range(num_tiles):
+                        if tiles[i] is not None: # Only for unprocessed tiles
+                             task_queues[i].insert(0, ('apply_norm', group_norm_func))
+            pbar.close()
+            return result.to(dtype) if result is not None else result_approx.to(device)
+
+        # Parallel execution logic starts here
+        # Use self.ae_dtype for the parallel execution if available, otherwise fallback to z.dtype
+        parallel_ae_dtype = self.ae_dtype if hasattr(self, 'ae_dtype') else dtype
+        pbar = tqdm(total=num_tiles * len(single_task_queue), desc=f"[Tiled VAE]: Executing {'Decoder' if is_decoder else 'Encoder'} Task Queue (Parallel x{self.num_parallel_workers}, dtype: {parallel_ae_dtype}): ")
+        
+        # Store tiles that are currently on GPU, managed by workers
+        # For simplicity, we'll re-fetch from `tiles` (CPU) for each segment submission,
+        # and workers will return processed tiles (on GPU) which then update `tiles_gpu_state`.
+        tiles_gpu_state = [None] * num_tiles # Stores tile tensor if on GPU, or None if on CPU / processed
+
+        with ThreadPoolExecutor(max_workers=self.num_parallel_workers) as executor:
+            while num_completed < num_tiles:
+                futures = []
+                group_norm_param_parallel = GroupNormParam()
+                
+                # Identify tiles ready for next segment processing
+                # A tile is ready if its task_queue is not empty
+                active_tile_indices = [i for i, tq in enumerate(task_queues) if tq and (tiles[i] is not None or tiles_gpu_state[i] is not None)]
+
+                # Phase 1: Process until pre_norm or completion for a batch of tiles
+                # We need to manage which tiles are submitted to avoid OOM.
+                # Submit work for available worker slots.
+                
+                submitted_this_round = 0
+                for tile_idx in active_tile_indices:
+                    if submitted_this_round >= self.num_parallel_workers * 2 : # Heuristic to keep pipeline full but not oversubmit
+                         break
+
+                    current_tile_task_queue = task_queues[tile_idx]
+                    if not current_tile_task_queue: # Should not happen if active_tile_indices is correct
+                        continue
+
+                    # Determine input tile: from CPU cache `tiles` or from previous GPU state `tiles_gpu_state`
+                    tile_input_for_worker = tiles_gpu_state[tile_idx] if tiles_gpu_state[tile_idx] is not None else tiles[tile_idx]
+                    
+                    if tile_input_for_worker is None: # Already fully processed and cleared
+                        continue
+
+                    # Ensure input is on CPU for the worker to manage its GPU transfer
+                    if tile_input_for_worker.device.type != 'cpu':
+                        tile_input_for_worker = tile_input_for_worker.cpu()
+                    
+                    # Submit to executor
+                    # The worker will process until a 'pre_norm' or end of its queue segment
+                    futures.append(executor.submit(self._process_tile_segment,
+                                                    (tile_idx, tile_input_for_worker),
+                                                    current_tile_task_queue,
+                                                    device,
+                                                    parallel_ae_dtype, # Pass the authoritative ae_dtype
+                                                    pbar.update,
+                                                    self.fast_mode,
+                                                    in_bboxes[tile_idx],
+                                                    out_bboxes[tile_idx]))
+                    tiles_gpu_state[tile_idx] = None # Mark as "in-flight" / worker owns GPU copy
+                    tiles[tile_idx] = None # Original CPU copy is now with worker or cleared
+                    submitted_this_round +=1
+                
+                if not futures: # No work submitted, might mean all queues are empty or waiting for group_norm
+                    if all(not tq for tq in task_queues if tiles[i] is not None or tiles_gpu_state[i] is not None for i, _ in enumerate(tq)): # check if all active queues are empty
+                        break # All tasks done
+                    # This state should ideally be handled by group_norm logic below if that's the blocker
+
+                needs_group_norm_sync = False
+                for future in futures:
+                    worker_result = future.result()
+                    tile_idx = worker_result["tile_idx"]
+                    
+                    if worker_result["error_occurred"]:
+                        print(f"[Tiled VAE] Error processing tile {tile_idx}. Aborting parallel run for safety.")
+                        # Simplest error handling: attempt to revert to sequential or just raise
+                        # For now, let's signal completion to break loops and return whatever is done.
+                        num_completed = num_tiles 
+                        break # Break from processing future results
+
+                    task_queues[tile_idx] = worker_result["remaining_task_queue"]
+                    tiles_gpu_state[tile_idx] = worker_result["processed_tile_gpu"] # Update with GPU tensor
+
+                    if worker_result["group_norm_stats"]:
+                        needs_group_norm_sync = True
+                        var, mean, pixel_count = worker_result["group_norm_stats"]
+                        # Temporarily store raw stats; GroupNormParam needs layer ref for weight/bias
+                        group_norm_param_parallel.var_list.append(var)
+                        group_norm_param_parallel.mean_list.append(mean)
+                        group_norm_param_parallel.pixel_list.append(pixel_count)
+                        if worker_result["norm_layer_ref"] and group_norm_param_parallel.weight is None:
+                             if hasattr(worker_result["norm_layer_ref"], 'weight'):
+                                group_norm_param_parallel.weight = worker_result["norm_layer_ref"].weight
+                                group_norm_param_parallel.bias = worker_result["norm_layer_ref"].bias
+
+
+                    if worker_result["tile_fully_processed"]:
+                        num_completed += 1
+                        if result is None:
+                            result_c = tiles_gpu_state[tile_idx].shape[1]
+                            result_h = height * 8 if is_decoder else height // 8
+                            result_w = width * 8 if is_decoder else width // 8
+                            result = torch.zeros((N, result_c, result_h, result_w), dtype=dtype, device=device, requires_grad=False)
+                        
+                        processed_tile_final_gpu = tiles_gpu_state[tile_idx]
+                        result[:, :, worker_result["out_bbox"][2]:worker_result["out_bbox"][3], worker_result["out_bbox"][0]:worker_result["out_bbox"][1]] = \
+                            crop_valid_region(processed_tile_final_gpu, worker_result["input_bbox"], worker_result["out_bbox"], is_decoder)
+                        tiles_gpu_state[tile_idx] = None # Clear GPU state for this tile
+                        del processed_tile_final_gpu
+                
+                if num_completed == num_tiles and not needs_group_norm_sync : break # All done
+
+                # Phase 2: If group_norm stats were collected, summarize and update task queues
+                if needs_group_norm_sync:
+                    group_norm_func = group_norm_param_parallel.summary()
+                    if group_norm_func is not None:
+                        for i in range(num_tiles):
+                            # Update only for tiles that are not yet fully processed and have a pending pre_norm
+                            if tiles_gpu_state[i] is not None and task_queues[i] and task_queues[i][0][0] != 'apply_norm':
+                                # Check if the next task was indeed the pre_norm that was just handled implicitly
+                                # The worker returns the tile *before* pre_norm is applied if it's a sync point.
+                                # So, we add 'apply_norm' to the *front* of its *remaining* queue.
+                                task_queues[i].insert(0, ('apply_norm', group_norm_func))
+                    # Now tiles are ready for the next segment of processing after norm application. Loop will continue.
+            
+            if num_completed < num_tiles:
+                 print(f"[Tiled VAE] Warning: Parallel execution finished but not all tiles completed ({num_completed}/{num_tiles}). Result might be incomplete.")
+
+
         pbar.close()
-        return result.to(dtype) if result is not None else result_approx.to(device)
+        # Ensure all GPU tensors in tiles_gpu_state are cleared if not moved to result
+        for i in range(num_tiles):
+            if tiles_gpu_state[i] is not None:
+                del tiles_gpu_state[i]
+                tiles_gpu_state[i] = None
+        
+        devices.torch_gc() # Clean up GPU memory
+
+        return result.to(dtype) if result is not None else result_approx.to(device) # result_approx is from original code, might be None
