@@ -914,7 +914,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
                 | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
                 | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
-                | `Number of Workers` | Number of parallel CPU processes for VAE encoding/decoding. <br>Improves speed on the CPU by efficiently preparing data for the GPU. <br>Default: `4` |
+                | `Number of Workers` | Number of parallel CPU processes for VAE encoding/decoding. <br>Improves speed on the CPU by efficiently preparing data for the GPU. Increase if you have a ton of Memory<br>Default: `1` |
                 | `Steps` | Number of diffusion steps. Default: `50` |
                 | `S-Churn` | Controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1-5`: Mild/moderate <br>`6-10+`: Strong |
                 | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
