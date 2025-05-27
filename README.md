@@ -24,10 +24,9 @@
 
 ## Processing Times / Memory Usage
 ### TiledRestoreEDMSampler + Tiled VAE
+Number of Workers = 1
 
 #### **Linux: RTX 4090 (24GB VRAM, 64GB RAM)**  
-*Tile VAE – Number of Workers = 1*
-
 | Upscale | Time       | VRAM Usage |
 |---------|------------|------------|
 | 2x      | 111 secs   | 15.5 GB    |
@@ -38,8 +37,6 @@
 ---
 
 #### **Linux: RTX 4080 (16GB VRAM, 64GB RAM)**  
-*Tile VAE – Number of Workers = 1*
-
 | Upscale | Time       | VRAM Usage |
 |---------|------------|------------|
 | 2x      | 227 secs   | 13.7 GB    |
