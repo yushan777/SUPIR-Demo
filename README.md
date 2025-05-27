@@ -162,26 +162,17 @@ python3 run_supir.py \
 ---
 
 ## Processing Times / Memory Usage
-### TiledRestoreEDMSampler + Tiled VAE
-Number of Workers = 1
+Sampler: TiledRestoreEDMSampler  
+Tiled VAE: True  
+Number of Workers: 1  
+Linux, 64GB RAM  
 
-#### **Linux: RTX 4090 (24GB VRAM, 64GB RAM)**  
-| Upscale | Time       | VRAM Usage |
-|---------|------------|------------|
-| 2x      | 111 secs   | 15.5 GB    |
-| 3x      | 315 secs   | 15.6 GB    |
-| 4x      | 606 secs   | 14.6 GB    |
-| 5x      | 992 secs   | 14.7 GB    |
-
----
-
-#### **Linux: RTX 4080 (16GB VRAM, 64GB RAM)**  
-| Upscale | Time       | VRAM Usage |
-|---------|------------|------------|
-| 2x      | 227 secs   | 13.7 GB    |
-| 3x      | 475 secs   | 13.8 GB    |
-| 4x      | 910 secs   | 13.9 GB    |
-| 5x      | 1492 secs  | 14.6 GB    |
+| Upscale | 4090<br>Time | 4090<br>VRAM | 4080<br>Time | 4080<br>VRAM | 4070<br>Time | 4070<br>VRAM |
+|---------|--------------|--------------|--------------|--------------|--------------|--------------|
+| 2x      | 111 secs     | 14.0GB       | 227 secs     | 13.7GB       | 301 secs     | 11.7GB       |
+| 3x      | 315 secs     | 14.1GB       | 475 secs     | 13.8GB       | 652 secs     | 11.7GB       |
+| 4x      | 606 secs     | 14.6GB       | 910 secs     | 13.9GB       | 1625 secs    | 11.7GB       |
+| 5x      | 992 secs     | 15.0GB       | 1492 secs    | 14.6GB       | OOM          | OOM          |
 
 ---
 ### Arguments
