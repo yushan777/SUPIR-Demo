@@ -1,5 +1,17 @@
 ## A Customized Version of the Original [SUPIR](https://github.com/Fanghua-Yu/SUPIR) Project
 
+---
+![Screenshot 1](assets/scrnshot1.jpg)  
+
+![Screenshot 2](assets/scrnshot2.jpg)  
+
+![Screenshot 3](assets/scrnshot3.jpg)  
+
+![Screenshot 3](assets/scrnshot4.jpg)  
+
+![Screenshot 3](assets/scrnshot5.jpg)
+
+---
 - Removed the heavy LLaVA implementation. 
 - Added safetensors support. 
 - Updated dependencies. 
@@ -20,12 +32,7 @@
 - Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
 
 ---
-![Screenshot 1](assets/scrnshot1.jpg)  
 
-![Screenshot 2](assets/scrnshot2.jpg)  
-
-![Screenshot 3](assets/scrnshot3.jpg)  
----
 ## Installation
 
 ### Clone repo
