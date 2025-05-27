@@ -19,32 +19,6 @@
 - Parallel processing for Tiled VAE encoding/decoding
 - Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
 
-## Tested on Linux Mint, WSL, and Windows 11.  It seems to run faster under Linux. 
----
-
-## Processing Times / Memory Usage
-### TiledRestoreEDMSampler + Tiled VAE
-Number of Workers = 1
-
-#### **Linux: RTX 4090 (24GB VRAM, 64GB RAM)**  
-| Upscale | Time       | VRAM Usage |
-|---------|------------|------------|
-| 2x      | 111 secs   | 15.5 GB    |
-| 3x      | 315 secs   | 15.6 GB    |
-| 4x      | 606 secs   | 14.6 GB    |
-| 5x      | 992 secs   | 14.7 GB    |
-
----
-
-#### **Linux: RTX 4080 (16GB VRAM, 64GB RAM)**  
-| Upscale | Time       | VRAM Usage |
-|---------|------------|------------|
-| 2x      | 227 secs   | 13.7 GB    |
-| 3x      | 475 secs   | 13.8 GB    |
-| 4x      | 910 secs   | 13.9 GB    |
-| 5x      | 1492 secs  | 14.6 GB    |
-
-
 ---
 ## Installation
 
@@ -170,6 +144,33 @@ python3 run_supir.py \
 --use_tile_vae
 ```
 
+---
+## Tested on Linux Mint, WSL, and Windows 11.  It seems to run faster under Linux. 
+---
+
+## Processing Times / Memory Usage
+### TiledRestoreEDMSampler + Tiled VAE
+Number of Workers = 1
+
+#### **Linux: RTX 4090 (24GB VRAM, 64GB RAM)**  
+| Upscale | Time       | VRAM Usage |
+|---------|------------|------------|
+| 2x      | 111 secs   | 15.5 GB    |
+| 3x      | 315 secs   | 15.6 GB    |
+| 4x      | 606 secs   | 14.6 GB    |
+| 5x      | 992 secs   | 14.7 GB    |
+
+---
+
+#### **Linux: RTX 4080 (16GB VRAM, 64GB RAM)**  
+| Upscale | Time       | VRAM Usage |
+|---------|------------|------------|
+| 2x      | 227 secs   | 13.7 GB    |
+| 3x      | 475 secs   | 13.8 GB    |
+| 4x      | 910 secs   | 13.9 GB    |
+| 5x      | 1492 secs  | 14.6 GB    |
+
+---
 ### Arguments
 
 | **Argument** | **Description** |
