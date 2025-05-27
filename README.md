@@ -221,3 +221,10 @@ Number of Workers = 1
 | `Number of Workers` | Number of parallel CPU processes for VAE encoding/decoding. <br>Improves speed on multi-core CPUs by efficiently preparing data for the GPU. <br>Default: `4` |
 | `sampler_tile_size` | Tile size for `TiledRestoreEDMSampler`.<br>This is the size of each tile that the image is divided into during tiled sampling.<br>Example: `tile_size` of 128 → image is split into 128×128 pixel tiles. |
 | `sampler_tile_stride` | Tile stride for `TiledRestoreEDMSampler`.<br>Controls overlap between tiles during sampling.<br>Smaller `tile_stride` = more overlap, better blending, more compute.<br>Larger `tile_stride` = less overlap, faster, may cause seams.<br>`Overlap = tile_size - tile_stride`<br>Examples:<br>- tile_size = 128, stride = 64 → 64 px overlap. |
+
+---
+Images from [Pixabay](https://pixabay.com/)  
+[Original SUPIR Repository](https://github.com/Fanghua-Yu/SUPIR)  
+[Kijai's SUPIR Custom Nodes for ComfyUI](https://github.com/kijai/ComfyUI-SUPIR)  
+
+
