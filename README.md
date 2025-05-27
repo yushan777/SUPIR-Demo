@@ -20,6 +20,12 @@
 - Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
 
 ---
+![Screenshot 1](assets/scrnshot1.jpg)  
+
+![Screenshot 2](assets/scrnshot2.jpg)  
+
+![Screenshot 3](assets/scrnshot3.jpg)  
+---
 ## Installation
 
 ### Clone repo
