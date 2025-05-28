@@ -973,7 +973,8 @@ def create_launch_gradio(listen_on_network, port=None):
             outputs=[image_caption]
         )
 
-        input_image.change(fn=get_image_dimensions, inputs=input_image, outputs=image_dims)
+        # input_image.change(fn=get_image_dimensions, inputs=input_image, outputs=image_dims)
+        input_image.upload(fn=get_image_dimensions, inputs=input_image, outputs=image_dims)
 
         # ==============================================================================================
         # Tab 2 Event Handlers
