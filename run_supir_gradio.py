@@ -120,7 +120,7 @@ def load_smolvlm_model(model_path):
         
         except ImportError as e:
             if impl == "flash_attention_2" and "flash_attn" in str(e):
-                print(f"  flash_attention_2 not available (package not installed)", color.YELLOW)
+                print(f"  flash_attention_2 not available (package not installed)")
             else:
                 print(f"  Failed with {impl}: {e}", color.RED)
             continue
