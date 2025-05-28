@@ -70,7 +70,8 @@ download_models.bat
 ## Manually Downloading The Models
 <details> <summary>ℹ️ See more information</summary>
 
-If you prefer to Download the models manually or in your own time here are the links:
+If you prefer to Download the models manually or in your own time below are the links.  
+Additionally, if you already have these models then you can simply symlink them to the locations to save on storage space. 
 
 #### SmolVLM-500M-Instruct 
 For captioning input image in the Gradio demo.
