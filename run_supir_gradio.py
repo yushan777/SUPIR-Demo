@@ -14,6 +14,7 @@ from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 import gc
 import ctypes
 import platform
+import json
 
 # from huggingface_hub import snapshot_download
 from Y7.verify_model import check_smolvlm_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
@@ -579,7 +580,35 @@ def get_image_dimensions(img: Image.Image):
 # GRADIO UI SHIT
 # ====================================================================
 # ====================================================================
+
+# Helper function to load defaults from JSON
+def load_app_defaults():
+    defaults_path = "defaults.json"
+    try:
+        with open(defaults_path, 'r') as f:
+            data = json.load(f)
+            # Ensure top-level keys exist, even if empty, to simplify downstream .get() calls
+            if 'smolvlm_settings' not in data:
+                data['smolvlm_settings'] = {}
+            if 'supir_settings' not in data:
+                data['supir_settings'] = {}
+            print(f"Successfully loaded defaults from {defaults_path}")
+            return data
+    except FileNotFoundError:
+        print(f"Warning: {defaults_path} not found. Using hardcoded defaults.", color.ORANGE)
+        return {"smolvlm_settings": {}, "supir_settings": {}}
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode {defaults_path}. Using hardcoded defaults.", color.ORANGE)
+        return {"smolvlm_settings": {}, "supir_settings": {}}
+    except Exception as e:
+        print(f"An unexpected error occurred while loading {defaults_path}: {e}. Using hardcoded defaults.", color.ORANGE)
+        return {"smolvlm_settings": {}, "supir_settings": {}}
+
 def create_launch_gradio(listen_on_network, port=None):
+    # Load defaults from JSON file
+    app_defaults = load_app_defaults()
+    smolvlm_defaults = app_defaults.get('smolvlm_settings', {})
+    supir_defaults = app_defaults.get('supir_settings', {})
 
     # Create custom theme (unchanged from your original code)
     custom_theme = gr.themes.Base(
@@ -700,31 +729,31 @@ def create_launch_gradio(listen_on_network, port=None):
                             with gr.Row():
                                 caption_style = gr.Dropdown(
                                     choices=CAPTION_STYLE_OPTIONS,
-                                    value=CAPTION_STYLE_OPTIONS[1] if len(CAPTION_STYLE_OPTIONS) > 1 else CAPTION_STYLE_OPTIONS[0] if CAPTION_STYLE_OPTIONS else "Moderately detailed",
+                                    value=smolvlm_defaults.get('caption_style', CAPTION_STYLE_OPTIONS[1] if len(CAPTION_STYLE_OPTIONS) > 1 else CAPTION_STYLE_OPTIONS[0] if CAPTION_STYLE_OPTIONS else "Moderately detailed"),
                                     label="Caption Style"
                                 )
                             gr.Markdown("Sampler Settings") 
                             with gr.Row():
-                                max_tokens = gr.Slider(minimum=50, maximum=1024, value=MAX_NEW_TOKENS, step=1, label="Max New Tokens")
-                                rep_penalty = gr.Slider(minimum=1.0, maximum=2.0, value=REP_PENALTY, step=0.1, label="Repetition Penalty")
+                                max_tokens = gr.Slider(minimum=50, maximum=1024, value=smolvlm_defaults.get('max_new_tokens', MAX_NEW_TOKENS), step=1, label="Max New Tokens")
+                                rep_penalty = gr.Slider(minimum=1.0, maximum=2.0, value=smolvlm_defaults.get('repetition_penalty', REP_PENALTY), step=0.1, label="Repetition Penalty")
                             
                             # Group the sampling-related controls together
                             with gr.Group():
-                                do_sample_checkbox = gr.Checkbox(value=DO_SAMPLING, label="Do Sample")
+                                do_sample_checkbox = gr.Checkbox(value=smolvlm_defaults.get('do_sample', DO_SAMPLING), label="Do Sample")
                                 with gr.Row():
-                                    temperature_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TEMP, step=0.1, label="Temperature")
-                                    top_p_slider = gr.Slider(minimum=0.1, maximum=1.0, value=TOP_P, step=0.1, label="Top P")
+                                    temperature_slider = gr.Slider(minimum=0.1, maximum=1.0, value=smolvlm_defaults.get('temperature', TEMP), step=0.1, label="Temperature")
+                                    top_p_slider = gr.Slider(minimum=0.1, maximum=1.0, value=smolvlm_defaults.get('top_p', TOP_P), step=0.1, label="Top P")
 
 
                 
                 with gr.Row():
                     with gr.Column():
-                        image_caption = gr.Textbox(label="Generated Caption", 
-                                                   lines=5, 
-                                                   interactive=True, 
+                        image_caption = gr.Textbox(label="Generated Caption",
+                                                   lines=5,
+                                                   interactive=True,
                                                    elem_id="text_box",
                                                    placeholder="Can be left blank but captions nearly always produce better SUPIR results." \
-                                                   "You can also edit the caption after it has been generated.")                                              
+                                                   "You can also edit the caption after it has been generated.")
                 
 
                 gr.Markdown("""    
@@ -756,44 +785,44 @@ def create_launch_gradio(listen_on_network, port=None):
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
 
                         with gr.Group():
-                            loading_half_params = gr.Checkbox(value=True, label="Load Model fp16")
+                            loading_half_params = gr.Checkbox(value=supir_defaults.get('loading_half_params', True), label="Load Model fp16")
                             with gr.Row():
                                 # supir_sign renamed to supir_model
-                                supir_model = gr.Dropdown(choices=["Q", "F"], value="Q", label="Model Type")  
+                                supir_model = gr.Dropdown(choices=["Q", "F"], value=supir_defaults.get('supir_model_type', "Q"), label="Model Type")
                                 # load half - (For <= 24GB VRAM)
                                 
 
-                                # sampler type[RestoreEDMSampler, TiledRestoreEDMSampler] 
+                                # sampler type[RestoreEDMSampler, TiledRestoreEDMSampler]
                                 # internally returns the config_path to the correct config (yaml)
                                 # RestoreEDMSampler (Higher VRAM)
                                 # TiledRestoreEDMSampler (Lower VRAM)
                                 sampler_type = gr.Dropdown(
                                     choices=["RestoreEDMSampler", "TiledRestoreEDMSampler"],
-                                    value=('TiledRestoreEDMSampler'),
+                                    value=supir_defaults.get('sampler_type', 'TiledRestoreEDMSampler'),
                                     label="Sampler Type"
                                 )
                             with gr.Row():
                                 
 
                                 ae_dtype = gr.Dropdown(
-                                    choices=["fp32", "bf16"], 
-                                    value="bf16", 
+                                    choices=["fp32", "bf16"],
+                                    value=supir_defaults.get('ae_dtype', "bf16"),
                                     label="AE dType"
                                 )
                                 diff_dtype = gr.Dropdown(
-                                    choices=["fp32", "fp16", "bf16"], 
-                                    value="fp16", 
+                                    choices=["fp32", "fp16", "bf16"],
+                                    value=supir_defaults.get('diff_dtype', "fp16"),
                                     label="Diffusion dType"
                                 )
 
                         with gr.Group():
                             with gr.Row():                                
-                                use_upscale_to = gr.Checkbox(value=False, label="Use Upscale to...")
+                                use_upscale_to = gr.Checkbox(value=supir_defaults.get('use_upscale_to', False), label="Use Upscale to...")
                             with gr.Row():
-                                upscale_to_width = gr.Number(label="Upscale to width",value=1024,step=64,minimum=1024,maximum=8192, interactive=True)
-                                upscale_to_height = gr.Number(label="Upscale to height",value=1024,step=64,minimum=1024,maximum=8192, interactive=True)                                  
+                                upscale_to_width = gr.Number(label="Upscale to width",value=supir_defaults.get('upscale_to_width', 1024),step=64,minimum=1024,maximum=8192, interactive=True)
+                                upscale_to_height = gr.Number(label="Upscale to height",value=supir_defaults.get('upscale_to_height', 1024),step=64,minimum=1024,maximum=8192, interactive=True)
                                 # UPSCALE FACTOR                                            
-                                upscale_by = gr.Slider(minimum=1.0, maximum=10.0, value=2.0, step=0.25, label="Upscale by", interactive=True, scale=2)                                  
+                                upscale_by = gr.Slider(minimum=1.0, maximum=10.0, value=supir_defaults.get('upscale_by', 2.0), step=0.25, label="Upscale by", interactive=True, scale=2)
                                 
                             # with gr.Row():
                                 # skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
@@ -801,8 +830,8 @@ def create_launch_gradio(listen_on_network, port=None):
                         with gr.Group():
                             with gr.Row():
                                 # SEED
-                                seed = gr.Number(value=1234567891, precision=0, label="Seed", interactive=True)
-                                skip_denoise_stage = gr.Checkbox(value=False, label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
+                                seed = gr.Number(value=supir_defaults.get('seed', 1234567891), precision=0, label="Seed", interactive=True)
+                                skip_denoise_stage = gr.Checkbox(value=supir_defaults.get('skip_denoise_stage', False), label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
                         # with gr.Group():
                         #     with gr.Row():
@@ -814,13 +843,13 @@ def create_launch_gradio(listen_on_network, port=None):
                         # Tile settings
                         with gr.Group() as tile_vae_settings:
                             with gr.Row():
-                                use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")                                
+                                use_tile_vae = gr.Checkbox(value=supir_defaults.get('use_tile_vae', True), label="Use Tile VAE")
                             with gr.Row():                                
                                 # The AE processes the input image in tiles of specified size instead of the full image at once
-                                encoder_tile_size = gr.Slider(minimum=256, maximum=3072, value=512, step=64, label="Encoder Tile Size")
+                                encoder_tile_size = gr.Slider(minimum=256, maximum=3072, value=supir_defaults.get('encoder_tile_size', 512), step=64, label="Encoder Tile Size")
                                 # The AE reconstructs the final image by stitching together outputs from smaller tile segments
-                                decoder_tile_size = gr.Slider(minimum=64, maximum=256, value=64, step=16, label="Decoder Tile Size")
-                                num_of_workers = gr.Slider(minimum=1, maximum=8, value=2, step=1, label="Number of workers")
+                                decoder_tile_size = gr.Slider(minimum=64, maximum=256, value=supir_defaults.get('decoder_tile_size', 64), step=16, label="Decoder Tile Size")
+                                num_of_workers = gr.Slider(minimum=1, maximum=8, value=supir_defaults.get('num_workers', 2), step=1, label="Number of workers")
                             
                                 
                                                     
@@ -833,34 +862,34 @@ def create_launch_gradio(listen_on_network, port=None):
                         with gr.Group():
                             gr.Markdown("Steps, S-Churn, S-Noise")
                             with gr.Row():
-                                edm_steps = gr.Slider(minimum=10, maximum=100, value=50, step=1, label="Steps") # sampler steps
-                                s_churn = gr.Slider(minimum=0, maximum=20, value=5, step=1, label="S-Churn") # stochastic churn
-                                s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=1.003, step=0.001, label="S-Noise") # stochastic noise                        
+                                edm_steps = gr.Slider(minimum=10, maximum=100, value=supir_defaults.get('edm_steps', 50), step=1, label="Steps") # sampler steps
+                                s_churn = gr.Slider(minimum=0, maximum=20, value=supir_defaults.get('s_churn', 5), step=1, label="S-Churn") # stochastic churn
+                                s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=supir_defaults.get('s_noise', 1.003), step=0.001, label="S-Noise") # stochastic noise                        
 
                         
                                                          
                         with gr.Group():
                             gr.Markdown("CFG Guidance")
                             with gr.Row():
-                                cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=2.0, step=0.1, label="CFG Scale Start")        
-                                cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=4.0, step=0.1, label="CFG Scale End")
+                                cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=supir_defaults.get('cfg_scale_start', 2.0), step=0.1, label="CFG Scale Start")
+                                cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=supir_defaults.get('cfg_scale_end', 4.0), step=0.1, label="CFG Scale End")
                         
                         
 
                         with gr.Group():
                             gr.Markdown("Control Guidance")                            
                             with gr.Row():
-                                control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.05, label="Control Scale Start")
-                                control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=0.9, step=0.05, label="Control Scale End")
+                                control_scale_start = gr.Slider(minimum=0.0, maximum=2.0, value=supir_defaults.get('control_scale_start', 0.9), step=0.05, label="Control Scale Start")
+                                control_scale_end = gr.Slider(minimum=0.0, maximum=2.0, value=supir_defaults.get('control_scale_end', 0.9), step=0.05, label="Control Scale End")
 
                         with gr.Row():
-                            restoration_scale = gr.Slider(minimum=0, maximum=4.0, value=0, step=0.5, label="Restoration Scale(≤0 = Disabled)", info="Still a mystery, keep disabled unless image is very damaged")                                    
+                            restoration_scale = gr.Slider(minimum=0, maximum=4.0, value=supir_defaults.get('restoration_scale', 0), step=0.5, label="Restoration Scale(≤0 = Disabled)", info="Still a mystery, keep disabled unless image is very damaged")
 
                         with gr.Group():
                             gr.Markdown("Sampler Tiling (For TiledRestoreEDMSampler)")                            
                             with gr.Row():
-                                sampler_tile_size = gr.Slider(minimum=128, maximum=512, value=128, step=32, label="Sampler Tile Size")
-                                sampler_tile_stride = gr.Slider(minimum=32, maximum=256, value=64, step=32, label="Sampler Tile Stride")
+                                sampler_tile_size = gr.Slider(minimum=128, maximum=512, value=supir_defaults.get('sampler_tile_size', 128), step=32, label="Sampler Tile Size")
+                                sampler_tile_stride = gr.Slider(minimum=32, maximum=256, value=supir_defaults.get('sampler_tile_stride', 64), step=32, label="Sampler Tile Stride")
 
                         with gr.Group():
                             pass
@@ -875,12 +904,12 @@ def create_launch_gradio(listen_on_network, port=None):
                     with gr.Column(elem_classes=["fixed-width-column-1216"]):
                         with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
                             with gr.Row():
-                                a_prompt = gr.Textbox(value=default_positive_prompt, lines=4, label="Additional Positive Prompt (appended to main caption)")
-                                n_prompt = gr.Textbox(value=default_negative_prompt, lines=4, label="Negative Prompt")
+                                a_prompt = gr.Textbox(value=supir_defaults.get('a_prompt', default_positive_prompt), lines=4, label="Additional Positive Prompt (appended to main caption)")
+                                n_prompt = gr.Textbox(value=supir_defaults.get('n_prompt', default_negative_prompt), lines=4, label="Negative Prompt")
 
                         process_supir_btn = gr.Button("Process", variant="primary")
                         # status message box 
-                        status_message = gr.Textbox(label="", interactive=False)   
+                        status_message = gr.Textbox(label="", interactive=False)
                          
                 # # additional prompt and standard neg. prompt
                 # with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
@@ -894,6 +923,8 @@ def create_launch_gradio(listen_on_network, port=None):
 
                 #         # status message box 
                 #         status_message = gr.Textbox(label="", interactive=False)         
+
+                gr.Markdown("Default Settings can be set in the file `defaults.json`. If it doesn't exist, just copy and rename `defaults_example.json`")
 
                 gr.Markdown(
                     """

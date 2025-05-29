@@ -170,6 +170,8 @@ models/SmolVLM-500M-Instruct/*
 models/SmolVLM-Instruct/*
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
+defaults.json
+
 .*
 ._test_gradio.py
 *.DS_Store

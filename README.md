@@ -134,6 +134,8 @@ chmod +x launch_gradio.sh
 ./launch_gradio.sh
 ```
 
+### Default Settings
+Default Settings can be set in the file `defaults.json`. If it doesn't exist, just copy and rename `defaults_example.json`
 
 ### CLI Demo
 

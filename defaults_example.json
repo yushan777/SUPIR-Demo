@@ -1,0 +1,39 @@
+{
+  "smolvlm_settings": {
+    "caption_style": "Moderately detailed",
+    "max_new_tokens": 256,
+    "repetition_penalty": 1.2,
+    "do_sample": true,
+    "temperature": 0.4,
+    "top_p": 0.8
+  },
+  "supir_settings": {
+    "supir_model_type": "Q",
+    "sampler_type": "TiledRestoreEDMSampler",
+    "seed": 1234567891,
+    "upscale_by": 2.0,
+    "use_upscale_to": false,
+    "upscale_to_width": 1024,
+    "upscale_to_height": 1024,
+    "skip_denoise_stage": false,
+    "loading_half_params": true,
+    "ae_dtype": "bf16",
+    "diff_dtype": "fp16",
+    "use_tile_vae": true,
+    "encoder_tile_size": 3072,
+    "decoder_tile_size": 256,
+    "num_workers": 2,
+    "edm_steps": 50,
+    "s_churn": 5,
+    "s_noise": 1.003,
+    "cfg_scale_start": 2.0,
+    "cfg_scale_end": 4.0,
+    "control_scale_start": 0.9,
+    "control_scale_end": 0.9,
+    "restoration_scale": 0,
+    "sampler_tile_size": 128,
+    "sampler_tile_stride": 64,
+    "a_prompt": "Cinematic, High Contrast, highly detailed, taken using a Canon EOS R camera, hyper detailed photo - realistic maximum detail, 32k, Color Grading, ultra HD, extreme meticulous detailing, skin pore detailing, hyper sharpness, perfect without deformations.",
+    "n_prompt": "painting, oil painting, illustration, drawing, art, sketch, oil painting, cartoon, CG Style, 3D render, unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, jpeg artifacts, deformed, lowres, over-smooth"
+  }
+}
