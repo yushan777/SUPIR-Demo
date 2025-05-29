@@ -63,6 +63,7 @@ import math
 import sys # Import sys module
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
+from Y7.colored_print import color, style
 
 import torch
 import torch.version
@@ -879,7 +880,7 @@ class VAEHook:
         real_tile_width = self.get_best_tile_size(real_tile_width, tile_size)
 
         print(f'[Tiled VAE]: split to {num_height_tiles}x{num_width_tiles} = {num_height_tiles*num_width_tiles} tiles. ' +
-              f'Optimal tile size {real_tile_width}x{real_tile_height}, original tile size {tile_size}x{tile_size}')
+              f'Optimal tile size {real_tile_width}x{real_tile_height}, original tile size {tile_size}x{tile_size}', color.ORANGE)
 
         for i in range(num_height_tiles):
             for j in range(num_width_tiles):
