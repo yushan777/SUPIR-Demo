@@ -817,9 +817,9 @@ def create_launch_gradio(listen_on_network, port=None):
                                 use_tile_vae = gr.Checkbox(value=True, label="Use Tile VAE")                                
                             with gr.Row():                                
                                 # The AE processes the input image in tiles of specified size instead of the full image at once
-                                encoder_tile_size = gr.Slider(minimum=256, maximum=1024, value=512, step=64, label="Encoder Tile Size")
+                                encoder_tile_size = gr.Slider(minimum=256, maximum=3072, value=512, step=64, label="Encoder Tile Size")
                                 # The AE reconstructs the final image by stitching together outputs from smaller tile segments
-                                decoder_tile_size = gr.Slider(minimum=32, maximum=128, value=64, step=8, label="Decoder Tile Size")
+                                decoder_tile_size = gr.Slider(minimum=64, maximum=256, value=64, step=16, label="Decoder Tile Size")
                                 num_of_workers = gr.Slider(minimum=1, maximum=8, value=2, step=1, label="Number of workers")
                             
                                 
@@ -912,8 +912,8 @@ def create_launch_gradio(listen_on_network, port=None):
                 | *** | **Notes about Upscaling**: <br>The reason for the minimum of 1024 is to give SDXL a comfortable working resolution.  **Note** that dimensions are snapped to the nearest multiple <br>of 64. The sweet spot seems to be between 2x and 4x (1024x1024) or 4x and 8x (512x512). Beyond that, the quality begins to collapse. <br>The higher the scale factor, the slower the process.| 
                 | `Skip Denoise Stage` | Skips the VAE Denoiser Stage. Default: `'False'`<br> Bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened <br>(if you inspected it at this stage). This is to avoid SUPIR treating low-res/compression artifacts as detail to be enhanced. <br>You may wish to skip this step if <br> - 1) You want do do your own pre-processing OR <br> - 2) Your input image is clean and free of low-res/compression artifacts or other degradations <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- Can sometimes make closeups of skin textures a bit unnatural.|
                 | `Use VAE Tile` | Enable tiled VAE encoding/decoding for large images. Saves VRAM. |
-                | `Encoder Tile Size` | Tile size when encoding. Default: 512 |
-                | `Decoder Tile Size` | Tile size when decoding. Default: 64 |
+                | `Encoder Tile Size` | Tile size when encoding. <br> TileVAE code has recommended tile sizes based on available VRAM if a CUDA device is available. <br>Encoder: <br>- VRAM > 16GB: 3072<br>- VRAM > 12GB: 2048<br>- VRAM > 8GB: 1536<br>- VRAM <= 8GB: 960<br>- No GPU: 512 |
+                | `Decoder Tile Size` | Tile size when encoding. <br> TileVAE code has recommended tile sizes based on available VRAM if a CUDA device is available. <br>Decoder: <br>- VRAM > 30GB: 256<br>- VRAM > 16GB: 192<br>- VRAM > 12GB: 128<br>- VRAM > 8GB: 96<br>- VRAM <= 8GB: 64<br>- No GPU: 64 |
                 | `Number of Workers` | Number of parallel CPU processes for VAE encoding/decoding. <br>Improves speed on the CPU by efficiently preparing data for the GPU. Increase if you have a ton of Memory<br>Default: `1` |
                 | `Steps` | Number of diffusion steps. Default: `50` |
                 | `S-Churn` | Controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1-5`: Mild/moderate <br>`6-10+`: Strong |
