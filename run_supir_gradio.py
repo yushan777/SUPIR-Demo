@@ -888,8 +888,8 @@ def create_launch_gradio(listen_on_network, port=None):
                         with gr.Group():
                             gr.Markdown("Sampler Tiling (For TiledRestoreEDMSampler)")                            
                             with gr.Row():
-                                sampler_tile_size = gr.Slider(minimum=128, maximum=512, value=supir_defaults.get('sampler_tile_size', 128), step=32, label="Sampler Tile Size")
-                                sampler_tile_stride = gr.Slider(minimum=32, maximum=256, value=supir_defaults.get('sampler_tile_stride', 64), step=32, label="Sampler Tile Stride")
+                                sampler_tile_size = gr.Slider(minimum=128, maximum=3072, value=supir_defaults.get('sampler_tile_size', 128), step=64, label="Sampler Tile Size")
+                                sampler_tile_stride = gr.Slider(minimum=64, maximum=1024, value=supir_defaults.get('sampler_tile_stride', 64), step=64, label="Sampler Tile Stride")
 
                         with gr.Group():
                             pass
