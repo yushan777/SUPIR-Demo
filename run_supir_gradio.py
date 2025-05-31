@@ -300,6 +300,7 @@ def process_supir(
         # Return a tuple with None for the image and an error message
         return None, "Please upload an image first in Tab 1."
         
+    #     
     # ============================================================
     # Clear GPU memory (VRAM) if CUDA is available
     if torch.cuda.is_available():
