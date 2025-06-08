@@ -1,4 +1,4 @@
-accelerate==1.6.0
+accelerate>=1.6.0
 diffusers==0.33.1
 einops==0.8.1
 einops-exts==0.0.4

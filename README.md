@@ -35,6 +35,11 @@
 
 ## Installation
 
+## Prerequisites:
+
+- Python 3.12
+- Git
+
 ### Clone repo
 ```bash
 git clone https://github.com/yushan777/SUPIR-Demo.git
@@ -119,7 +124,7 @@ In contrast, the v0F model (Fidelity) is specifically trained on lighter degrada
     * [options/SUPIR_v0.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
     * [options/SUPIR_v0_tiled.yaml] --> SDXL_CKPT, SUPIR_CKPT_Q, SUPIR_CKPT_F. 
     ```
-</details>
+    </details>
 
 ---
 
@@ -221,5 +226,4 @@ Linux, 64GB RAM
 Images from [Pixabay](https://pixabay.com/)  
 [Original SUPIR Repository](https://github.com/Fanghua-Yu/SUPIR)  
 [Kijai's SUPIR Custom Nodes for ComfyUI](https://github.com/kijai/ComfyUI-SUPIR)  
-
 
