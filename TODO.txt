@@ -1,4 +1,4 @@
 Check if input image has comfyui metadata in it,  if so, preserve it and re-inject it back into the SUPIR upscaled image
 
-TEST with VAE dtype = FP32
+Add Flux Krea Refiner stage.
 
