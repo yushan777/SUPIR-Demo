@@ -1,4 +1,4 @@
 Check if input image has comfyui metadata in it,  if so, preserve it and re-inject it back into the SUPIR upscaled image
 
-Add Flux Krea Refiner stage.
+Add Flux Krea Refiner stage to sharpen up 2048x photographic upscales.
 
