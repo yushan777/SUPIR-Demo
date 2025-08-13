@@ -153,8 +153,10 @@ model:
         unreal engine, blurring, dirty, messy, worst quality, low quality, frames, watermark, signature, 
         jpeg artifacts, deformed, lowres, over-smooth'
 
-# SDXL_CKPT: ./models/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors
-SDXL_CKPT: ./models/SDXL/dreamshaperXL_alpha2Xl10.safetensors
-SUPIR_CKPT_F: ./models/SUPIR/SUPIR-v0F_fp16.safetensors
-SUPIR_CKPT_Q: ./models/SUPIR/SUPIR-v0Q_fp16.safetensors
+SDXL_CKPT: ./models/SDXL/juggernautXL_v9Rundiffusionphoto2.safetensors
+# SDXL_CKPT: ./models/SDXL/dreamshaperXL_alpha2Xl10.safetensors
+# SUPIR_CKPT_F: ./models/SUPIR/SUPIR-v0F_fp16.safetensors
+# SUPIR_CKPT_Q: ./models/SUPIR/SUPIR-v0Q_fp16.safetensors
+SUPIR_CKPT_F: ./models/SUPIR/SUPIR-v0F_fp32.safetensors
+SUPIR_CKPT_Q: ./models/SUPIR/SUPIR-v0Q_fp32.safetensors
 # SUPIR_CKPT: ~
