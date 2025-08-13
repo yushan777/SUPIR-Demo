@@ -560,7 +560,8 @@ def process_supir(
     # returning the path to the png instead of 'enhanced_image' save image ensures that the download button will download that file instead of a webp
     # return [input_image, enhanced_image], "Processing complete! See results on Tab 3."
     
-    return [input_image, png_save_path], "Processing complete! See results on Tab 3."
+    # returns tab index to switch too after completing processing
+    return [input_image, png_save_path], "Processing complete! See results on Tab 3.", gr.update(selected=2)
 
 
     
@@ -606,6 +607,7 @@ def load_app_defaults():
         return {"smolvlm_settings": {}, "supir_settings": {}}
 
 def create_launch_gradio(listen_on_network, port=None):
+
     # Load defaults from JSON file
     app_defaults = load_app_defaults()
     smolvlm_defaults = app_defaults.get('smolvlm_settings', {})
@@ -700,8 +702,7 @@ def create_launch_gradio(listen_on_network, port=None):
                                                                                                                        
                     """) as demo:   
         
-        gr.Markdown("### SUPIR Restorer / Detailer / Upscaler")    
-        # gr.Markdown(f"**Model**: {model_name} | **Mode**: {mode}")        
+        gr.Markdown("### SUPIR Restorer / Detailer / Upscaler")         
         
 
         # Create tabs
@@ -709,7 +710,7 @@ def create_launch_gradio(listen_on_network, port=None):
             # ==============================================================================================
             # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
-            with gr.TabItem("1. Input Image / SmolVLM Captioner"):
+            with gr.TabItem("1. Input Image / SmolVLM Captioner", id=0):
                 gr.Markdown("Upload image and generate a caption or write your own (optional).")
                 
                 with gr.Row():
@@ -771,7 +772,7 @@ def create_launch_gradio(listen_on_network, port=None):
             # ==============================================================================================
             # TAB 2 - SUPIR
             # ==============================================================================================
-            with gr.TabItem("2. SUPIR"):
+            with gr.TabItem("2. SUPIR", id=1):
                 # gr.Markdown("Restore/Enhance/Upscale")
                 
                 # -------------------------------------------------
@@ -965,7 +966,7 @@ def create_launch_gradio(listen_on_network, port=None):
             # ==============================================================================================
             # TAB 3 - RESULTS
             # ==============================================================================================
-            with gr.TabItem("3. Results"):
+            with gr.TabItem("3. Results", id=2):
                 with gr.Row():
                     with gr.Column(elem_classes=["fixed-width-column-1216"]):
         
@@ -1047,7 +1048,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 n_prompt
             ],        
             # The gradio component(s) where the function's return value(s) is displayed
-            outputs=[output_slider, status_message] 
+            outputs=[output_slider, status_message, tabs] 
         )
         
         # ==============================================================================================
