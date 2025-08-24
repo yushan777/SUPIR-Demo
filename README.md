@@ -32,6 +32,14 @@
 - Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
 
 ---
+I’ve found **2048×2048** to be the sweet spot for refinement work.
+- If you start with a smaller source (say **512×512** or **1024×1024**), you can upscale it to 2048 without any problems, any higher then there appears to be a loss in quality.
+- If your original file is already **2048×2048**, you can simply set the upscale factor to **1×** (no resampling).  And it will just refine and clean it up as-is.  
+
+When working with large but imperfect images (for example, 45MP+ negative scans that are old or grainy), I split them into 2048×2048 tiles. This lets me refine each section independently while still preserving fine detail.
+The trade-off is that each tile requires its own prompt, along with some careful blending in Photoshop. Using overlaps between tiles makes this process easier. While it adds extra manual work, the payoff is much greater control. You can adjust prompts to suit the unique details of each region, whether that is faces, textures, text, or backgrounds, instead of relying on a single global prompt that may not work well for the entire image.   
+
+---
 
 ## Installation
 
