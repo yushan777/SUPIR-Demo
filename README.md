@@ -30,6 +30,20 @@
 - SUPIR Settings saved into PNGInfo metadata
 - Parallel processing for Tiled VAE encoding/decoding
 - Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
+---
+Processing Times (seconds) with Models Preloaded
+VRAM Usage : ~12GB  
+Note: Performance will vary depending on system specs beyond the GPU (CPU speed, memory bandwidth, etc.), so treat this only as a rough guide.
+
+
+| GPU Model     | 1024×1024 | 2048×2048 | 3072×3072 |
+|---------------|-----------|-----------|-----------|
+| H100          | 15 s      | 95 s      | 243 s     |
+| RTX Pro 6000  | 10 s      | 71 s      | 190 s     |
+| RTX 5090      | 14 s      | 97 s      | 254 s     |
+| RTX 4090      | 18 s      | 133 s     | 329 s     |
+| RTX 3090      | 26 s      | 206 s     | 560 s     |
+
 
 ---
 I’ve found max upscale between  **2048×2048** and **4096x4096** to be the sweet spot for refinement work.  4096x4096 can yield smoother results (depending on the image), but it will be a LOT slower. 
