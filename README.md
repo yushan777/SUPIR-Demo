@@ -31,7 +31,7 @@
 - Parallel processing for Tiled VAE encoding/decoding
 - Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
 ---
-Processing Times (seconds) with Models Preloaded
+Processing Times (seconds) with Models Preloaded  
 VRAM Usage : ~12GB  
 Note: Performance will vary depending on system specs beyond the GPU (CPU speed, memory bandwidth, etc.), so treat this only as a rough guide.
 
