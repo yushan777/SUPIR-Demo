@@ -262,13 +262,21 @@ def generate_caption_streaming(
         print(f"Generated caption: '{generated_text_so_far.strip()}'", color.GREEN)
     print(f"Execution_time = {execution_time:.2f} seconds.", color.BRIGHT_BLUE)
 
+def prepare_processing(seed, randomize_seed):
+    """Prepare seed before processing starts"""
+    if randomize_seed:
+        import random
+        seed = random.randint(0, 2**31 - 1)
+        print(f"Randomized seed: {seed}", color.CYAN)
+    return seed
+
 # process SUPIR on the image
 def process_supir(
             input_image,
             image_caption, 
             supir_model_type,  
             sampler_type,
-            seed, 
+            seed,
             upscale_by,
             use_upscale_to,
             upscale_to_width,
@@ -833,6 +841,7 @@ def create_launch_gradio(listen_on_network, port=None):
                             with gr.Row():
                                 # SEED
                                 seed = gr.Number(value=supir_defaults.get('seed', 1234567891), precision=0, label="Seed", interactive=True)
+                                randomize_seed = gr.Checkbox(value=False, label="Randomize", info="Generate random seed for each run")
                                 skip_denoise_stage = gr.Checkbox(value=supir_defaults.get('skip_denoise_stage', False), label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
                         # with gr.Group():
@@ -1013,7 +1022,15 @@ def create_launch_gradio(listen_on_network, port=None):
         # Tab 2 Event Handlers
         # ==============================================================================================
         
-        process_supir_btn.click(
+        # First randomize the seed if necessary and update the UI immediately
+        seed_updated = process_supir_btn.click(
+            fn=prepare_processing,
+            inputs=[seed, randomize_seed],
+            outputs=[seed]
+        )        
+
+        # Then process with the updated seed
+        seed_updated.then(
             fn=process_supir,
             # The gradio Input components(s) whose values are passed to the function
             inputs=[
