@@ -299,7 +299,7 @@ def check_batch_warning(batch_size, randomize_seed):
         return gr.update(visible=False)
     
 def process_supir_batch(
-            seed_list,  # Changed to receive list of seeds
+            seed_list,
             input_image,
             image_caption, 
             supir_model_type,  
@@ -331,6 +331,10 @@ def process_supir_batch(
         ):
     """Wrapper to run process_supir multiple times for batch processing"""
     
+    # Check if input_image is provided before starting batch
+    if input_image is None:
+        return None, "Please upload an image first in Tab 1.", gr.update()
+    
     results = []
     batch_size = len(seed_list)
     
@@ -346,7 +350,7 @@ def process_supir_batch(
             image_caption, 
             supir_model_type,  
             sampler_type,
-            current_seed,  # Use seed from the list
+            current_seed,
             upscale_by,
             use_upscale_to,
             upscale_to_width,
@@ -769,6 +773,12 @@ def create_launch_gradio(listen_on_network, port=None):
                             max-width: 1200px !important;
                             margin: 0 auto !important;
                         }
+
+                        /* Make process button taller */
+                        #process_button {
+                            min-height: 64px !important;
+                            font-size: 18px !important;
+                        }                        
                         /* Individual columns */
                         .fixed-width-column-600 {
                             width: 600px !important;
@@ -1031,7 +1041,7 @@ def create_launch_gradio(listen_on_network, port=None):
 
                         with gr.Row():
                             batch_size = gr.Slider(minimum=1, maximum=50, value=1, step=1, label="Batch Size", scale=1)
-                            process_supir_btn = gr.Button("Process", variant="primary", scale=5)
+                            process_supir_btn = gr.Button("Process", variant="primary", scale=5,  elem_id="process_button")
 
                         # Add warning textbox that appears when needed
                         batch_warning = gr.Textbox(label="⚠️ Batch Processing Warning", visible=False, interactive=False)
