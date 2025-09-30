@@ -262,15 +262,123 @@ def generate_caption_streaming(
         print(f"Generated caption: '{generated_text_so_far.strip()}'", color.GREEN)
     print(f"Execution_time = {execution_time:.2f} seconds.", color.BRIGHT_BLUE)
 
-def prepare_processing(seed, randomize_seed):
-    """Prepare seed before processing starts"""
+def prepare_processing(seed, randomize_seed, batch_size):
+    """Prepare seed(s) before processing starts"""
+    import random
+    
     if randomize_seed:
-        import random
-        seed = random.randint(0, 2**31 - 1)
-        print(f"Randomized seed: {seed}", color.CYAN)
-    return seed
+        # Generate a list of random seeds for batch processing
+        seeds = [random.randint(0, 2**31 - 1) for _ in range(int(batch_size))]
+        print(f"Generated {int(batch_size)} random seeds: {seeds}", color.CYAN)
+        # Return the first seed to display in UI, and the full list for processing
+        return seeds[0], seeds
+    else:
+        # Use the same seed for all batches
+        seeds = [seed] * int(batch_size)
+        return seed, seeds
 
-# process SUPIR on the image
+def validate_batch_settings(batch_size, randomize_seed):
+    """Validate batch settings and return warning message if needed"""
+    if int(batch_size) > 1 and not randomize_seed:
+        warning_msg = f"⚠️ WARNING: Batch Size is set to {int(batch_size)} but 'Randomize' is UNCHECKED.\n\n" \
+                     f"This means the SAME seed will be used for all {int(batch_size)} runs, " \
+                     f"resulting in {int(batch_size)} nearly identical outputs with little to no variation.\n\n" \
+                     f"Please either:\n" \
+                     f"• Check the 'Randomize' checkbox to generate different outputs, OR\n" \
+                     f"• Set Batch Size to 1 if you only want one output\n\n" \
+                     f"Do you want to continue anyway?"
+        return warning_msg
+    return None
+
+def check_batch_warning(batch_size, randomize_seed):
+    """Check if batch warning should be displayed"""
+    warning = validate_batch_settings(batch_size, randomize_seed)
+    if warning:
+        return gr.update(value=warning, visible=True)
+    else:
+        return gr.update(visible=False)
+    
+def process_supir_batch(
+            seed_list,  # Changed to receive list of seeds
+            input_image,
+            image_caption, 
+            supir_model_type,  
+            sampler_type,
+            upscale_by,
+            use_upscale_to,
+            upscale_to_width,
+            upscale_to_height,
+            skip_denoise_stage,
+            loading_half_params, 
+            ae_dtype, 
+            diff_dtype,
+            use_tile_vae, 
+            encoder_tile_size, 
+            decoder_tile_size,
+            num_of_workers,
+            edm_steps, 
+            s_churn, 
+            s_noise,
+            cfg_scale_start, 
+            cfg_scale_end,
+            control_scale_start, 
+            control_scale_end, 
+            restoration_scale,
+            sampler_tile_size,
+            sampler_tile_stride,            
+            a_prompt, 
+            n_prompt
+        ):
+    """Wrapper to run process_supir multiple times for batch processing"""
+    
+    results = []
+    batch_size = len(seed_list)
+    
+    for i in range(batch_size):
+        current_seed = seed_list[i]
+        print(f"\n{'='*60}", color.CYAN)
+        print(f"Processing batch {i+1} of {batch_size} with seed: {current_seed}", color.CYAN)
+        print(f"{'='*60}\n", color.CYAN)
+        
+        # Process the image with the specific seed from the list
+        result = process_supir(
+            input_image,
+            image_caption, 
+            supir_model_type,  
+            sampler_type,
+            current_seed,  # Use seed from the list
+            upscale_by,
+            use_upscale_to,
+            upscale_to_width,
+            upscale_to_height,
+            skip_denoise_stage,
+            loading_half_params, 
+            ae_dtype, 
+            diff_dtype,
+            use_tile_vae, 
+            encoder_tile_size, 
+            decoder_tile_size,
+            num_of_workers,
+            edm_steps, 
+            s_churn, 
+            s_noise,
+            cfg_scale_start, 
+            cfg_scale_end,
+            control_scale_start, 
+            control_scale_end, 
+            restoration_scale,
+            sampler_tile_size,
+            sampler_tile_stride,            
+            a_prompt, 
+            n_prompt
+        )
+        
+        results.append(result)
+    
+    # Return the last result for display
+    return results[-1]
+
+# process SUPIR on single image
 def process_supir(
             input_image,
             image_caption, 
@@ -844,6 +952,9 @@ def create_launch_gradio(listen_on_network, port=None):
                                 randomize_seed = gr.Checkbox(value=False, label="Randomize", info="Generate random seed for each run")
                                 skip_denoise_stage = gr.Checkbox(value=supir_defaults.get('skip_denoise_stage', False), label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
+                                # Add state to store seed list
+                                seed_list_state = gr.State([])
+
                         # with gr.Group():
                         #     with gr.Row():
                                 
@@ -918,10 +1029,17 @@ def create_launch_gradio(listen_on_network, port=None):
                                 a_prompt = gr.Textbox(value=supir_defaults.get('a_prompt', default_positive_prompt), lines=4, label="Additional Positive Prompt (appended to main caption)")
                                 n_prompt = gr.Textbox(value=supir_defaults.get('n_prompt', default_negative_prompt), lines=4, label="Negative Prompt")
 
-                        process_supir_btn = gr.Button("Process", variant="primary")
-                        # status message box 
+                        with gr.Row():
+                            batch_size = gr.Slider(minimum=1, maximum=50, value=1, step=1, label="Batch Size", scale=1)
+                            process_supir_btn = gr.Button("Process", variant="primary", scale=5)
+
+                        # Add warning textbox that appears when needed
+                        batch_warning = gr.Textbox(label="⚠️ Batch Processing Warning", visible=False, interactive=False)
+
                         status_message = gr.Textbox(label="", interactive=False)
+
                          
+
                 # # additional prompt and standard neg. prompt
                 # with gr.Accordion("Additional Prompt/Neg Prompt", open=False):
                 #     with gr.Row():
@@ -1022,23 +1140,39 @@ def create_launch_gradio(listen_on_network, port=None):
         # Tab 2 Event Handlers
         # ==============================================================================================
         
-        # First randomize the seed if necessary and update the UI immediately
+        # ==============================================================================================
+        # Tab 2 Event Handlers
+        # ==============================================================================================
+
+        # Show/hide warning when batch_size or randomize_seed changes
+        batch_size.change(
+            fn=check_batch_warning,
+            inputs=[batch_size, randomize_seed],
+            outputs=[batch_warning]
+        )
+
+        randomize_seed.change(
+            fn=check_batch_warning,
+            inputs=[batch_size, randomize_seed],
+            outputs=[batch_warning]
+        )
+
+        # First randomize the seed(s) if necessary and update the UI immediately
         seed_updated = process_supir_btn.click(
             fn=prepare_processing,
-            inputs=[seed, randomize_seed],
-            outputs=[seed]
+            inputs=[seed, randomize_seed, batch_size],
+            outputs=[seed, seed_list_state]  # Update both display seed and seed list
         )        
 
-        # Then process with the updated seed
+        # Then process with the seed list (multiple times if batch_size > 1)
         seed_updated.then(
-            fn=process_supir,
-            # The gradio Input components(s) whose values are passed to the function
+            fn=process_supir_batch,
             inputs=[
+                seed_list_state,  # Use the seed list instead of single seed
                 input_image,
                 image_caption,
                 supir_model,
                 sampler_type,
-                seed,
                 upscale_by,
                 use_upscale_to,
                 upscale_to_width,
@@ -1064,7 +1198,6 @@ def create_launch_gradio(listen_on_network, port=None):
                 a_prompt, 
                 n_prompt
             ],        
-            # The gradio component(s) where the function's return value(s) is displayed
             outputs=[output_slider, status_message, tabs] 
         )
         
