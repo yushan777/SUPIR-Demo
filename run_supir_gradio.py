@@ -1047,7 +1047,7 @@ def create_launch_gradio(listen_on_network, port=None):
                             with gr.Row():
                                 cfg_scale_sweep = gr.Checkbox(value=False, label="CFG Sweep", info="when enabled seed is fixed and batch is set to 1")
                                 cfg_sweep_step = gr.Slider(minimum=0.5, maximum=1, value=1, step=0.5, label="Step") 
-                                cfg_sweep_direction = gr.Dropdown(choices=["Forward", "Backward"], value="Forward", label="Sweep Direction")
+                                cfg_sweep_direction = gr.Dropdown(choices=["Forward", "Backward"], value="Backward", label="Sweep Direction")
 
                         
 
