@@ -262,20 +262,39 @@ def generate_caption_streaming(
         print(f"Generated caption: '{generated_text_so_far.strip()}'", color.GREEN)
     print(f"Execution_time = {execution_time:.2f} seconds.", color.BRIGHT_BLUE)
 
-def prepare_processing(seed, randomize_seed, batch_size):
-    """Prepare seed(s) before processing starts"""
+
+def prepare_processing(seed, randomize_seed, batch_size, cfg_scale_sweep, 
+                       cfg_scale_start, cfg_scale_end, cfg_sweep_step, cfg_sweep_direction):
+    """Prepare seed(s) and CFG values before processing starts"""
     import random
     
-    if randomize_seed:
-        # Generate a list of random seeds for batch processing
-        seeds = [random.randint(0, 2**31 - 1) for _ in range(int(batch_size))]
-        print(f"Generated {int(batch_size)} random seeds: {seeds}", color.CYAN)
-        # Return the first seed to display in UI, and the full list for processing
-        return seeds[0], seeds
+    if cfg_scale_sweep:
+        # CFG Sweep mode: fixed seed, multiple CFG values
+        if randomize_seed:
+            seed = random.randint(0, 2**31 - 1)
+        
+        # Generate CFG scale values list
+        cfg_values = []
+        current = cfg_scale_start if cfg_sweep_direction == "Forward" else cfg_scale_end
+        end = cfg_scale_end if cfg_sweep_direction == "Forward" else cfg_scale_start
+        step = cfg_sweep_step if cfg_sweep_direction == "Forward" else -cfg_sweep_step
+        
+        while (step > 0 and current <= end) or (step < 0 and current >= end):
+            cfg_values.append(round(current, 2))
+            current += step
+        
+        seeds = [seed] * len(cfg_values)
+        print(f"CFG Sweep: {len(cfg_values)} images, CFG values: {cfg_values}, Seed: {seed}", color.CYAN)
+        return seed, seeds, cfg_values
     else:
-        # Use the same seed for all batches
-        seeds = [seed] * int(batch_size)
-        return seed, seeds
+        # Normal batch mode
+        if randomize_seed:
+            seeds = [random.randint(0, 2**31 - 1) for _ in range(int(batch_size))]
+            return seeds[0], seeds, None
+        else:
+            seeds = [seed] * int(batch_size)
+            return seed, seeds, None
+
 
 def validate_batch_settings(batch_size, randomize_seed):
     """Validate batch settings and return warning message if needed"""
@@ -300,6 +319,7 @@ def check_batch_warning(batch_size, randomize_seed):
     
 def process_supir_batch(
             seed_list,
+            cfg_values_list,
             input_image,
             image_caption, 
             supir_model_type,  
@@ -340,8 +360,18 @@ def process_supir_batch(
     
     for i in range(batch_size):
         current_seed = seed_list[i]
-        print(f"\n{'='*60}", color.CYAN)
-        print(f"Processing batch {i+1} of {batch_size} with seed: {current_seed}", color.CYAN)
+        # Use CFG sweep value if available, otherwise use original values
+        if cfg_values_list is not None:
+            current_cfg_start = cfg_values_list[i]
+            current_cfg_end = cfg_values_list[i]
+            print(f"\n{'='*60}", color.CYAN)
+            print(f"CFG Sweep {i+1}/{batch_size} - CFG: {current_cfg_start}, Seed: {current_seed}", color.CYAN)
+        else:
+            current_cfg_start = cfg_scale_start
+            current_cfg_end = cfg_scale_end
+            print(f"\n{'='*60}", color.CYAN)
+            print(f"Batch {i+1}/{batch_size} - Seed: {current_seed}", color.CYAN)
+        
         print(f"{'='*60}\n", color.CYAN)
         
         # Process the image with the specific seed from the list
@@ -366,8 +396,8 @@ def process_supir_batch(
             edm_steps, 
             s_churn, 
             s_noise,
-            cfg_scale_start, 
-            cfg_scale_end,
+            current_cfg_start, 
+            current_cfg_end,
             control_scale_start, 
             control_scale_end, 
             restoration_scale,
@@ -959,11 +989,12 @@ def create_launch_gradio(listen_on_network, port=None):
                             with gr.Row():
                                 # SEED
                                 seed = gr.Number(value=supir_defaults.get('seed', 1234567891), precision=0, label="Seed", interactive=True)
-                                randomize_seed = gr.Checkbox(value=False, label="Randomize", info="Generate random seed for each run")
+                                randomize_seed = gr.Checkbox(value=True, label="Randomize", info="randomize seed for each run")
                                 skip_denoise_stage = gr.Checkbox(value=supir_defaults.get('skip_denoise_stage', False), label="Skip Denoise Stage", info="Use if input image is already clean and high quality.")
 
-                                # Add state to store seed list
+                                # Add state to store seed list and CFG values list
                                 seed_list_state = gr.State([])
+                                cfg_values_state = gr.State([])
 
                         # with gr.Group():
                         #     with gr.Row():
@@ -984,7 +1015,15 @@ def create_launch_gradio(listen_on_network, port=None):
                                 num_of_workers = gr.Slider(minimum=1, maximum=8, value=supir_defaults.get('num_workers', 2), step=1, label="Number of workers")
                             
                                 
-                                                    
+                        # Lines for padding
+                        with gr.Group():
+                            pass
+                        # with gr.Group():
+                        #     pass
+                        # with gr.Group():
+                        #     pass                        
+                        # with gr.Group():
+                        #     pass                                                        
         
                     # -------------------------------------------------
                     # COL 2                    
@@ -1005,7 +1044,11 @@ def create_launch_gradio(listen_on_network, port=None):
                             with gr.Row():
                                 cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=supir_defaults.get('cfg_scale_start', 2.0), step=0.1, label="CFG Scale Start")
                                 cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=supir_defaults.get('cfg_scale_end', 4.0), step=0.1, label="CFG Scale End")
-                        
+                            with gr.Row():
+                                cfg_scale_sweep = gr.Checkbox(value=False, label="CFG Sweep", info="when enabled seed is fixed and batch is set to 1")
+                                cfg_sweep_step = gr.Slider(minimum=0.5, maximum=1, value=1, step=0.5, label="Step") 
+                                cfg_sweep_direction = gr.Dropdown(choices=["Forward", "Backward"], value="Forward", label="Sweep Direction")
+
                         
 
                         with gr.Group():
@@ -1023,14 +1066,14 @@ def create_launch_gradio(listen_on_network, port=None):
                                 sampler_tile_size = gr.Slider(minimum=128, maximum=3072, value=supir_defaults.get('sampler_tile_size', 128), step=64, label="Sampler Tile Size")
                                 sampler_tile_stride = gr.Slider(minimum=64, maximum=1024, value=supir_defaults.get('sampler_tile_stride', 64), step=64, label="Sampler Tile Stride")
 
-                        with gr.Group():
-                            pass
-                        with gr.Group():
-                            pass
-                        with gr.Group():
-                            pass                        
-                        with gr.Group():
-                            pass                                                
+                        # with gr.Group():
+                        #     pass
+                        # with gr.Group():
+                        #     pass
+                        # with gr.Group():
+                        #     pass                        
+                        # with gr.Group():
+                        #     pass                                                
 
                 with gr.Row():
                     with gr.Column(elem_classes=["fixed-width-column-1216"]):
@@ -1089,7 +1132,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `S-Churn` | Controls how much extra randomness is added during the process. This helps the model explore a more varied result. Default: `5` <br>`0`: No noise (deterministic) <br>`1-5`: Mild/moderate <br>`6-10+`: Strong |
                 | `S-Noise` | Scales S-Churn noise strength. Default: `1.003` <br>Slightly < 1: More stable <br>Slightly > 1: More variation |
                 | `CFG Guidance Scale` | Guides how much to adhere to the prompt and conditioning<br>- `CFG Scale Start`: Prompt guidance strength start. Default: `2.0` <br>- `CFG Scale End`: Prompt guidance strength end. Default: `4.0` <br>If `Start` and `End` have the same value, no scaling occurs. When they differ, linear scheduling is applied from `Start` to `End`. <br>Start can be greater than End (or vice versa), depending on whether you want creative freedom early or later. If results look too soft, move the range or increase end CFG value.|
-                | `Control Guidance Scale` | Guides how strongly the overall structure of the input image is preserved<br>- `Control Scale Start`: Structural guidance from input image, start strength. Default: `0.9` <br>- `Control Scale End`: Structural guidance from input image, end strength. Default: `0.9` |
+                | `Control Guidance Scale` | Guides how strongly the overall structure of the input image is preserved. The process moves from a start scale (at the beginning, with high noise) to an end scale (at the end, with low noise).<br>- Control Scale Start: Structural guidance strength at the beginning of the process. Lower values allow more creative freedom early on.<br>- Control Scale End: Structural guidance strength at the end of the process. Higher values ensure the final details conform closely to the original image.<br>- Example: start=0.0 / end=1.0 begins with high creativity (ignoring the original structure) and ends by strictly adhering to the original image's structure for the final result. |
                 | `Restoration Scale` | Early-stage restoration strength. <br>Controls how strongly the model pulls the structure of the output image back toward the original image. <br>Only applies during the early stages of sampling when the noise level is high.<br>Default: `≤0` (disabled). |
                 | `Sampler Tile Size` | Tile size for when using `TiledRestoreEDMSampler` sampler. |
                 | `Sampler Tile Stride` | Tile stride for when using `TiledRestoreEDMSampler` sampler. Controls how much tiles overlap during sampling. <br>A **smaller** tile_stride means **more** overlap between tiles, better blending, reduces seams, but increases computation. <br>A **larger** tile_stride means **less** overlap (or none), which is faster but may cause visible seams near tile boundaries. <br>`Overlap = tile_size - tile_stride` <br>`Greater overlap ⇨ smaller stride` <br>`Less overlap ⇨ larger stride` <br>Examples: <br>`tile_size` = 128 and `tile_stride` = 64 → 64px overlap.<br>`tile_size` = 128 and `tile_stride` = 128 → No overlap (no blending, fastest, may have seams).<br> |
@@ -1149,10 +1192,6 @@ def create_launch_gradio(listen_on_network, port=None):
         # ==============================================================================================
         # Tab 2 Event Handlers
         # ==============================================================================================
-        
-        # ==============================================================================================
-        # Tab 2 Event Handlers
-        # ==============================================================================================
 
         # Show/hide warning when batch_size or randomize_seed changes
         batch_size.change(
@@ -1170,8 +1209,8 @@ def create_launch_gradio(listen_on_network, port=None):
         # First randomize the seed(s) if necessary and update the UI immediately
         seed_updated = process_supir_btn.click(
             fn=prepare_processing,
-            inputs=[seed, randomize_seed, batch_size],
-            outputs=[seed, seed_list_state]  # Update both display seed and seed list
+            inputs=[seed, randomize_seed, batch_size, cfg_scale_sweep, cfg_scale_start, cfg_scale_end, cfg_sweep_step, cfg_sweep_direction],
+            outputs=[seed, seed_list_state, cfg_values_state]  # Now returns 3 values
         )        
 
         # Then process with the seed list (multiple times if batch_size > 1)
@@ -1179,6 +1218,7 @@ def create_launch_gradio(listen_on_network, port=None):
             fn=process_supir_batch,
             inputs=[
                 seed_list_state,  # Use the seed list instead of single seed
+                cfg_values_state,
                 input_image,
                 image_caption,
                 supir_model,
