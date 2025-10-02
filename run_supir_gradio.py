@@ -267,7 +267,7 @@ def prepare_processing(seed, randomize_seed, batch_size, cfg_scale_sweep,
                        cfg_scale_start, cfg_scale_end, cfg_sweep_step, cfg_sweep_direction):
     """Prepare seed(s) and CFG values before processing starts"""
     import random
-    
+        
     if cfg_scale_sweep:
         # CFG Sweep mode: fixed seed, multiple CFG values
         if randomize_seed:
@@ -275,13 +275,22 @@ def prepare_processing(seed, randomize_seed, batch_size, cfg_scale_sweep,
         
         # Generate CFG scale values list
         cfg_values = []
-        current = cfg_scale_start if cfg_sweep_direction == "Forward" else cfg_scale_end
-        end = cfg_scale_end if cfg_sweep_direction == "Forward" else cfg_scale_start
-        step = cfg_sweep_step if cfg_sweep_direction == "Forward" else -cfg_sweep_step
-        
-        while (step > 0 and current <= end) or (step < 0 and current >= end):
-            cfg_values.append(round(current, 2))
-            current += step
+        if cfg_sweep_direction == "Forward":
+            # Forward: start value increments toward fixed end
+            current = cfg_scale_start
+            end = cfg_scale_end
+            step = cfg_sweep_step
+            while current <= end:
+                cfg_values.append(round(current, 2))
+                current += step
+        else:  # Backward
+            # Backward: end value decrements toward fixed start
+            current = cfg_scale_end
+            end = cfg_scale_start
+            step = -cfg_sweep_step
+            while current >= end:
+                cfg_values.append(round(current, 2))
+                current += step
         
         seeds = [seed] * len(cfg_values)
         print(f"CFG Sweep: {len(cfg_values)} images, CFG values: {cfg_values}, Seed: {seed}", color.CYAN)
@@ -341,6 +350,7 @@ def process_supir_batch(
             s_noise,
             cfg_scale_start, 
             cfg_scale_end,
+            cfg_sweep_direction,
             control_scale_start, 
             control_scale_end, 
             restoration_scale,
@@ -360,19 +370,23 @@ def process_supir_batch(
     
     for i in range(batch_size):
         current_seed = seed_list[i]
-        # Use CFG sweep value if available, otherwise use original values
+        
         if cfg_values_list is not None:
-            current_cfg_start = cfg_values_list[i]
-            current_cfg_end = cfg_values_list[i]
+            if cfg_sweep_direction == "Forward":
+                # Forward: start sweeps, end is fixed
+                current_cfg_start = cfg_values_list[i]
+                current_cfg_end = cfg_scale_end
+            else:  # Backward
+                # Backward: start is fixed, end sweeps
+                current_cfg_start = cfg_scale_start
+                current_cfg_end = cfg_values_list[i]
             print(f"\n{'='*60}", color.CYAN)
-            print(f"CFG Sweep {i+1}/{batch_size} - CFG: {current_cfg_start}, Seed: {current_seed}", color.CYAN)
+            print(f"CFG Sweep {i+1}/{batch_size} - CFG Start: {current_cfg_start}, CFG End: {current_cfg_end}, Seed: {current_seed}", color.CYAN)
         else:
             current_cfg_start = cfg_scale_start
             current_cfg_end = cfg_scale_end
             print(f"\n{'='*60}", color.CYAN)
             print(f"Batch {i+1}/{batch_size} - Seed: {current_seed}", color.CYAN)
-        
-        print(f"{'='*60}\n", color.CYAN)
         
         # Process the image with the specific seed from the list
         result = process_supir(
@@ -1243,6 +1257,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 s_noise,
                 cfg_scale_start,
                 cfg_scale_end,
+                cfg_sweep_direction,
                 control_scale_start, 
                 control_scale_end, 
                 restoration_scale,
