@@ -153,12 +153,18 @@ In contrast, the v0F model (Fidelity) is specifically trained on lighter degrada
 
 ### Gradio Demo
 ```bash
+# Linux
 source venv/bin/activate
 python3 run_supir_gradio.py
 
 # or you can start it with the bash script (contains the above two commands)
 chmod +x launch_gradio.sh
 ./launch_gradio.sh
+
+# =======================================
+# Windows
+venv\Scripts\activate.bat
+python run_supir_gradio.py
 ```
 
 ### Default Settings
