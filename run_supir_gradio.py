@@ -383,7 +383,7 @@ def process_supir_batch(
     for i in range(batch_size):
         # Check for cancellation before each batch iteration
         if check_cancelled():
-            print(f"⚠️ Processing cancelled at batch {i+1}/{batch_size}", color.ORANGE)
+            print(f"Processing cancelled at batch {i+1}/{batch_size}", color.ORANGE)
             # Perform cleanup
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -391,9 +391,9 @@ def process_supir_batch(
             
             # Return last successful result if any, otherwise None
             if results:
-                return results[-1][0], f"❌ Processing cancelled after {i}/{batch_size} images completed.", gr.update()
+                return results[-1][0], f"Processing cancelled after {i}/{batch_size} images completed.", gr.update()
             else:
-                return None, f"❌ Processing cancelled before any images were completed.", gr.update()
+                return None, f"Processing cancelled before any images were completed.", gr.update()
         
         current_seed = seed_list[i]
         
@@ -499,11 +499,11 @@ def process_supir(
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
-        print("✅ CUDA cache cleared")
+        print("CUDA cache cleared")
 
     # Trigger Python's garbage collector
     collected = gc.collect()
-    print(f"✅ Python garbage collection complete ({collected} objects collected)")
+    print(f"Python garbage collection complete ({collected} objects collected)")
 
     # Try to release malloc'd memory to the OS (Linux only)
     if platform.system() == "Linux":
@@ -511,11 +511,11 @@ def process_supir(
             libc = ctypes.CDLL("libc.so.6")
             result = libc.malloc_trim(0)
             if result == 1:
-                print("✅ Unused system memory returned to OS (via malloc_trim)")
+                print("Unused system memory returned to OS (via malloc_trim)")
             else:
-                print("ℹ️ malloc_trim executed, but nothing was returned to the OS")
+                print("malloc_trim executed, but nothing was returned to the OS")
         except Exception as e:
-            print(f"❌ malloc_trim failed: {e}")
+            print(f"malloc_trim failed: {e}")
     else:
         print("ℹ️ malloc_trim skipped (not supported on this OS)")
     #  ============================================================
@@ -661,7 +661,7 @@ def process_supir(
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         gc.collect()
-        return None, "❌ Processing cancelled.", gr.update()
+        return None, "Processing cancelled.", gr.update()
     
     # settings string for embedding into png
     supir_settings = "\n"
@@ -1142,7 +1142,7 @@ def create_launch_gradio(listen_on_network, port=None):
                         with gr.Row():
                             batch_size = gr.Slider(minimum=1, maximum=50, value=1, step=1, label="Batch Size", scale=1)
                             process_supir_btn = gr.Button("Process", variant="primary", scale=4,  elem_id="process_button")
-                            cancel_btn = gr.Button("❌ Cancel", variant="stop", scale=1, elem_id="cancel_button")
+                            cancel_btn = gr.Button("Cancel", variant="stop", scale=1, elem_id="cancel_button")
 
                         # Add warning textbox that appears when needed
                         batch_warning = gr.Textbox(label="⚠️ Batch Processing Warning", visible=False, interactive=False)
