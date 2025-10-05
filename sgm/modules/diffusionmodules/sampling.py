@@ -17,6 +17,14 @@ from ...modules.diffusionmodules.sampling_utils import (
 from ...util import append_dims, default, instantiate_from_config
 # from k_diffusion.sampling import get_sigmas_karras, BrownianTreeNoiseSampler
 
+# Import cancellation check from shared module
+import sys
+import os
+# Add parent directory to path to access cancellation module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
+
+from cancellation import check_cancelled
+
 #  =================================================================
 
 #  =================================================================
@@ -141,6 +149,11 @@ class RestoreEDMSampler(SingleStepDiffusionSampler):
 
 
         for _idx, i in enumerate(self.get_sigma_gen(num_sigmas)):
+            # Check for cancellation
+            if check_cancelled():
+                print("⚠️ Sampling cancelled by user")
+                return x  # Return current state
+            
             gamma = (
                 min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1)
                 if self.s_tmin <= sigmas[i] <= self.s_tmax
@@ -189,6 +202,11 @@ class TiledRestoreEDMSampler(RestoreEDMSampler):
      
 
         for _idx, i in enumerate(self.get_sigma_gen(num_sigmas)):
+            # Check for cancellation
+            if check_cancelled():
+                print("⚠️ Tiled sampling cancelled by user")
+                return x  # Return current state
+            
             gamma = (
                 min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1)
                 if self.s_tmin <= sigmas[i] <= self.s_tmax

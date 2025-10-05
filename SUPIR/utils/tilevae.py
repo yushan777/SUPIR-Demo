@@ -61,9 +61,14 @@ import gc
 from time import time
 import math
 import sys # Import sys module
+import os
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from Y7.colored_print import color, style
+
+# Import cancellation check from shared module
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from cancellation import check_cancelled
 
 import torch
 import torch.version
@@ -1136,6 +1141,17 @@ class VAEHook:
             forward = True
             interrupted = False
             while True:
+                # Check for cancellation
+                if check_cancelled():
+                    print("⚠️ Decoder cancelled by user")
+                    pbar.close()
+                    # Return partial result or zero tensor to avoid NoneType errors
+                    if result is not None:
+                        return result.to(dtype)
+                    else:
+                        # Return a zero tensor with the expected output shape
+                        return torch.zeros((N, 3, height * 8, width * 8), dtype=dtype, device=device)
+                
                 group_norm_param = GroupNormParam()
                 for i in range(num_tiles) if forward else reversed(range(num_tiles)):
                     if tiles[i] is None: # Already processed
@@ -1205,6 +1221,17 @@ class VAEHook:
 
         with ThreadPoolExecutor(max_workers=self.num_parallel_workers) as executor:
             while num_completed < num_tiles:
+                # Check for cancellation
+                if check_cancelled():
+                    print("⚠️ Parallel decoder cancelled by user")
+                    pbar.close()
+                    # Return partial result or zero tensor to avoid NoneType errors
+                    if result is not None:
+                        return result.to(dtype)
+                    else:
+                        # Return a zero tensor with the expected output shape
+                        return torch.zeros((N, 3, height * 8, width * 8), dtype=dtype, device=device)
+                
                 futures = []
                 group_norm_param_parallel = GroupNormParam()
                 

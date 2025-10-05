@@ -8,7 +8,7 @@ import os
 import sys
 import time
 import glob
-from threading import Thread
+from threading import Thread, Event
 from transformers.generation.streamers import TextIteratorStreamer
 from SUPIR.util import create_SUPIR_model, PIL2Tensor, Tensor2PIL, convert_dtype
 import gc
@@ -21,6 +21,15 @@ from Y7.verify_model import check_smolvlm_model_files, check_supir_model_files, 
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
+# ================================================
+# CANCELLATION - Import from shared module
+from cancellation import cancel_processing as cancel_flag, reset_cancel_flag, check_cancelled
+
+def cancel_processing():
+    """Wrapper for cancel that returns a message for Gradio"""
+    cancel_flag()
+    return "Cancellation requested. Processing will stop at the next checkpoint..."
 
 # ================================================
 # DEFAULT PARAM VALUESS
@@ -361,6 +370,9 @@ def process_supir_batch(
         ):
     """Wrapper to run process_supir multiple times for batch processing"""
     
+    # Reset cancellation flag at the start of processing
+    reset_cancel_flag()
+    
     # Check if input_image is provided before starting batch
     if input_image is None:
         return None, "Please upload an image first in Tab 1.", gr.update()
@@ -369,6 +381,20 @@ def process_supir_batch(
     batch_size = len(seed_list)
     
     for i in range(batch_size):
+        # Check for cancellation before each batch iteration
+        if check_cancelled():
+            print(f"⚠️ Processing cancelled at batch {i+1}/{batch_size}", color.ORANGE)
+            # Perform cleanup
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+            
+            # Return last successful result if any, otherwise None
+            if results:
+                return results[-1][0], f"❌ Processing cancelled after {i}/{batch_size} images completed.", gr.update()
+            else:
+                return None, f"❌ Processing cancelled before any images were completed.", gr.update()
+        
         current_seed = seed_list[i]
         
         if cfg_values_list is not None:
@@ -422,6 +448,9 @@ def process_supir_batch(
         )
         
         results.append(result)
+    
+    # Clear the cancel flag after successful completion
+    reset_cancel_flag()
     
     # Return the last result for display
     return results[-1]
@@ -625,6 +654,15 @@ def process_supir(
                                     color_fix_type="Wavelet",
                                     skip_denoise_stage=skip_denoise_stage)
     
+    # Check for cancellation after sampling but before decoding
+    if check_cancelled():
+        print("⚠️ Processing cancelled.", color.ORANGE)
+        # Perform cleanup
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+        return None, "❌ Processing cancelled.", gr.update()
+    
     # settings string for embedding into png
     supir_settings = "\n"
     supir_settings += f"input_image_resolution: {input_image.width}x{input_image.height}\n"
@@ -822,7 +860,12 @@ def create_launch_gradio(listen_on_network, port=None):
                         #process_button {
                             min-height: 64px !important;
                             font-size: 18px !important;
-                        }                        
+                        }
+                        /* Make cancel button same height as process button */
+                        #cancel_button {
+                            min-height: 64px !important;
+                            font-size: 18px !important;
+                        }
                         /* Individual columns */
                         .fixed-width-column-600 {
                             width: 600px !important;
@@ -1098,7 +1141,8 @@ def create_launch_gradio(listen_on_network, port=None):
 
                         with gr.Row():
                             batch_size = gr.Slider(minimum=1, maximum=50, value=1, step=1, label="Batch Size", scale=1)
-                            process_supir_btn = gr.Button("Process", variant="primary", scale=5,  elem_id="process_button")
+                            process_supir_btn = gr.Button("Process", variant="primary", scale=4,  elem_id="process_button")
+                            cancel_btn = gr.Button("❌ Cancel", variant="stop", scale=1, elem_id="cancel_button")
 
                         # Add warning textbox that appears when needed
                         batch_warning = gr.Textbox(label="⚠️ Batch Processing Warning", visible=False, interactive=False)
@@ -1210,6 +1254,12 @@ def create_launch_gradio(listen_on_network, port=None):
         # Tab 2 Event Handlers
         # ==============================================================================================
 
+        # Cancel button handler
+        cancel_btn.click(
+            fn=cancel_processing,
+            outputs=[status_message]
+        )
+        
         # Show/hide warning when batch_size or randomize_seed changes
         batch_size.change(
             fn=check_batch_warning,
