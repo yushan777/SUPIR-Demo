@@ -1090,7 +1090,7 @@ def create_launch_gradio(listen_on_network, port=None):
                         with gr.Group():
                             gr.Markdown("Steps, S-Churn, S-Noise")
                             with gr.Row():
-                                edm_steps = gr.Slider(minimum=10, maximum=100, value=supir_defaults.get('edm_steps', 50), step=1, label="Steps") # sampler steps
+                                edm_steps = gr.Slider(minimum=10, maximum=300, value=supir_defaults.get('edm_steps', 50), step=1, label="Steps") # sampler steps
                                 s_churn = gr.Slider(minimum=0, maximum=20, value=supir_defaults.get('s_churn', 5), step=1, label="S-Churn") # stochastic churn
                                 s_noise = gr.Slider(minimum=1.0, maximum=2.0, value=supir_defaults.get('s_noise', 1.003), step=0.001, label="S-Noise") # stochastic noise                        
 
