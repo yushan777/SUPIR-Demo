@@ -1199,6 +1199,7 @@ def create_launch_gradio(listen_on_network, port=None):
                 | `Sampler Tile Stride` | Tile stride for when using `TiledRestoreEDMSampler` sampler. Controls how much tiles overlap during sampling. <br>A **smaller** tile_stride means **more** overlap between tiles, better blending, reduces seams, but increases computation. <br>A **larger** tile_stride means **less** overlap (or none), which is faster but may cause visible seams near tile boundaries. <br>`Overlap = tile_size - tile_stride` <br>`Greater overlap ⇨ smaller stride` <br>`Less overlap ⇨ larger stride` <br>Examples: <br>`tile_size` = 128 and `tile_stride` = 64 → 64px overlap.<br>`tile_size` = 128 and `tile_stride` = 128 → No overlap (no blending, fastest, may have seams).<br> |
                 | `Additional Positive Prompt` | Additional positive prompt (appended to input caption). The default is taken from SUPIR's own demo code. |
                 | `Negative Prompt` | Negative prompt used for all images. The default is taken from SUPIR's own demo code. |
+                | `Batch Size` | Number of images to process sequentially (one after another) using the same input image. Each run completes fully before the next begins. <br>- If `Randomize` is checked: Each run uses a different seed, producing varied results<br>- If `Randomize` is unchecked: All runs use the same seed (produces nearly identical outputs)<br>**Note:** This is sequential processing, not parallel. |
                     """
                 )
      
