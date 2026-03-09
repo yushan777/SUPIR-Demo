@@ -1,6 +1,6 @@
 # cu128 is required for blackwell.
 
---extra-index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://download.pytorch.org/whl/cu130
 torch==2.9.0+cu130 
 torchvision==0.24.0+cu130 
 torchaudio==2.9.0+cu130
