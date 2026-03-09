@@ -226,9 +226,9 @@ class SUPIRModel(DiffusionEngine):
         else:
             print(f"Skipping Stage 1 Denoise.", color.ORANGE)
             # img in latent space
-            _z = self.encode_first_stage(img)            
-            x_stage1 = self.decode_first_stage(_z) # this is the decoded image in pixel space. required for colorfixing 
-            z_stage1 = self.encode_first_stage(img) # this is the imput to the sampling process
+            _z = self.encode_first_stage(img)
+            x_stage1 = self.decode_first_stage(_z) # this is the decoded image in pixel space. required for colorfixing
+            z_stage1 = _z  # reuse already-encoded latent, no need to encode img a second time
 
         # !>>> Pass the string prompt directly to prepare_condition
         c, uc = self.prepare_condition(_z, prompt, p_p, n_p)

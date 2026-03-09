@@ -6,6 +6,7 @@ model:
     scale_factor: 0.13025
     disable_first_stage_autocast: True
     network_wrapper: sgm.modules.diffusionmodules.wrappers.ControlWrapper
+    compile_model: False  
 
     denoiser_config:
       target: sgm.modules.diffusionmodules.denoiser.DiscreteDenoiserWithControl

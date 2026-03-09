@@ -118,7 +118,7 @@ def PIL2Tensor(img, upscale=1, min_size=1024, fix_resize=None):
     h = int(np.round(h / 64.0)) * 64
     
     # Resize the image to the calculated dimensions using bicubic interp
-    x = img.resize((w, h), Image.BICUBIC)
+    x = img.resize((w, h), Image.LANCZOS)
     
     # Convert PIL image to numpy array, ensure pixel values are integers 
     # between 0-255, and set data type to uint8

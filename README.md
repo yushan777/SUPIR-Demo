@@ -12,24 +12,28 @@
 ![Screenshot 3](assets/scrnshot5.jpg)
 
 ---
-- Removed the heavy LLaVA implementation. 
-- Added safetensors support. 
-- Updated dependencies. 
+- Removed the heavy LLaVA implementation.
+- Added safetensors support.
+- Updated dependencies.
 - Replaced SoftMax with SDPA for default attention.
-- Removed `use_linear_control_scale (linear_s_stage2)` and `use_linear_cfg_scale (linear_CFG)` arguments.  
+- Removed `use_linear_control_scale (linear_s_stage2)` and `use_linear_cfg_scale (linear_CFG)` arguments.
    - Uses the start and end scale values to determine whether linear scaling will be used/have effect or not.
 - Renamed arguments to make settings a bit more intuitive (more alignment with kijai's SUPIR ComfyUI custom nodes)
   - `spt_linear_CFG` -> `cfg_scale_start`
   - `s_cfg` -> `cfg_scale_end`
   - `spt_linear_s_stage2` -> `control_scale_start`
   - `s_stage2` -> `control_scale_end`
-- Added `--skip_denoise_stage` argument to bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened (before sampling stage) since you do not want artifacts to be considered detail to be enhanced. You might want to skip this step if your image is already high quality. 
+- Added `--skip_denoise_stage` argument to bypass the artifact removal preprocessing step that uses the specialized VAE denoise encoder. This usually ends up with the image slightly softened (before sampling stage) since you do not want artifacts to be considered detail to be enhanced. You might want to skip this step if your image is already high quality.
 - Refactor: Renamed symbol `upsacle` in original code to `upscale`
-- Moved CLIP paths to a yaml config file. 
+- Moved CLIP paths to a yaml config file.
 - Exposed `sampler_tile_size` and `sampler_tile_stride` to make them overridable when using `TiledRestoreEDMSampler`
 - SUPIR Settings saved into PNGInfo metadata
 - Parallel processing for Tiled VAE encoding/decoding
-- Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only). 
+- Improved memory management. On each run, it clears unused GPU (VRAM), cleans up Python's leftover crap, and releases unused RAM back to the system (Linux only).
+- Fixed redundant VAE encode pass when `skip_denoise_stage` is enabled (was encoding the input image twice unnecessarily).
+- Switched input image resize filter from BICUBIC to LANCZOS for better upscale quality.
+- Removed unnecessary `torch_gc()` / `empty_cache()` call before each tiled VAE operation (was only needed after).
+- Removed unused `torchaudio` dependency.
 ---
 Processing Times (seconds) with Models Preloaded  
 VRAM Usage : ~12GB  
@@ -168,7 +172,15 @@ python run_supir_gradio.py
 ```
 
 ### Default Settings
-Default Settings can be set in the file `defaults.json`. If it doesn't exist, just copy and rename `defaults_example.json`
+Default settings are loaded from `defaults.json`. If it doesn't exist, copy and rename `defaults_example.json`.
+
+A pre-configured profile for high-VRAM GPUs (RTX Pro 6000, etc.) is also included:
+```bash
+cp defaults_pro_6000.json defaults.json
+```
+Key differences in the Pro 6000 profile: `RestoreEDMSampler` (full-res, no tiling), tiled VAE disabled, `diff_dtype: bf16`, `loading_half_params: false`.
+
+Both `defaults.json` and `defaults_pro_6000.json` are git-ignored so they won't be overwritten by pulls.
 
 ### CLI Demo
 
