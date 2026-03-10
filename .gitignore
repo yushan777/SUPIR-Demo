@@ -171,7 +171,6 @@ models/SmolVLM-Instruct/*
 input/ozge_low-res.jpg
 input/ozge-low-res.jpg
 defaults.json
-defaults_pro_6000.json
 
 .*
 ._test_gradio.py

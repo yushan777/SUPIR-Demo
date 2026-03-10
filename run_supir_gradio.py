@@ -799,8 +799,18 @@ def load_app_defaults():
             print(f"Successfully loaded defaults from {defaults_path}")
             return data
     except FileNotFoundError:
-        print(f"Warning: {defaults_path} not found. Using hardcoded defaults.", color.ORANGE)
-        return {"smolvlm_settings": {}, "supir_settings": {}}
+        example_path = "defaults_low_vram_example.json"
+        if os.path.exists(example_path):
+            import shutil
+            shutil.copy(example_path, defaults_path)
+            print(f"Warning: {defaults_path} not found. Created from {example_path}.", color.ORANGE)
+            return load_app_defaults()
+        else:
+            default_data = {"smolvlm_settings": {}, "supir_settings": {}}
+            with open(defaults_path, 'w') as f:
+                json.dump(default_data, f, indent=2)
+            print(f"Warning: {defaults_path} not found. Created empty defaults file.", color.ORANGE)
+            return default_data
     except json.JSONDecodeError:
         print(f"Error: Could not decode {defaults_path}. Using hardcoded defaults.", color.ORANGE)
         return {"smolvlm_settings": {}, "supir_settings": {}}
@@ -1164,14 +1174,14 @@ def create_launch_gradio(listen_on_network, port=None):
                 #         # status message box 
                 #         status_message = gr.Textbox(label="", interactive=False)         
 
-                gr.Markdown("Default Settings can be set in the file `defaults.json`. If it doesn't exist, just copy and rename `defaults_example.json`")
+                gr.Markdown("Default Settings can be set in the file `defaults.json`. If it doesn't exist, just copy and rename `defaults_low_vram_example.json`")
 
                 gr.Markdown(
                     """
                 | **Parameter** | **Description** |
                 |---------------|-----------------|
                 | `Load Model fp16` | Loads the SUPIR model weights in half precision (FP16). Reduces VRAM usage and increases speed at the cost of slight precision loss. |
-                | `Model Type` | - `Q model (Quality)`: <br>Optimized for moderate - heavy degradations. High generalization, high image quality in most cases, <br>but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for mild degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
+                | `Model Type` | - `Q model (Quality)`: <br>Optimized for moderate - heavy degradations. High generalization, high image quality in most cases, <br>but may overcorrect or hallucinate when used on lightly degraded images. <br>- `F model (Fidelity)`:<br>Optimized for milder degradations, preserving fine details and structure. Ideal for high-fidelity tasks with subtle restoration needs. |
                 | `Sampler Type` | - `RestoreEDMSampler`: Uses more VRAM. <br>- `TiledRestoreEDMSampler`: Uses less VRAM. |
                 | `AE dType` | Autoencoder precision. [`bf16`, `fp32`]|
                 | `Diffusion dType` | Diffusion precision. Overrides the default precision of the loaded model, unless `Load Model fp16` is already set.<br>[`bf16`, `fp16`,`fp32`] |
