@@ -3,6 +3,9 @@
 # Set up error handling
 set -e  # Exit immediately if a command exits with non-zero status
 
+# Activate virtual environment
+source venv/bin/activate
+
 # Install Hugging Face CLI and related packages
 echo "Installing/updating required packages..."
 pip install -q -U "huggingface_hub[cli]"
@@ -32,7 +35,7 @@ download_model() {
         echo "File already exists: $target_file"
     else
         echo "Downloading: $file_path to $target_dir"
-        huggingface-cli download "$repo" "$file_path" --local-dir "$DOWNLOADS_DIR"
+        hf download "$repo" "$file_path" --local-dir "$DOWNLOADS_DIR"
         # Move from temp download location to final location
         mkdir -p "$(dirname "$target_dir/$filename")"
         mv "$DOWNLOADS_DIR/$file_path" "$target_dir/$filename"
@@ -85,7 +88,7 @@ if [ "$all_files_exist" = true ]; then
 else
     echo "↓ Downloading complete SmolVLM-500M-Instruct repository..."
     mkdir -p "$TARGET_DIR"
-    huggingface-cli download $REPO_NAME --local-dir "$TARGET_DIR"
+    hf download $REPO_NAME --local-dir "$TARGET_DIR"
 fi
 
 # =====================================================================
@@ -106,7 +109,7 @@ download_model() {
         echo "File already exists: $target_file"
     else
         echo "Downloading: $file_path to $target_dir"
-        huggingface-cli download "$repo" "$file_path" --local-dir "$DOWNLOADS_DIR"
+        hf download "$repo" "$file_path" --local-dir "$DOWNLOADS_DIR"
         # Move from temp download location to final location
         mkdir -p "$(dirname "$target_dir/$filename")"
         mv "$DOWNLOADS_DIR/$file_path" "$target_dir/$filename"
