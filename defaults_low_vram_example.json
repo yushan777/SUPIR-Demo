@@ -23,7 +23,7 @@
     "encoder_tile_size": 512,
     "decoder_tile_size": 64,
     "num_workers": 2,
-    "edm_steps": 50,
+    "edm_steps": 35,
     "s_churn": 5,
     "s_noise": 1.003,
     "cfg_scale_start": 2.0,
