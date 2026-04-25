@@ -1344,7 +1344,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
 
 
         server_name = "0.0.0.0" if listen_on_network else None
-        demo.launch(server_name=server_name, server_port=port, share=share, auth=("admin", "changeme") if share else None)
+        demo.launch(server_name=server_name, server_port=port, share=share)
         
 
 def main():
