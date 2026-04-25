@@ -818,7 +818,7 @@ def load_app_defaults():
         print(f"An unexpected error occurred while loading {defaults_path}: {e}. Using hardcoded defaults.", color.ORANGE)
         return {"smolvlm_settings": {}, "supir_settings": {}}
 
-def create_launch_gradio(listen_on_network, port=None):
+def create_launch_gradio(listen_on_network, port=None, share=False):
 
     # Load defaults from JSON file
     app_defaults = load_app_defaults()
@@ -1344,7 +1344,7 @@ def create_launch_gradio(listen_on_network, port=None):
 
 
         server_name = "0.0.0.0" if listen_on_network else None
-        demo.launch(server_name=server_name, server_port=port)
+        demo.launch(server_name=server_name, server_port=port, share=share, auth=("admin", "changeme") if share else None)
         
 
 def main():
@@ -1362,6 +1362,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run SmolVLM with Gradio")
     parser.add_argument("--listen", action="store_true", help="Launch Gradio with server_name='0.0.0.0' to listen on all interfaces")
     parser.add_argument("--port", type=int, default=7860, help="Port to run the Gradio on (default: 7860)")
+    parser.add_argument("--share", action="store_true", help="Create a public Gradio share link (HTTPS, enables clipboard paste)")
     args = parser.parse_args()
 
     # Set model path to global SMOLVLM_MODEL_PATH
@@ -1404,7 +1405,7 @@ def main():
         print("Please download your preferred sdxl model and try again.", color.MAGENTA)
     
     # Attach to Gradio (if needed)
-    create_launch_gradio(args.listen, args.port)
+    create_launch_gradio(args.listen, args.port, args.share)
 
 # Launch the Gradio app
 if __name__ == "__main__":
