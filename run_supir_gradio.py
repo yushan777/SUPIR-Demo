@@ -940,7 +940,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                     # ================================================
                     # COL 1
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
-                        input_image = gr.Image(type="pil", label="Input Image", height=480)                        
+                        input_image = gr.Image(type="pil", label="Input Image", height=480, sources=["upload", "clipboard"])
 
                         submit_btn = gr.Button("Generate Caption", variant="primary")
                         
