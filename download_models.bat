@@ -65,6 +65,32 @@ call :download_model "%REPO_NAME%" "SDXL/juggernautXL_v9Rundiffusionphoto2.safet
 call :download_model "%REPO_NAME%" "CLIP1/clip-vit-large-patch14.safetensors" "%BASE_DIR%\CLIP1"
 call :download_model "%REPO_NAME%" "CLIP2/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors" "%BASE_DIR%\CLIP2"
 
+:: Qwen3-VL-4B-Instruct-heretic (optional)
+set QWEN4B_REPO=coder3101/Qwen3-VL-4B-Instruct-heretic
+set QWEN4B_DIR=%BASE_DIR%\Qwen3-VL-4B-Instruct-heretic
+set QWEN4B_SENTINEL=%QWEN4B_DIR%\model.safetensors.index.json
+
+if exist "%QWEN4B_SENTINEL%" (
+    echo ✓ Qwen3-VL-4B-Instruct-heretic already exists in %QWEN4B_DIR%
+) else (
+    echo ↓ Downloading Qwen3-VL-4B-Instruct-heretic...
+    if not exist "%QWEN4B_DIR%" mkdir "%QWEN4B_DIR%"
+    huggingface-cli download %QWEN4B_REPO% --local-dir "%QWEN4B_DIR%"
+)
+
+:: Qwen3-VL-8B-Instruct-heretic (optional)
+set QWEN8B_REPO=coder3101/Qwen3-VL-8B-Instruct-heretic
+set QWEN8B_DIR=%BASE_DIR%\Qwen3-VL-8B-Instruct-heretic
+set QWEN8B_SENTINEL=%QWEN8B_DIR%\model.safetensors.index.json
+
+if exist "%QWEN8B_SENTINEL%" (
+    echo ✓ Qwen3-VL-8B-Instruct-heretic already exists in %QWEN8B_DIR%
+) else (
+    echo ↓ Downloading Qwen3-VL-8B-Instruct-heretic...
+    if not exist "%QWEN8B_DIR%" mkdir "%QWEN8B_DIR%"
+    huggingface-cli download %QWEN8B_REPO% --local-dir "%QWEN8B_DIR%"
+)
+
 :: Clean up temp directory if it's empty
 dir /b /a "%DOWNLOADS_DIR%" | findstr . >nul
 if errorlevel 1 rmdir "%DOWNLOADS_DIR%"

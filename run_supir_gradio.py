@@ -16,7 +16,7 @@ import ctypes
 import platform
 import json
 
-# from huggingface_hub import snapshot_download
+from huggingface_hub import snapshot_download
 from Y7.verify_model import check_smolvlm_model_files, check_qwen3vl_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
@@ -97,6 +97,11 @@ VLM_MODELS = [
     "Qwen3-VL-8B-Instruct-heretic",
 ]
 VLM_MODEL_PATHS = {}   # name -> local path, filled by main()
+VLM_HF_REPOS = {  # HuggingFace repo for each VLM — used for auto-download on first use
+    "SmolVLM-500M-Instruct":          "yushan777/SmolVLM-500M-Instruct",
+    "Qwen3-VL-4B-Instruct-heretic":   "coder3101/Qwen3-VL-4B-Instruct-heretic",
+    "Qwen3-VL-8B-Instruct-heretic":   "coder3101/Qwen3-VL-8B-Instruct-heretic",
+}
 
 # kept for legacy internal references inside load_smolvlm_model / generate_caption_streaming
 SMOLVLM_MODEL_PATH = None
@@ -353,6 +358,14 @@ def generate_caption_streaming(
         device    = _vlm_cache["device"]
     else:
         if is_qwen3:
+            if not os.path.isdir(model_path):
+                hf_repo = VLM_HF_REPOS.get(vlm_model_name)
+                if not hf_repo:
+                    yield f"No HuggingFace repo configured for {vlm_model_name}."
+                    return
+                yield f"Downloading {vlm_model_name} from {hf_repo} — this may take a while..."
+                snapshot_download(repo_id=hf_repo, local_dir=model_path)
+                yield f"Download complete. Loading {vlm_model_name}..."
             processor, model, device = load_qwen3vl_model(model_path)
         else:
             processor, model, device = load_smolvlm_model(model_path)
@@ -902,6 +915,18 @@ def get_image_dimensions(img: Image.Image):
     width, height = img.size
     return f"Dimensions: {width} × {height}"
 
+def handle_image_upload(img: Image.Image, downscale_size):
+    if img is None:
+        return None, ""
+    if downscale_size and downscale_size != "None":
+        target = int(downscale_size)
+        w, h = img.size
+        if max(w, h) > target:
+            scale = target / max(w, h)
+            img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    width, height = img.size
+    return img, f"Dimensions: {width} × {height}"
+
 # ====================================================================
 # ====================================================================
 # GRADIO UI SHIT
@@ -1064,6 +1089,12 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                     # COL 1
                     with gr.Column(elem_classes=["fixed-width-column-600"]):
                         input_image = gr.Image(type="pil", label="Input Image", height=480, sources=["upload", "clipboard"])
+                        downscale_radio = gr.Radio(
+                            choices=["None", "2048", "1024", "512"],
+                            value="1024",
+                            label="Downscale longest side to",
+                            info="If the image's longest dimension exceeds the chosen size, it will be downscaled (aspect ratio preserved) on upload."
+                        )
 
                         submit_btn = gr.Button("Generate Caption", variant="primary")
                         
@@ -1388,8 +1419,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
             outputs=[image_caption]
         )
 
-        # input_image.change(fn=get_image_dimensions, inputs=input_image, outputs=image_dims)
-        input_image.upload(fn=get_image_dimensions, inputs=input_image, outputs=image_dims)
+        input_image.upload(fn=handle_image_upload, inputs=[input_image, downscale_radio], outputs=[input_image, image_dims])
 
         # ==============================================================================================
         # Tab 2 Event Handlers
@@ -1507,12 +1537,11 @@ def main():
         print("Please download the model files manually and try again.", color.MAGENTA)
         sys.exit(1)
 
-    # Qwen3-VL models are optional — warn but don't exit
+    # Qwen3-VL models are optional — will be auto-downloaded on first use if missing
     for qwen_name in ["Qwen3-VL-4B-Instruct-heretic", "Qwen3-VL-8B-Instruct-heretic"]:
         qwen_path = VLM_MODEL_PATHS[qwen_name]
-        qwen_ok = check_qwen3vl_model_files(qwen_path)
-        if not qwen_ok:
-            print(f"⚠️  {qwen_name} not found at {qwen_path} — it will be unavailable.", color.YELLOW)
+        if not check_qwen3vl_model_files(qwen_path):
+            print(f"  {qwen_name} not found locally — will download on first use.", color.YELLOW)
 
 
     SUPIR_PATH = "models/SUPIR"
