@@ -4,8 +4,8 @@
 torch==2.9.0+cu130
 torchvision==0.24.0+cu130
 
-transformers==4.51.3
-gradio>=5.33.0
+transformers>=4.53.0
+gradio>=5.33.0,<6.0.0
 opencv-python==4.11.0.86
 omegaconf==2.3.0
 pytorch-lightning==2.5.1.post0
@@ -15,5 +15,4 @@ einops==0.8.1
 scipy==1.15.2
 xxhash>=3.5.0
 diffusers==0.33.1
-
 

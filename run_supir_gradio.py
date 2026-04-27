@@ -1,7 +1,7 @@
 import argparse
 import torch
 from PIL import Image, PngImagePlugin
-from transformers import AutoProcessor, AutoModelForVision2Seq, AutoModelForImageTextToText
+from transformers import AutoProcessor, AutoModelForImageTextToText
 import gradio as gr
 from Y7.colored_print import color, style
 import os
@@ -17,7 +17,7 @@ import platform
 import json
 
 # from huggingface_hub import snapshot_download
-from Y7.verify_model import check_smolvlm_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
+from Y7.verify_model import check_smolvlm_model_files, check_qwen3vl_model_files, check_supir_model_files, check_clip_model_file, check_for_any_sdxl_model
 
 # macOS shit, just in case some pytorch ops are not supported on mps yes, fallback to cpu
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -43,13 +43,66 @@ TEMP = 0.4
 
 # Define caption style prompts
 STYLE_PROMPTS = {
-    "Brief and concise": "Generate a short and concise caption of this image, suitable for use as an image-generation prompt. Describe the subject, environment, lighting, mood, and style",
-    "Moderately detailed": "Generate a moderately detailed and descriptive caption of this image, suitable for use as an image-generation prompt. Describe the subject, environment, lighting, mood, and style",
-    "Highly detailed": "Generate a highly detailed and descriptive caption of this image, suitable for use as an image-generation prompt. Describe the subject, environment, lighting, mood, and style."
+    "Tags": (
+        "Generate a clean comma-separated list of tags for this image, suitable for use as an "
+        "image-generation prompt. Include subject, environment, colors, lighting, mood, style, and "
+        "composition descriptors. Limit to 40 unique tags. No repeats, no preface, output only the tags."
+    ),
+    "Brief and concise": (
+        "Generate a short and concise caption of this image, suitable for use as an image-generation "
+        "prompt. Describe the subject, environment, lighting, mood, and style."
+    ),
+    "Moderately detailed": (
+        "Generate a moderately detailed and descriptive caption of this image, suitable for use as an "
+        "image-generation prompt. Describe the subject, environment, lighting, mood, and style."
+    ),
+    "Highly detailed": (
+        "Generate a highly detailed and descriptive caption of this image, suitable for use as an "
+        "image-generation prompt. Describe the subject, environment, lighting, mood, and style."
+    ),
+    "Ultra detailed": (
+        "Write ONE ultra-detailed paragraph (10–16 sentences) describing this image as an "
+        "image-generation prompt. Include subject micro-details (materials, textures, patterns, wear); "
+        "people details if present (hair, skin tones, clothing fabric, accessories); environment depth "
+        "(foreground/midground/background, surface materials, props); lighting analysis (key/fill/back "
+        "light, direction, softness, highlights, shadow shape); camera perspective (angle, lens feel, "
+        "depth of field) and composition (leading lines, negative space, visual hierarchy). "
+        "No preface, no reasoning."
+    ),
+    "Cinematic": (
+        "Describe this image as a cinematic image-generation prompt. Write ONE vivid paragraph (8–12 "
+        "sentences). Cover subject and action; environment and atmosphere; lighting design (practical vs "
+        "ambient, direction, contrast, color temperature); camera language (shot type, angle, lens feel, "
+        "depth of field, implied motion); composition and overall mood. Stay grounded in visible details. "
+        "No preface, no reasoning."
+    ),
+    "Subject focused": (
+        "Generate a detailed caption focused primarily on the main subject of this image, suitable for "
+        "use as an image-generation prompt. Describe the subject's appearance, pose, expression, "
+        "clothing, and immediate surroundings in depth. Keep background and environmental details brief "
+        "and secondary. No preface."
+    ),
+    "Structured analysis": (
+        "Output ONLY these sections with short labels: Subject; People (if any); Environment; Lighting; "
+        "Camera/Composition; Style/Mood. In each section write 2–3 sentences of concrete visible "
+        "details, suitable for use as an image-generation prompt. If something is not visible, write "
+        "'not visible'. No preface, no reasoning."
+    ),
 }
 
-# path to smolvlm model (global)
+# VLM model choices and their local paths (populated in main())
+VLM_MODELS = [
+    "SmolVLM-500M-Instruct",
+    "Qwen3-VL-4B-Instruct-heretic",
+    "Qwen3-VL-8B-Instruct-heretic",
+]
+VLM_MODEL_PATHS = {}   # name -> local path, filled by main()
+
+# kept for legacy internal references inside load_smolvlm_model / generate_caption_streaming
 SMOLVLM_MODEL_PATH = None
+
+# VLM model cache — persists between caption generation calls
+_vlm_cache = {"model_name": None, "processor": None, "model": None, "device": None}
 
 #  ===================================================================
 
@@ -113,14 +166,14 @@ def load_smolvlm_model(model_path):
     for impl in attention_fallback:
         try:
             if impl is not None:
-                model = AutoModelForVision2Seq.from_pretrained(
+                model = AutoModelForImageTextToText.from_pretrained(
                     model_path,
                     torch_dtype=torch.float16,
                     _attn_implementation=impl
                 ).to(device)
                 print(f"✓ Loaded with {impl} attention", color.GREEN)
             else:
-                model = AutoModelForVision2Seq.from_pretrained(
+                model = AutoModelForImageTextToText.from_pretrained(
                     model_path,
                     torch_dtype=torch.float16
                 ).to(device)
@@ -140,6 +193,53 @@ def load_smolvlm_model(model_path):
     
     # If we get here, all attempts failed
     raise Exception("Failed to load model with any attention implementation")
+
+
+# ====================================================================
+def load_qwen3vl_model(model_path):
+    try:
+        from transformers import Qwen3VLForConditionalGeneration as _Qwen3VLCls
+    except ImportError:
+        raise ImportError(
+            "Qwen3VLForConditionalGeneration requires transformers >= 4.52.0. "
+            f"Installed: {__import__('transformers').__version__}. "
+            "Run: pip install -U 'transformers>=4.52.0' inside the venv."
+        )
+
+    device = get_device()
+    print(f"Using {device} device")
+
+    processor = AutoProcessor.from_pretrained(model_path)
+
+    attention_fallback = [
+        "flash_attention_2",
+        "sdpa",
+        "eager",
+        None,
+    ]
+
+    for impl in attention_fallback:
+        try:
+            kwargs = dict(torch_dtype=torch.float16)
+            if impl is not None:
+                kwargs["attn_implementation"] = impl
+            model = _Qwen3VLCls.from_pretrained(
+                model_path, **kwargs
+            ).to(device)
+            label = impl if impl is not None else "default"
+            print(f"✓ Qwen3-VL loaded with {label} attention", color.GREEN)
+            return processor, model, device
+        except ImportError as e:
+            if impl == "flash_attention_2" and "flash_attn" in str(e):
+                print(f"  flash_attention_2 not available (package not installed)")
+            else:
+                print(f"  Failed with {impl}: {e}", color.RED)
+            continue
+        except Exception as e:
+            print(f"  Failed with {impl}: {e}", color.RED)
+            continue
+
+    raise Exception("Failed to load Qwen3-VL model with any attention implementation")
 
 
 # Create SUPIR model with specified settings
@@ -188,8 +288,30 @@ def load_supir_model(sampler_type,
 
 
 # ====================================================================
+def _run_streaming_generation(model, processor, inputs_data, generation_args, device):
+    """Shared streaming loop: moves inputs to device, spawns thread, yields chunks."""
+    inputs_data = inputs_data.to(device)
+    streamer = TextIteratorStreamer(processor, skip_prompt=True, skip_special_tokens=True)
+    gen_kwargs = {**inputs_data, "streamer": streamer, **generation_args}
+    thread = Thread(target=model.generate, kwargs=gen_kwargs)
+    thread.start()
+
+    generated = ""
+    first = True
+    for chunk in streamer:
+        if first:
+            chunk = chunk.lstrip()
+            first = False
+        generated += chunk
+        yield generated
+
+    thread.join()
+    return generated
+
+
 def generate_caption_streaming(
     image,
+    vlm_model_name,
     caption_style,
     max_new_tokens=MAX_NEW_TOKENS,
     repetition_penalty=REP_PENALTY,
@@ -197,79 +319,80 @@ def generate_caption_streaming(
     temperature=TEMP,
     top_p=TOP_P
 ):
-    """Streaming version of caption generation"""
-    # Check if image is provided, if not, quit and show msg
+    """Streaming caption generation supporting SmolVLM and Qwen3-VL."""
     if image is None:
-        msg = "Please upload an image first to generate a caption."
-        yield msg
+        yield "Please upload an image first to generate a caption."
         return
-    
+
     start_time = time.time()
-    
-    # load the smolvlm model. 
-    processor, model, DEVICE = load_smolvlm_model(SMOLVLM_MODEL_PATH)
-    print(f"Model {os.path.basename(SMOLVLM_MODEL_PATH)} loaded on {DEVICE}", color.GREEN)
+
+    model_path = VLM_MODEL_PATHS.get(vlm_model_name)
+    if model_path is None:
+        yield f"Unknown VLM model: {vlm_model_name}"
+        return
 
     prompt_text = STYLE_PROMPTS.get(caption_style, "Caption this image.")
+    is_qwen3 = vlm_model_name.startswith("Qwen3-VL")
 
-    # construct multi-modal input msg
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "image"},
-                {"type": "text", "text": prompt_text}
-            ]
-        },
-    ]
-
-    # Prepare inputs
-    prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
-    inputs_data = processor(text=prompt, images=[image], return_tensors="pt")
-    inputs_data = inputs_data.to(DEVICE)
-
-    # Setup streamer
-    streamer = TextIteratorStreamer(processor, skip_prompt=True, skip_special_tokens=True)
-
-    # Prepare generation arguments
-    generation_args = {
-        **inputs_data, 
-        "streamer": streamer,
+    gen_args = {
         "max_new_tokens": max_new_tokens,
         "repetition_penalty": repetition_penalty,
         "do_sample": do_sample,
     }
     if do_sample:
-        generation_args["temperature"] = temperature
-        generation_args["top_p"] = top_p
+        gen_args["temperature"] = temperature
+        gen_args["top_p"] = top_p
 
-    # Run generation in a separate thread
-    thread = Thread(target=model.generate, kwargs=generation_args)
-    thread.start()
+    generated_text = ""
 
-    # Yield generated text as it comes in
-    generated_text_so_far = ""
-    is_first_chunk = True # used for stripping away leading space from first chunk (below)
-    
-    for new_text_chunk in streamer:
-        # Strip leading space from the first chunk only
-        if is_first_chunk:
-            new_text_chunk = new_text_chunk.lstrip()
-            is_first_chunk = False
-        
-        generated_text_so_far += new_text_chunk
-        yield generated_text_so_far
+    # Use cached model if the same model is already loaded, otherwise reload
+    if _vlm_cache["model_name"] == vlm_model_name:
+        print(f"Using cached {vlm_model_name}", color.GREEN)
+        processor = _vlm_cache["processor"]
+        model     = _vlm_cache["model"]
+        device    = _vlm_cache["device"]
+    else:
+        if is_qwen3:
+            processor, model, device = load_qwen3vl_model(model_path)
+        else:
+            processor, model, device = load_smolvlm_model(model_path)
+        print(f"Model {vlm_model_name} loaded on {device}", color.GREEN)
+        _vlm_cache["model_name"] = vlm_model_name
+        _vlm_cache["processor"]  = processor
+        _vlm_cache["model"]      = model
+        _vlm_cache["device"]     = device
 
+    if is_qwen3:
+        messages = [{"role": "user", "content": [
+            {"type": "image", "image": image},
+            {"type": "text", "text": prompt_text},
+        ]}]
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs_data = processor(text=[text], images=[image], return_tensors="pt", padding=True)
+        inputs_data.pop("token_type_ids", None)
 
-    thread.join()
-    
+        for chunk in _run_streaming_generation(model, processor, inputs_data, gen_args, device):
+            generated_text = chunk
+            yield chunk
+
+    else:
+        # SmolVLM path
+
+        messages = [{"role": "user", "content": [
+            {"type": "image"},
+            {"type": "text", "text": prompt_text},
+        ]}]
+        prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+        inputs_data = processor(text=prompt, images=[image], return_tensors="pt")
+
+        for chunk in _run_streaming_generation(model, processor, inputs_data, gen_args, device):
+            generated_text = chunk
+            yield chunk
+
     end_time = time.time()
-    execution_time = end_time - start_time
-    
-    # Optional: print final caption to console for logging
-    if generated_text_so_far:
-        print(f"Generated caption: '{generated_text_so_far.strip()}'", color.GREEN)
-    print(f"Execution_time = {execution_time:.2f} seconds.", color.BRIGHT_BLUE)
+    if generated_text:
+        print(f"Generated caption: '{generated_text.strip()}'", color.GREEN)
+    print(f"Execution_time = {end_time - start_time:.2f} seconds.", color.BRIGHT_BLUE)
 
 
 def prepare_processing(seed, randomize_seed, batch_size, cfg_scale_sweep, 
@@ -933,7 +1056,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
             # ==============================================================================================
             # TAB 1 - INPUT IMAGE + SMOLVLM
             # ==============================================================================================
-            with gr.TabItem("1. Input Image / SmolVLM Captioner", id=0):
+            with gr.TabItem("1. Input Image / VLM Captioner", id=0):
                 gr.Markdown("Upload image and generate a caption or write your own (optional).")
                 
                 with gr.Row():
@@ -950,11 +1073,17 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                         # image dimensions info text box
                         image_dims = gr.Textbox(label="Input Image Dimensions", interactive=False)
 
-                        with gr.Accordion("SmolVLM Settings", open=True):
+                        with gr.Accordion("VLM Captioner Settings", open=True):
+                            with gr.Row():
+                                vlm_model_dropdown = gr.Dropdown(
+                                    choices=VLM_MODELS,
+                                    value=smolvlm_defaults.get('vlm_model', VLM_MODELS[0]),
+                                    label="VLM Model"
+                                )
                             with gr.Row():
                                 caption_style = gr.Dropdown(
                                     choices=CAPTION_STYLE_OPTIONS,
-                                    value=smolvlm_defaults.get('caption_style', CAPTION_STYLE_OPTIONS[1] if len(CAPTION_STYLE_OPTIONS) > 1 else CAPTION_STYLE_OPTIONS[0] if CAPTION_STYLE_OPTIONS else "Moderately detailed"),
+                                    value=smolvlm_defaults.get('caption_style', "Moderately detailed"),
                                     label="Caption Style"
                                 )
                             gr.Markdown("Sampler Settings") 
@@ -1248,6 +1377,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
         submit_btn.click(fn=generate_caption_streaming,
                         inputs=[
                             input_image,
+                            vlm_model_dropdown,
                             caption_style,
                             max_tokens,
                             rep_penalty,
@@ -1365,18 +1495,24 @@ def main():
     parser.add_argument("--share", action="store_true", help="Create a public Gradio share link (HTTPS, enables clipboard paste)")
     args = parser.parse_args()
 
-    # Set model path to global SMOLVLM_MODEL_PATH
-    # required by generate_caption_streaming() and generate_caption_non_streaming()
-    global SMOLVLM_MODEL_PATH
-    SMOLVLM_MODEL_PATH = f"models/SmolVLM-500M-Instruct"
-    
-    
-    # Check SMOLVLM MODEL FILES ARE OKAY
+    # Populate VLM model path map
+    global VLM_MODEL_PATHS, SMOLVLM_MODEL_PATH
+    VLM_MODEL_PATHS = {name: f"models/{name}" for name in VLM_MODELS}
+    SMOLVLM_MODEL_PATH = VLM_MODEL_PATHS["SmolVLM-500M-Instruct"]
+
+    # SmolVLM is required — exit if missing
     filesokay = check_smolvlm_model_files(SMOLVLM_MODEL_PATH)
     if not filesokay:
         print(f"ERROR: Required model files not found at {SMOLVLM_MODEL_PATH}", color.MAGENTA)
         print("Please download the model files manually and try again.", color.MAGENTA)
-        sys.exit(1)  # Exit with error code 1        
+        sys.exit(1)
+
+    # Qwen3-VL models are optional — warn but don't exit
+    for qwen_name in ["Qwen3-VL-4B-Instruct-heretic", "Qwen3-VL-8B-Instruct-heretic"]:
+        qwen_path = VLM_MODEL_PATHS[qwen_name]
+        qwen_ok = check_qwen3vl_model_files(qwen_path)
+        if not qwen_ok:
+            print(f"⚠️  {qwen_name} not found at {qwen_path} — it will be unavailable.", color.YELLOW)
 
 
     SUPIR_PATH = "models/SUPIR"

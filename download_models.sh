@@ -92,6 +92,34 @@ else
 fi
 
 # =====================================================================
+# Qwen3-VL-4B-Instruct-heretic
+QWEN4B_REPO="coder3101/Qwen3-VL-4B-Instruct-heretic"
+QWEN4B_DIR="$BASE_DIR/Qwen3-VL-4B-Instruct-heretic"
+QWEN4B_SENTINEL="$QWEN4B_DIR/model.safetensors.index.json"
+
+if [ -f "$QWEN4B_SENTINEL" ]; then
+    echo "✓ Qwen3-VL-4B-Instruct-heretic already exists in $QWEN4B_DIR"
+else
+    echo "↓ Downloading Qwen3-VL-4B-Instruct-heretic..."
+    mkdir -p "$QWEN4B_DIR"
+    hf download $QWEN4B_REPO --local-dir "$QWEN4B_DIR"
+fi
+
+# =====================================================================
+# Qwen3-VL-8B-Instruct-heretic
+QWEN8B_REPO="coder3101/Qwen3-VL-8B-Instruct-heretic"
+QWEN8B_DIR="$BASE_DIR/Qwen3-VL-8B-Instruct-heretic"
+QWEN8B_SENTINEL="$QWEN8B_DIR/model.safetensors.index.json"
+
+if [ -f "$QWEN8B_SENTINEL" ]; then
+    echo "✓ Qwen3-VL-8B-Instruct-heretic already exists in $QWEN8B_DIR"
+else
+    echo "↓ Downloading Qwen3-VL-8B-Instruct-heretic..."
+    mkdir -p "$QWEN8B_DIR"
+    hf download $QWEN8B_REPO --local-dir "$QWEN8B_DIR"
+fi
+
+# =====================================================================
 
 # download if needed
 download_model() {

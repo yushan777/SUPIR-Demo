@@ -227,6 +227,37 @@ def check_clip_model_file(model_path):
     print(f"⚠️ CLIP1 model missing or corrupt - Try downloading again either manually or with the download script.", color.YELLOW)
     return False
 
+def check_qwen3vl_model_files(model_path):
+    """Check that key Qwen3-VL files are present (sharded safetensors, config, tokenizer)."""
+    print(f"Checking files in {model_path}", color.ORANGE)
+
+    required = ["config.json", "model.safetensors.index.json", "tokenizer.json", "tokenizer_config.json"]
+    missing = []
+    for fname in required:
+        fpath = os.path.join(model_path, fname)
+        if not os.path.isfile(fpath):
+            print(f"ⅹ Missing: {fname}", color.RED)
+            missing.append(fname)
+        else:
+            print(f"   └── {fname}", color.BRIGHT_GREEN)
+
+    # At least one shard must exist
+    import glob as _glob
+    shards = _glob.glob(os.path.join(model_path, "model-*.safetensors"))
+    if not shards:
+        print(f"ⅹ No model shard files (model-*.safetensors) found", color.RED)
+        missing.append("model-*.safetensors")
+    else:
+        for s in sorted(shards):
+            print(f"   └── {os.path.basename(s)}", color.BRIGHT_GREEN)
+
+    if missing:
+        print(f"⚠️ Qwen3-VL model files missing or corrupted at {model_path}", color.YELLOW)
+        return False
+    print(f"✓ All key Qwen3-VL model files found", color.GREEN)
+    return True
+
+# ==============================================================
 def check_for_any_sdxl_model(model_path):
     # Success if ANY .safetensors files exist
 
