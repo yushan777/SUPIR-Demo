@@ -915,7 +915,10 @@ def get_image_dimensions(img: Image.Image):
     width, height = img.size
     return f"Dimensions: {width} × {height}"
 
-def handle_image_upload(img: Image.Image, downscale_size):
+def apply_downscale(img: Image.Image, downscale_size):
+    """Apply downscale to an image based on the chosen target size.
+    Always works from the provided source image, so it is safe to call
+    repeatedly with different sizes without compounding quality loss."""
     if img is None:
         return None, ""
     if downscale_size and downscale_size != "None":
@@ -926,6 +929,28 @@ def handle_image_upload(img: Image.Image, downscale_size):
             img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
     width, height = img.size
     return img, f"Dimensions: {width} × {height}"
+
+def handle_image_upload(img: Image.Image, downscale_size):
+    """Called when a new image is uploaded.
+    Stores the original full-res image in state so that subsequent downscale
+    radio changes can always re-derive from the original rather than
+    re-downscaling an already-downscaled image."""
+    if img is None:
+        return None, None, ""
+    # Save the original before any downscaling
+    original = img.copy()
+    downscaled, dims = apply_downscale(img, downscale_size)
+    # Return: displayed image, original (stored in State), dimension label
+    return downscaled, original, dims
+
+def handle_downscale_change(downscale_size, original_image: Image.Image):
+    """Called when the downscale radio selection changes.
+    Re-applies the chosen downscale to the stored original image so quality
+    is never lost by chaining multiple downscale operations."""
+    if original_image is None:
+        # No image uploaded yet — nothing to do
+        return None, ""
+    return apply_downscale(original_image, downscale_size)
 
 # ====================================================================
 # ====================================================================
@@ -1095,6 +1120,11 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                             label="Downscale longest side to",
                             info="If the image's longest dimension exceeds the chosen size, it will be downscaled (aspect ratio preserved) on upload."
                         )
+                        # Holds the original uploaded image at full resolution.
+                        # Kept separate from the displayed input_image so that
+                        # changing the downscale radio can always re-derive from
+                        # the original without compounding quality loss.
+                        original_image_state = gr.State(value=None)
 
                         submit_btn = gr.Button("Generate Caption", variant="primary")
                         
@@ -1419,7 +1449,11 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
             outputs=[image_caption]
         )
 
-        input_image.upload(fn=handle_image_upload, inputs=[input_image, downscale_radio], outputs=[input_image, image_dims])
+        # On upload: downscale the image, store the original in state
+        input_image.upload(fn=handle_image_upload, inputs=[input_image, downscale_radio], outputs=[input_image, original_image_state, image_dims])
+
+        # On radio change: re-apply downscale from the stored original
+        downscale_radio.change(fn=handle_downscale_change, inputs=[downscale_radio, original_image_state], outputs=[input_image, image_dims])
 
         # ==============================================================================================
         # Tab 2 Event Handlers
