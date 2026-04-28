@@ -1117,8 +1117,8 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                         downscale_radio = gr.Radio(
                             choices=["None", "2048", "1024", "512"],
                             value="1024",
-                            label="Downscale longest side to",
-                            info="If the image's longest dimension exceeds the chosen size, it will be downscaled (aspect ratio preserved) on upload."
+                            label="Downscale longest side to:",
+                            info="aspect ratio maintained."
                         )
                         # Holds the original uploaded image at full resolution.
                         # Kept separate from the displayed input_image so that
@@ -1169,6 +1169,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                                                    elem_id="text_box",
                                                    placeholder="Can be left blank but captions nearly always produce better SUPIR results." \
                                                    "You can also edit the caption after it has been generated.")
+                        copy_caption_btn = gr.Button("Copy Caption to Clipboard", size="sm")
                 
 
                 gr.Markdown("""    
@@ -1447,6 +1448,31 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                             top_p_slider
                         ],
             outputs=[image_caption]
+        )
+
+        copy_caption_btn.click(
+            fn=None,
+            inputs=[],
+            outputs=[],
+            js="""
+            () => {
+                const el = document.querySelector('#text_box textarea');
+                const text = el ? el.value : '';
+                if (!text) return [];
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.cssText = 'position:fixed;opacity:0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+                return [];
+            }
+            """
         )
 
         # On upload: downscale the image, store the original in state
