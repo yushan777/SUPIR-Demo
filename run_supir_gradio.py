@@ -311,7 +311,6 @@ def _run_streaming_generation(model, processor, inputs_data, generation_args, de
         yield generated
 
     thread.join()
-    return generated
 
 
 def generate_caption_streaming(
@@ -626,8 +625,7 @@ def process_supir(
     
     # Check if input_image is provided, if not, quit and show msg
     if input_image is None:
-        # Return a tuple with None for the image and an error message
-        return None, "Please upload an image first in Tab 1."
+        return None, "Please upload an image first in Tab 1.", gr.update()
         
     #     
     # ============================================================
@@ -1117,7 +1115,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                         downscale_radio = gr.Radio(
                             choices=["None", "2048", "1024", "512"],
                             value="1024",
-                            label="Downscale longest side to:",
+                            label="Downscale longest side to (if larger):",
                             info="aspect ratio maintained."
                         )
                         # Holds the original uploaded image at full resolution.
@@ -1575,7 +1573,6 @@ def main():
         torch.cuda.empty_cache()
         torch.cuda.reset_peak_memory_stats()
         print("CUDA cache cleared.")
-        import gc
         gc.collect()
 
     # Parse CLI arguments (can be passed manually as `argv` for testing)
@@ -1609,18 +1606,21 @@ def main():
     if not filesokay:
         print(f"ERROR: Required SUPIR files not found for at {SUPIR_PATH}", color.MAGENTA)
         print("Please download the model files manually and try again.", color.MAGENTA)
+        sys.exit(1)
 
     CLIP1_PATH = "models/CLIP1"
     filesokay = check_clip_model_file(CLIP1_PATH)
     if not filesokay:
         print(f"ERROR: Required CLIP1 file not found for at {CLIP1_PATH}", color.MAGENTA)
         print("Please download the model files manually and try again.", color.MAGENTA)
+        sys.exit(1)
 
     CLIP2_PATH = "models/CLIP2"
     filesokay = check_clip_model_file(CLIP2_PATH)
     if not filesokay:
         print(f"ERROR: Required CLIP2 file not found for at {CLIP2_PATH}", color.MAGENTA)
         print("Please download the model files manually and try again.", color.MAGENTA)
+        sys.exit(1)
 
     # for sdxl we will just check for any safetensors file (since any can be used)
     SDXL_PATH = "models/SDXL"
@@ -1628,6 +1628,7 @@ def main():
     if not filesokay:
         print(f"ERROR: No sdxl safetensors file not found for at {SDXL_PATH}", color.MAGENTA)
         print("Please download your preferred sdxl model and try again.", color.MAGENTA)
+        sys.exit(1)
     
     # Attach to Gradio (if needed)
     create_launch_gradio(args.listen, args.port, args.share)

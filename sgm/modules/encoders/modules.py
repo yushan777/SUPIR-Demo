@@ -495,7 +495,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             # Load weights with relaxed strict checking
             missing, unexpected = self.transformer.load_state_dict(state_dict, strict=False)
             if missing:
-                print(f"Missing keys when loading CLIP: {len(missing)} keys", color.RED)
+                print(f"Missing keys when loading CLIP: {len(missing)} keys", color.BRIGHT_ORANGE)
             if unexpected:
                 print(f"Unexpected keys when loading CLIP: {len(unexpected)} keys.", color.BRIGHT_ORANGE)
                 print(f" - This is because file contains params for both the text & vision parts of CLIP, but only the text model component is being initialized.", color.BRIGHT_ORANGE)
