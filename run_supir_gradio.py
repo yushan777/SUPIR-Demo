@@ -991,6 +991,17 @@ def load_app_defaults():
 
 def create_launch_gradio(listen_on_network, port=None, share=False):
 
+    # Load notification sound as base64 data URL (plays in browser, works cross-network)
+    import base64
+    _mp3_path = os.path.abspath("notification0.mp3")
+    if os.path.isfile(_mp3_path):
+        with open(_mp3_path, "rb") as _f:
+            _notification_data_url = "data:audio/mpeg;base64," + base64.b64encode(_f.read()).decode("utf-8")
+        print(f"Notification sound loaded: {_mp3_path}")
+    else:
+        _notification_data_url = None
+        print("notification0.mp3 not found — sound notifications disabled.", color.ORANGE)
+
     # Load defaults from JSON file
     app_defaults = load_app_defaults()
     smolvlm_defaults = app_defaults.get('smolvlm_settings', {})
@@ -1348,6 +1359,8 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
 
                         status_message = gr.Textbox(label="", interactive=False)
 
+                        notification_sound_cb = gr.Checkbox(value=True, label="Play notification sound when done")
+
                          
 
                 # # additional prompt and standard neg. prompt
@@ -1510,7 +1523,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
         )        
 
         # Then process with the seed list (multiple times if batch_size > 1)
-        seed_updated.then(
+        processing_done = seed_updated.then(
             fn=process_supir_batch,
             inputs=[
                 seed_list_state,  # Use the seed list instead of single seed
@@ -1524,11 +1537,11 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                 upscale_to_width,
                 upscale_to_height,
                 skip_denoise_stage,
-                loading_half_params,  
-                ae_dtype,            
-                diff_dtype,          
-                use_tile_vae, 
-                encoder_tile_size, 
+                loading_half_params,
+                ae_dtype,
+                diff_dtype,
+                use_tile_vae,
+                encoder_tile_size,
                 decoder_tile_size,
                 num_of_workers,
                 edm_steps,
@@ -1537,15 +1550,27 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                 cfg_scale_start,
                 cfg_scale_end,
                 cfg_sweep_direction,
-                control_scale_start, 
-                control_scale_end, 
+                control_scale_start,
+                control_scale_end,
                 restoration_scale,
                 sampler_tile_size,
                 sampler_tile_stride,
-                a_prompt, 
+                a_prompt,
                 n_prompt
-            ],        
-            outputs=[output_slider, status_message, tabs] 
+            ],
+            outputs=[output_slider, status_message, tabs]
+        )
+
+        # Play notification sound in the browser when processing finishes
+        if _notification_data_url:
+            _audio_js = f"(play) => {{ if(play) {{ try {{ new Audio('{_notification_data_url}').play(); }} catch(e) {{ console.warn('Notification audio failed:', e); }} }} }}"
+        else:
+            _audio_js = "(play) => {}"
+        processing_done.then(
+            fn=None,
+            inputs=[notification_sound_cb],
+            outputs=[],
+            js=_audio_js
         )
         
         # ==============================================================================================
