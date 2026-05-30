@@ -1310,7 +1310,7 @@ def create_launch_gradio(listen_on_network, port=None, share=False):
                             gr.Markdown("CFG Guidance")
                             with gr.Row():
                                 cfg_scale_start = gr.Slider(minimum=0.0, maximum=10.0, value=supir_defaults.get('cfg_scale_start', 2.0), step=0.1, label="CFG Scale Start")
-                                cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=supir_defaults.get('cfg_scale_end', 4.0), step=0.1, label="CFG Scale End")
+                                cfg_scale_end = gr.Slider(minimum=1.0, maximum=15.0, value=supir_defaults.get('cfg_scale_end', 2.5), step=0.1, label="CFG Scale End")
                             with gr.Row():
                                 cfg_scale_sweep = gr.Checkbox(value=False, label="CFG Sweep", info="when enabled seed is fixed and batch is set to 1")
                                 cfg_sweep_step = gr.Slider(minimum=0.5, maximum=1, value=1, step=0.5, label="Step") 
