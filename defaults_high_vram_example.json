@@ -27,7 +27,7 @@
     "s_churn": 5,
     "s_noise": 1.003,
     "cfg_scale_start": 2.0,
-    "cfg_scale_end": 4.0,
+    "cfg_scale_end": 2.5,
     "control_scale_start": 0.9,
     "control_scale_end": 0.9,
     "restoration_scale": 0,
